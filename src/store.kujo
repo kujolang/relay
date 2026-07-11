@@ -35,6 +35,46 @@ func index_record(state_root, run_id, state) {
     }
 }
 
+func index_lock_path(state_root) { return state_root + "/.index.lock" }
+func index_lock_owner_path(state_root) { return index_lock_path(state_root) + "/owner.json" }
+
+func acquire_index_lock(state_root) {
+    lock_path := index_lock_path(state_root)
+    if (file_exists(lock_path) || path_is_dir(lock_path)) && path_is_symlink(lock_path) {
+        return {"ok": false, "error": "Run index lock path must not be a symbolic link"}
+    }
+    if path_is_dir(lock_path) {
+        owner := read_json_or(index_lock_owner_path(state_root), {})
+        acquired_at := dict_get_or(owner, "acquired_at_ms", 0)
+        if type(acquired_at) == "int" && acquired_at > 0 && current_timestamp() - acquired_at > 60000 {
+            if file_exists(index_lock_owner_path(state_root)) { delete_file(index_lock_owner_path(state_root)) }
+            os_rmdir(lock_path)
+        } else {
+            return {"ok": false, "error": "Run index is busy"}
+        }
+    }
+    token := sha256(state_root + ":" + to_string(current_timestamp()) + ":" + to_string(random_int(1000, 999999)))
+    try { create_dir(lock_path) } except err { return {"ok": false, "error": "Unable to acquire run index lock"} }
+    owner := {"token": token, "acquired_at_ms": current_timestamp()}
+    if write_json(index_lock_owner_path(state_root), owner) == false {
+        os_rmdir(lock_path)
+        return {"ok": false, "error": "Unable to persist run index lock owner"}
+    }
+    return {"ok": true, "token": token}
+}
+
+func release_index_lock(state_root, token) {
+    lock_path := index_lock_path(state_root)
+    if path_is_dir(lock_path) == false { return {"ok": true, "released": false} }
+    owner := read_json_or(index_lock_owner_path(state_root), {})
+    if string_or(dict_get_or(owner, "token", ""), "") != string_or(token, "") {
+        return {"ok": false, "error": "Run index lock token mismatch"}
+    }
+    if file_exists(index_lock_owner_path(state_root)) { delete_file(index_lock_owner_path(state_root)) }
+    os_rmdir(lock_path)
+    return {"ok": true, "released": true}
+}
+
 func rebuild_run_index(state_root) {
     index := {}
     runs_root := state_root + "/runs"
@@ -52,6 +92,8 @@ func rebuild_run_index(state_root) {
 
 func cached_index_is_safe(state_root, index) {
     if type(index) != "dict" { return false }
+    index_path := state_root + "/index.json"
+    if path_is_symlink(index_path) || (path_exists(index_path) && file_size(index_path) > 8388608) { return false }
     for run_id in keys(index) {
         if safe_run_key(run_id) == false { return false }
         record := index[run_id]
@@ -72,6 +114,10 @@ func run_directories_match_index(state_root, index) {
         if safe_run_key(name) && path_is_dir(run_dir) && path_is_symlink(run_dir) == false {
             count = count + 1
             if has_key(index, name) == 0 { return false }
+            state := read_json_or(run_state_path(state_root, name), null)
+            expected := index_record(state_root, name, state)
+            record := index[name]
+            if string_or(dict_get_or(record, "mission_id", ""), "") != expected["mission_id"] || string_or(dict_get_or(record, "status", ""), "") != expected["status"] || string_or(dict_get_or(record, "updated_at", ""), "") != expected["updated_at"] { return false }
         }
     }
     return count == len(index)
@@ -83,16 +129,23 @@ func load_run_index(state_root) {
         return cached
     }
     rebuilt := rebuild_run_index(state_root)
-    write_json(state_root + "/index.json", rebuilt)
+    persist_run_index(state_root, rebuilt)
     return rebuilt
 }
 
 func persist_run_index(state_root, index) {
-    write_json(state_root + "/index.json", index)
-    return index
+    lock := acquire_index_lock(state_root)
+    if lock["ok"] == false { return index }
+    authoritative := rebuild_run_index(state_root)
+    write_json(state_root + "/index.json", authoritative)
+    release_index_lock(state_root, lock["token"])
+    return authoritative
 }
 
 export safe_run_key := safe_run_key
+export index_lock_path := index_lock_path
+export acquire_index_lock := acquire_index_lock
+export release_index_lock := release_index_lock
 export rebuild_run_index := rebuild_run_index
 export load_run_index := load_run_index
 export persist_run_index := persist_run_index

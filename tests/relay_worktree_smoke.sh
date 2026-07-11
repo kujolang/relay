@@ -24,6 +24,16 @@ run_dir="$(printf '%s' "$result" | ruby -rjson -e 'd=JSON.parse(STDIN.read); pri
 test -f "$run_dir/workspace/WORKTREE_OUTPUT.txt"
 test ! -e "$WORK/WORKTREE_OUTPUT.txt"
 test "$(git -C "$WORK" rev-parse HEAD)" = "$baseline"
+state_path="$run_dir/state.json"
+cp "$state_path" "$state_path.backup"
+ruby -rjson -e 'path=ARGV.fetch(0); data=JSON.parse(File.read(path)); data["workspace"]["path"]="/tmp/relay-forbidden-worktree"; File.write(path, JSON.generate(data))' "$state_path"
+set +e
+tampered_cleanup="$($KUJO run "$ROOT/main.kujo" -- missions cleanup "$(printf '%s' "$result" | ruby -rjson -e 'd=JSON.parse(STDIN.read); print d["run"]["run_id"]')" --confirm --json 2>&1)"
+tampered_rc=$?
+set -e
+test "$tampered_rc" -ne 0
+printf '%s' "$tampered_cleanup" | grep -q 'run-owned workspace'
+mv "$state_path.backup" "$state_path"
 set +e
 cleanup="$($KUJO run "$ROOT/main.kujo" -- missions cleanup "$(printf '%s' "$result" | ruby -rjson -e 'd=JSON.parse(STDIN.read); print d["run"]["run_id"]')" --json 2>&1)"
 rc=$?

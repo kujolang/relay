@@ -63,6 +63,20 @@ func shell_quote_single(value) {
     return "'" + replace(to_string(value), "'", "'\"'\"'") + "'"
 }
 
+# Mission commands are intentionally tokenized into argv and executed without a
+# shell. Callers that need shell syntax are rejected by policy rather than
+# being silently reintroduced through `/bin/sh -lc`.
+func command_args(command) {
+    text := trim(to_string(command))
+    if text == "" { return [] }
+    argv := []
+    for part in split(text, " ") {
+        token := trim(part)
+        if token != "" { argv := push(argv, token) }
+    }
+    return argv
+}
+
 func safe_env_name(value) {
     name := trim(to_string(value))
     if name == "" || starts_with(name, "PATH") || name == "HOME" || name == "PWD" || name == "SHELL" { return false }
@@ -136,6 +150,9 @@ func redact_text(value) {
     text := replace(text, "GOOGLE_API_KEY=", "GOOGLE_API_KEY=[REDACTED]")
     text := replace(text, "AZURE_OPENAI_API_KEY=", "AZURE_OPENAI_API_KEY=[REDACTED]")
     text := replace(text, "RELAY_API_KEY=", "RELAY_API_KEY=[REDACTED]")
+    text := regex_replace(text, "(?i)Bearer[[:space:]]+[^[:space:]]+", "Bearer [REDACTED]")
+    text := regex_replace(text, "(?i)(?:x-watchdog-token|x-watchdog-proxy-token|authorization)[[:space:]]*[:=][[:space:]]*[^[:space:],;]+", "[REDACTED_CREDENTIAL]")
+    text := regex_replace(text, "(?i)[A-Za-z0-9_-]*(?:TOKEN|KEY|SECRET|PASSWORD)[A-Za-z0-9_-]*[[:space:]]*=[[:space:]]*[^[:space:],;]+", "[REDACTED_CREDENTIAL]")
     text := replace(text, "sk-", "[REDACTED_KEY]-")
     return text
 }
@@ -157,6 +174,7 @@ export now_iso := now_iso
 export safe_id := safe_id
 export safe_json := safe_json
 export shell_quote_single := shell_quote_single
+export command_args := command_args
 export safe_env_name := safe_env_name
 export write_text_atomic := write_text_atomic
 export process_options := process_options

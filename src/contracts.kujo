@@ -1,10 +1,24 @@
-from src.common import dict_get_or, string_or, array_or, now_iso
+from src.common import dict_get_or, string_or, array_or, now_iso, safe_json
 
 export RELAY_VERSION := "0.1.0"
 export EVENT_CONTRACT := "AgentEvent-compatible-v1"
 
+func event_integrity_input(item) {
+    return to_string(dict_get_or(item, "type", "")) + "|" +
+        to_string(dict_get_or(item, "kind", "")) + "|" +
+        to_string(dict_get_or(item, "run_id", "")) + "|" +
+        to_string(dict_get_or(item, "session_id", "")) + "|" +
+        to_string(dict_get_or(item, "step_id", "")) + "|" +
+        to_string(dict_get_or(item, "agent_id", "")) + "|" +
+        to_string(dict_get_or(item, "event_id", "")) + "|" +
+        to_string(dict_get_or(item, "timestamp", "")) + "|" +
+        to_string(dict_get_or(item, "parent_event_id", "")) + "|" +
+        safe_json(dict_get_or(item, "payload", {})) + "|" +
+        safe_json(dict_get_or(item, "metadata", {}))
+}
+
 func event(kind, mission_id, run_id, step_id, agent_id, payload, parent_event_id) {
-    return {
+    item := {
         "type": "AgentEvent",
         "kind": kind,
         "run_id": run_id,
@@ -20,6 +34,13 @@ func event(kind, mission_id, run_id, step_id, agent_id, payload, parent_event_id
             "contract_version": EVENT_CONTRACT
         }
     }
+    item["integrity_sha256"] := sha256(event_integrity_input(item))
+    return item
+}
+
+func event_integrity_valid(item) {
+    expected := string_or(dict_get_or(item, "integrity_sha256", ""), "")
+    return expected != "" && expected == sha256(event_integrity_input(item))
 }
 
 func run_state(mission_id, workflow, repo, run_id) {
@@ -60,5 +81,6 @@ func agent_profile(id, name, mandate, model, tools, authority) {
 }
 
 export event := event
+export event_integrity_valid := event_integrity_valid
 export run_state := run_state
 export agent_profile := agent_profile

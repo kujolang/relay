@@ -79,8 +79,8 @@ func path_is_within_workspace(root, requested) {
 func command_is_allowed(command, policy) {
     value := string_or(command, "")
     if value == "" { return false }
-    if contains_any(value, ["rm -rf", "sudo", "mkfs", "dd if=", "force-push", "--force", "reset --hard", "clean -f", "credential", ".env", ".ssh", "id_rsa", "git push", "git config", "git remote", "git checkout", "git switch", "git reset", "git clean"]) { return false }
-    if contains_any(value, [";", "&&", "||", "|", "`", "$", ">", "<", "~", "*", "?", "{", "}", "\\", "\n", "\r"]) { return false }
+    if contains_any(value, ["rm -rf", "sudo", "mkfs", "dd if=", "force-push", "--force", "reset --hard", "clean -f", "credential", ".env", ".ssh", "id_rsa", "git push", "git config", "git remote", "git checkout", "git switch", "git reset", "git clean", "--ext-diff", "--textconv", "--upload-pack", "--exec-path", "--output", "--config", " --config-env"]) { return false }
+    if contains_any(value, [";", "&&", "||", "|", "&", "`", "$", ">", "<", "~", "*", "?", "{", "}", "'", "\"", "\\", "\n", "\r", "\t"]) { return false }
     allowed := dict_get_or(policy, "allowed_commands", ["git", "kujo"])
     for prefix in allowed {
         if prefix == "git" && (starts_with(value, "git status") || starts_with(value, "git diff") || starts_with(value, "git rev-parse") || starts_with(value, "git log") || starts_with(value, "git show")) { return true }
