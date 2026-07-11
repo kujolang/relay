@@ -12,10 +12,11 @@
 - Explicit write approvals, realpath workspace checks, command injection deny rules, redacted subprocess evidence, packet digest metadata, bounded preflight, and real pause-after-plan/resume.
 - Fail-closed live Watchdog routing, explicit subprocess environments, configurable budgets, operator diagnostics/probes, detached worktree creation with confirmed cleanup, opt-in authenticated Watchdog health/config/request-correlation verification through a narrow Kujo HTTP adapter, shell-free command execution, a locked rebuildable index, and AgentEvent integrity hashes.
 - A bounded Agents SDK Tool Registry bridge with approval-provider enforcement, direct Relay policy-worker execution, and one isolated fixture mission that creates a real repository artifact.
+- Fixed subprocess executable paths, workspace-bound worker capabilities, validated Agent SDK tool-call budgets, integrity-chain verification for `runs events`, and versioned `runs export` bundles.
 
 ## Deferred
 
-Live Ollama Cloud proof, a live Watchdog-backed mission against a real external provider, provider-driven model tool planning, richer Agents SDK runner/tool-result artifact integration, Dispatch workflow import, dynamic agent discovery, full workcell isolation/rollback/recovery, CaseFile failure bundles, Redact integration, MCP adapter, adaptive routing, Capsule A/B scoring, durable concurrent storage, and ShipCheck/Concord release gates. Local real-Watchdog/stub-provider correlation and one fixture mission through the Agents SDK Tool Registry are proven. See `docs/next-session-enhancement-backlog-2026-07-11-v6.md`.
+Live Ollama Cloud proof, a live Watchdog-backed mission against a real external provider, provider-driven model tool planning, richer Agents SDK runner/tool-result artifact integration, Dispatch workflow import, dynamic agent discovery, full workcell isolation/rollback/recovery, CaseFile failure bundles, Redact integration, MCP adapter, adaptive routing, Capsule A/B scoring, durable concurrent storage, signed export, and ShipCheck/Concord release gates. Local real-Watchdog/stub-provider correlation, one fixture mission through the Agents SDK Tool Registry, and integrity-verified export are proven. See `docs/next-session-enhancement-backlog-2026-07-11-v7.md`.
 
 ## Dependency order
 

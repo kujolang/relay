@@ -53,6 +53,7 @@ The correct posture is: **local-first hardened alpha / ecosystem showcase**. The
 | Event integrity | AgentEvent-compatible JSONL records carry deterministic SHA-256 integrity fields and tamper validation | `src/contracts.kujo`, contract smoke |
 | Worktree cleanup authority | Cleanup rejects tampered paths and requires the run-owned workspace target | `src/runtime.kujo`, `tests/relay_worktree_smoke.sh` |
 | Agents SDK tools | A Kujo bridge registers `relay.write_file` and `relay.run_command`, applies Agents SDK approval providers, and delegates to Relay's capability-bound policy worker | `src/agent_bridge.kujo`, `src/runtime.kujo`, `tests/relay_agents_tool_smoke.sh` |
+| Process and evidence boundary | Fixed subprocess PATH, workspace-bound worker capabilities, bounded tool-call budgets, event-chain verification, and versioned run export | `src/common.kujo`, `src/agent_bridge.kujo`, `src/contracts.kujo`, `src/cli.kujo`, store/tool smokes |
 
 ## Remaining enterprise gaps
 
@@ -63,7 +64,7 @@ The correct posture is: **local-first hardened alpha / ecosystem showcase**. The
 3. Authenticated service/MCP boundary with identity, tenant, role, and approval mapping.
 4. Full workcell isolation, rollback, and crash recovery beyond the now-proven detached Git worktree mode and confirmed cleanup.
 5. Provider-driven Agents SDK tool planning and richer tool-result/artifact integration; a bounded Tool Registry and approval-provider bridge plus one isolated fixture mission are now proven.
-6. Durable run store with database-backed retention/recovery, multi-host concurrency, and signed/tamper-evident export; the local cache now has an atomic lock and event hashes.
+6. Durable run store with database-backed retention/recovery, multi-host concurrency, and signed export; local tamper-evident event verification and unsigned versioned export are now proven.
 
 ### P1 — Required for broad enterprise usefulness
 
@@ -103,6 +104,18 @@ creates a repository file through `relay.write_file`, records the Tool Registry
 event in the RunLedger-backed run, and rejects an unapproved write without
 creating the file. This is fixture-model execution evidence, not proof of
 provider-driven model tool planning or universal enterprise isolation.
+
+## Seventh review slice — executable and export boundaries
+
+Relay now resolves bounded subprocesses through a fixed system PATH rather than
+the caller's arbitrary PATH. Agents SDK worker capabilities bind the run,
+session, workspace, and worker purpose, while tool calls are limited by both a
+mission ceiling and a 16-call hard ceiling. Agent-created files are now part of
+the deterministic Eval suite. Machine callers can use `runs events` and
+`runs export`; both verify event hashes, parent ordering, and duplicate IDs,
+and export refuses tampered logs. These are local hardening improvements, not
+proof of external-provider availability, signed exports, durable multi-host
+storage, or universal enterprise readiness.
 
 ## Release recommendation
 

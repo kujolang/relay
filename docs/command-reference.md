@@ -34,6 +34,7 @@ relay missions create [spec.json] [--output <path>] [--json]
 relay missions run <spec.json> [--fixture] [--pause-after-plan] [--skip-agent-smoke] [--json]
 relay missions inspect|pause|resume|cleanup|report <run-id> [--json]
 relay runs list|rebuild|inspect|events|changes|evaluations <run-id> [--json]
+relay runs export <run-id> [--output <path>] [--json]
 relay tools execute --json (internal capability-bound worker callback)
 relay benchmark run <repository> [--json]
 ```
@@ -52,7 +53,7 @@ delegates to Relay's policy executor. It does not grant the Agents SDK direct
 filesystem or shell authority. Provider-generated tool planning, interactive
 approvals, and authenticated remote invocation are not yet enabled.
 
-Budget fields are non-negative integers: `max_steps`, `max_repairs`, and `max_tokens`; `max_output_bytes` and `max_write_bytes` must be positive. Output and write budgets are capped at 8 MiB per mission; command timeouts must be between 1 ms and 10 minutes. A budget failure is recorded as a failed run with a typed failure class; it is never reported as completed.
+Budget fields are non-negative integers: `max_steps`, `max_repairs`, and `max_tokens`; `max_tool_calls`, `max_output_bytes`, and `max_write_bytes` must be positive. Agents SDK tool calls are capped at 16 per mission and the configured `max_tool_calls` limit is enforced inside the worker. Output and write budgets are capped at 8 MiB per mission; command timeouts must be between 1 ms and 10 minutes. A budget failure is recorded as a failed run with a typed failure class; it is never reported as completed.
 
 ## JSON evidence
 
@@ -65,6 +66,11 @@ Set `workspace_mode: "worktree"` to have Relay create a detached worktree from t
 `runs list` validates the cached `.relay/index.json` against authoritative per-run `state.json` directories and rebuilds it when it is malformed, unsafe, stale, oversized, symlinked, or incomplete. Index refreshes use an atomic lock directory; `runs rebuild` forces that recovery path. The index is a cache, not the source of truth.
 
 Each AgentEvent-compatible JSONL record includes a deterministic `integrity_sha256` field covering its identity, parent, payload, and metadata. The hash detects accidental or unauthorized record mutation; signed export and durable retention remain future work.
+
+`runs events` parses and verifies the complete event chain before returning it.
+`runs export` emits a versioned JSON bundle containing run state, verified
+events, changes, evaluations, and the final report; it refuses to export a
+tampered or malformed event log.
 
 `chat --stream` emits normalized JSONL `delta` and `done` events. Relay forwards the stream option through the AI SDK bridge; live Watchdog proxy authorization is supplied through `RELAY_WATCHDOG_PROXY_TOKEN` and is never included in the model payload.
 

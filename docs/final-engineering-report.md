@@ -27,6 +27,7 @@ Passed locally with the pinned Kujo release runtime:
 - pause/resume path persisted a resumable checkpoint and completion report
 - isolated mission through the Agents SDK Tool Registry created a real file and
   approval denial created no file
+- event-chain tamper rejection and versioned `runs export` verification passed
 
 Not proven in this local session: live Ollama Cloud or another external provider, multi-model Capsule A/B implementation scoring, Paperclip/Hermes invocation, and container/microVM-grade workcell isolation. A local real Watchdog process forwarding to a Kujo stub provider is proven, including token-authenticated proxy/API calls, persisted correlation lookup, and secret non-leakage. Detached Git worktree provisioning and explicit cleanup are proven locally, while rollback-on-failure and crash recovery remain open. These are known limitations, not successful external integrations.
 
@@ -84,10 +85,22 @@ provider-generated tool planning, richer artifact receipts, authenticated
 service mode, and stronger workcell isolation remain open. The next handoff is
 `docs/next-session-enhancement-backlog-2026-07-11-v6.md`.
 
+## Seventh 2026-07-11 review
+
+This review fixed subprocess executable resolution to a known system PATH,
+bound Agents SDK worker capabilities to the run/session/workspace scope, added
+validated tool-call ceilings, and extended deterministic acceptance checks to
+Agent SDK-created files. `runs events` now parses and verifies hashes, parent
+ordering, and duplicate IDs; `runs export` produces a versioned machine bundle
+and refuses tampered event logs. The root audit still finds only the necessary
+Kujo entrypoint, package manifest, README, and thin launcher at the top level;
+runtime code remains under `src/`. The next handoff is
+`docs/next-session-enhancement-backlog-2026-07-11-v7.md`.
+
 ## Repository handoff
 
-The current Relay implementation includes the bounded Agents SDK tool mission
-slice in `8ebac07`, with the review documentation in the follow-up commit.
+The current Relay implementation includes the executable and evidence-boundary
+hardening in `1e98aef`, with the review documentation in the follow-up commit.
 Both are intended to be pushed to `origin/main`, and the tree should remain
 clean. The next session should preserve this evidence boundary rather than
 widening claims.
