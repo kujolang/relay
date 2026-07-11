@@ -2,7 +2,7 @@
 
 Kujo Relay is a Kujo-native composition and execution layer for bounded agent missions. The CLI is a thin wrapper over reusable runtime modules. It composes existing AI SDK, Agents SDK, PackWrite, RunLedger, ChangeBucket, Eval, Capsule, and Chain of Command contracts instead of replacing them.
 
-Status: `0.1.0` hardened local alpha. Offline execution, bounded repository work, resumable checkpoints, packet integrity metadata, redacted subprocess evidence, explicit environment isolation, budgets, deterministic evaluation, detached worktree missions, self-healing run-index rebuilds, and real local Watchdog correlation are verified locally. Relay is not yet enterprise-production-ready or universally useful: external live-provider proof, authenticated multi-tenant operation, full workcell isolation/recovery, full Agents SDK tool execution, durable concurrent storage, and release gates remain open.
+Status: `0.1.0` hardened local alpha. Offline execution, bounded repository work, resumable checkpoints, packet integrity metadata, redacted subprocess evidence, explicit environment isolation, shell-free command execution, budgets, deterministic evaluation, detached worktree missions, locked/self-healing run-index rebuilds, integrity-sealed events, and real local Watchdog correlation are verified locally. Relay is not yet enterprise-production-ready or universally useful: external live-provider proof, authenticated multi-tenant operation, full workcell isolation/recovery, full Agents SDK tool execution, durable concurrent storage, and release gates remain open.
 
 ## Enterprise-readiness position
 
@@ -67,7 +67,7 @@ Implemented and truthful in this slice:
 
 ## Safety boundary
 
-Mission actions are declarative and policy checked. Write-enabled missions require `allow_writes: true` plus `approval.approved: true`; paths must remain inside the real workspace and cannot traverse `.git`, `.env`, or symlinked parents. Commands must match an explicit allowlist and deny shell expansion, metacharacters, destructive Git operations, credential paths, force-push, and traversal patterns. Subprocesses run with an explicit bounded environment instead of inheriting the host environment wholesale; stdout/stderr and command receipts are redacted before evidence persistence. Relay does not expose unrestricted shell, root, credential files, publishing, or production access.
+Mission actions are declarative and policy checked. Write-enabled missions require `allow_writes: true` plus `approval.approved: true`; paths must remain inside the real workspace and cannot traverse `.git`, `.env`, or symlinked parents. Commands must match an explicit allowlist, reject shell syntax, and execute as direct argv without `/bin/sh`; destructive Git operations, credential paths, force-push, and traversal patterns are denied. Subprocesses run with an explicit bounded environment instead of inheriting the host environment wholesale; stdout/stderr and command receipts are redacted before evidence persistence. Relay does not expose unrestricted shell, root, credential files, publishing, or production access.
 
 ## Repository map
 
@@ -76,7 +76,7 @@ Mission actions are declarative and policy checked. Write-enabled missions requi
 - `src/adapters.kujo`: subprocess adapters to existing Kujo tools and AI SDK
 - `src/contracts.kujo`: Relay run and AgentEvent-compatible contracts
 - `src/policy.kujo`: authority and failure classification
-- `src/store.kujo`: validated/rebuildable run-index cache
+- `src/store.kujo`: locked, validated/rebuildable run-index cache
 - `src/registry.kujo`: Chain of Command role registry
 - `docs/`: discovery report, integration matrix, ADRs, plan, final report
 - `tests/relay_contract_tests.kujo`: deterministic contract tests
@@ -111,4 +111,4 @@ bash tests/relay_watchdog_real_smoke.sh
 git diff --check
 ```
 
-For the full integration evidence boundary and deferred enterprise work, see [`docs/enterprise-readiness-review-2026-07-11.md`](docs/enterprise-readiness-review-2026-07-11.md), [`docs/command-reference.md`](docs/command-reference.md), and the current [`docs/next-session-enhancement-backlog-2026-07-11-v4.md`](docs/next-session-enhancement-backlog-2026-07-11-v4.md).
+For the full integration evidence boundary and deferred enterprise work, see [`docs/enterprise-readiness-review-2026-07-11.md`](docs/enterprise-readiness-review-2026-07-11.md), [`docs/command-reference.md`](docs/command-reference.md), and the current [`docs/next-session-enhancement-backlog-2026-07-11-v5.md`](docs/next-session-enhancement-backlog-2026-07-11-v5.md).

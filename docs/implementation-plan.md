@@ -10,11 +10,11 @@
 - RunLedger start/finish receipt, ChangeBucket JSON, Eval JSON, AgentEvent JSONL, resumable state, Markdown/JSON report.
 - Contract tests, security tests, CLI smoke tests, and fixture end-to-end evidence.
 - Explicit write approvals, realpath workspace checks, command injection deny rules, redacted subprocess evidence, packet digest metadata, bounded preflight, and real pause-after-plan/resume.
-- Fail-closed live Watchdog routing, explicit subprocess environments, configurable budgets, operator diagnostics/probes, detached worktree creation with confirmed cleanup, and opt-in authenticated Watchdog health/config/request-correlation verification through a narrow Kujo HTTP adapter.
+- Fail-closed live Watchdog routing, explicit subprocess environments, configurable budgets, operator diagnostics/probes, detached worktree creation with confirmed cleanup, opt-in authenticated Watchdog health/config/request-correlation verification through a narrow Kujo HTTP adapter, shell-free command execution, a locked rebuildable index, and AgentEvent integrity hashes.
 
 ## Deferred
 
-Live Ollama Cloud proof, a live Watchdog-backed mission against a real external provider, full Agents SDK runner/tool registry integration, Dispatch workflow import, dynamic agent discovery, full workcell isolation/rollback/recovery, CaseFile failure bundles, Redact integration, MCP adapter, adaptive routing, model-generated tool calls, Capsule A/B scoring, durable concurrent storage, and ShipCheck/Concord release gates. Local real-Watchdog and stub-provider correlation proof is now present. See `docs/next-session-enhancement-backlog-2026-07-11-v4.md`.
+Live Ollama Cloud proof, a live Watchdog-backed mission against a real external provider, full Agents SDK runner/tool registry integration, Dispatch workflow import, dynamic agent discovery, full workcell isolation/rollback/recovery, CaseFile failure bundles, Redact integration, MCP adapter, adaptive routing, model-generated tool calls, Capsule A/B scoring, durable concurrent storage, and ShipCheck/Concord release gates. Local real-Watchdog and stub-provider correlation proof is now present. See `docs/next-session-enhancement-backlog-2026-07-11-v5.md`.
 
 ## Dependency order
 

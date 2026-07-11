@@ -48,6 +48,10 @@ The correct posture is: **local-first hardened alpha / ecosystem showcase**. The
 | Run-index resilience | Per-run `state.json` is authoritative; malformed or incomplete index caches rebuild deterministically | `src/store.kujo`, store smoke |
 | Resource bounds | Mission output/write budgets and command timeout bounds fail closed; truncation remains explicit | `src/runtime.kujo`, output-budget smoke |
 | Watchdog evidence | Correlation is propagated through the AI SDK bridge; optional verification checks authenticated health, proxy config, and the matching request row without returning telemetry payloads | `src/watchdog.kujo`, `tests/relay_watchdog_smoke.sh`, `tests/relay_watchdog_real_smoke.sh` |
+| Shell boundary | Allowlisted mission commands execute as direct argv without a shell; tabs and shell syntax are rejected | `src/common.kujo`, `src/policy.kujo`, `src/runtime.kujo`, contract and mission smokes |
+| Index concurrency | Atomic lock directory, stale-lock recovery, cache-size/symlink checks, and state/status freshness validation protect the rebuildable index | `src/store.kujo`, contract and store smokes |
+| Event integrity | AgentEvent-compatible JSONL records carry deterministic SHA-256 integrity fields and tamper validation | `src/contracts.kujo`, contract smoke |
+| Worktree cleanup authority | Cleanup rejects tampered paths and requires the run-owned workspace target | `src/runtime.kujo`, `tests/relay_worktree_smoke.sh` |
 
 ## Remaining enterprise gaps
 
@@ -58,7 +62,7 @@ The correct posture is: **local-first hardened alpha / ecosystem showcase**. The
 3. Authenticated service/MCP boundary with identity, tenant, role, and approval mapping.
 4. Full workcell isolation, rollback, and crash recovery beyond the now-proven detached Git worktree mode and confirmed cleanup.
 5. Full Agents SDK Tool Registry and approval-provider execution instead of explicit action lists.
-6. Durable run store with locking/concurrent-run behavior, retention, recovery, and tamper-evident export.
+6. Durable run store with database-backed retention/recovery, multi-host concurrency, and signed/tamper-evident export; the local cache now has an atomic lock and event hashes.
 
 ### P1 — Required for broad enterprise usefulness
 
@@ -86,7 +90,7 @@ The second review found no redundant root implementation files. New behavior rem
 
 ## Security posture
 
-The local runtime now fails closed for the highest-risk MVP paths, but it is not a complete security boundary. External commands remain local process authority, the new worktree mode is repository-local rather than a container/microVM boundary, and there is no identity-aware remote service. Never expose the CLI or future MCP adapter to untrusted callers until auth, tenancy, secret policy, network egress, and stronger workcell isolation are implemented and tested.
+The local runtime now fails closed for the highest-risk MVP paths and removes shell interpretation from mission commands, but it is not a complete security boundary. External direct-argv commands remain local process authority, the new worktree mode is repository-local rather than a container/microVM boundary, and there is no identity-aware remote service. Never expose the CLI or future MCP adapter to untrusted callers until auth, tenancy, secret policy, network egress, and stronger workcell isolation are implemented and tested.
 
 ## Release recommendation
 

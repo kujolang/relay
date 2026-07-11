@@ -47,16 +47,28 @@ The current posture is local-first hardened alpha/showcase, not universal enterp
 
 ## Second 2026-07-11 review
 
-The follow-up review preserved the alpha boundary and added fail-closed live Watchdog routing, explicit subprocess environment allowlists, provider-key environment validation, atomic mission writes, output-truncation evidence fields, configurable mission budgets, an explicit Agents SDK smoke skip with receipt, detached worktree provisioning with confirmed cleanup, `doctor --json`, `models probe`, budget and worktree regression smokes, a command reference, and versioned next-session backlogs. The root layout was re-audited and remains intentionally conventional: `main.kujo`, `kujo.toml`, and `bin/relay` are necessary entry/package/launcher files; runtime behavior remains under `src/`. See `docs/enterprise-readiness-review-2026-07-11.md`, `docs/command-reference.md`, and `docs/next-session-enhancement-backlog-2026-07-11-v4.md`.
+The follow-up review preserved the alpha boundary and added fail-closed live Watchdog routing, explicit subprocess environment allowlists, provider-key environment validation, atomic mission writes, output-truncation evidence fields, configurable mission budgets, an explicit Agents SDK smoke skip with receipt, detached worktree provisioning with confirmed cleanup, `doctor --json`, `models probe`, budget and worktree regression smokes, a command reference, and versioned next-session backlogs. The root layout was re-audited and remains intentionally conventional: `main.kujo`, `kujo.toml`, and `bin/relay` are necessary entry/package/launcher files; runtime behavior remains under `src/`. See `docs/enterprise-readiness-review-2026-07-11.md`, `docs/command-reference.md`, and `docs/next-session-enhancement-backlog-2026-07-11-v5.md`.
 
 ## Additional 2026-07-11 audit slice
 
-The next audit corrected the stale README claim that worktree provisioning was still absent, forwarded streaming and optional Watchdog proxy authorization through the AI SDK bridge, restricted `kujo run` to approved workspace-local `.kujo` files, made the run index self-healing from authoritative state, and added output/write budgets plus timeout bounds. New store and output-budget smokes pass alongside the prior acceptance set. The implementation is committed as `0e030ed` and pushed. The remaining storage implementation is intentionally described as a rebuildable cache, not durable concurrent transaction storage. The current handoff is `docs/next-session-enhancement-backlog-2026-07-11-v4.md`.
+The next audit corrected the stale README claim that worktree provisioning was still absent, forwarded streaming and optional Watchdog proxy authorization through the AI SDK bridge, restricted `kujo run` to approved workspace-local `.kujo` files, made the run index self-healing from authoritative state, and added output/write budgets plus timeout bounds. New store and output-budget smokes pass alongside the prior acceptance set. The implementation was committed as `0e030ed` and pushed. The remaining storage implementation was intentionally described as a rebuildable cache, not durable concurrent transaction storage. The current handoff is now `docs/next-session-enhancement-backlog-2026-07-11-v5.md`.
 
 ## Watchdog verification slice — 2026-07-11
 
 Relay now propagates a run correlation ID through the existing AI SDK bridge as observation headers, passes Watchdog proxy authorization only through a bounded environment seam, and can optionally fail closed unless Watchdog health, proxy configuration, and the matching `/api/requests` row are all verified. The adapter exposes sanitized status only; it does not copy prompt/response summaries or raw API bodies into Relay artifacts. `tests/relay_watchdog_smoke.sh` proves the contract against a Kujo HTTP stub. `tests/relay_watchdog_real_smoke.sh` proves the same path through the actual local Watchdog server with token auth and a stub OpenAI-compatible upstream. This is real Watchdog integration evidence, but not external-provider or Ollama Cloud evidence.
 
+## Fifth 2026-07-11 review
+
+This review removed `/bin/sh -lc` from mission execution, added direct-argv
+tokenization and shell-syntax rejection, hardened worktree cleanup against
+tampered state paths and Git option injection, added an atomic lock around the
+rebuildable run index with state freshness validation, and added deterministic
+SHA-256 integrity fields to AgentEvent-compatible records. Focused contract,
+store, mission, and worktree tests pass. The root-layout audit still finds no
+redundant root implementation files: `main.kujo`, `kujo.toml`, and `bin/relay`
+remain idiomatic Kujo entry/package/launcher files. The current handoff is
+`docs/next-session-enhancement-backlog-2026-07-11-v5.md`.
+
 ## Repository handoff
 
-The current Relay implementation is committed as `0e030ed` and the documentation follow-up is being finalized on `main`; the next session should preserve this evidence boundary rather than widening claims.
+The current Relay implementation includes `a3e31ba` plus the documentation commit below; both are pushed to `origin/main`, and the tree is clean. The next session should preserve this evidence boundary rather than widening claims.
