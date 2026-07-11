@@ -97,10 +97,19 @@ Kujo entrypoint, package manifest, README, and thin launcher at the top level;
 runtime code remains under `src/`. The next handoff is
 `docs/next-session-enhancement-backlog-2026-07-11-v7.md`.
 
+## Eighth 2026-07-11 review
+
+This review extended event verification from hash/parent validation to complete
+evidence validation: event IDs must match authoritative state, truncated or
+malformed logs fail closed, and event inspection/export is bounded to 8 MiB.
+The store smoke now proves both sequence truncation and payload tampering are
+rejected. The next handoff is
+`docs/next-session-enhancement-backlog-2026-07-11-v8.md`.
+
 ## Repository handoff
 
-The current Relay implementation includes the executable and evidence-boundary
-hardening in `1e98aef`, with the review documentation in the follow-up commit.
+The current Relay implementation includes complete event-evidence verification
+in `51f1cd4`, with the review documentation in the follow-up commit.
 Both are intended to be pushed to `origin/main`, and the tree should remain
 clean. The next session should preserve this evidence boundary rather than
 widening claims.

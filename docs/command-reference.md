@@ -67,7 +67,9 @@ Set `workspace_mode: "worktree"` to have Relay create a detached worktree from t
 
 Each AgentEvent-compatible JSONL record includes a deterministic `integrity_sha256` field covering its identity, parent, payload, and metadata. The hash detects accidental or unauthorized record mutation; signed export and durable retention remain future work.
 
-`runs events` parses and verifies the complete event chain before returning it.
+`runs events` parses and verifies the complete event chain and checks its event
+IDs against authoritative run state before returning it. Event inspection and
+export are bounded to an 8 MiB JSONL log to keep machine callers memory-safe.
 `runs export` emits a versioned JSON bundle containing run state, verified
 events, changes, evaluations, and the final report; it refuses to export a
 tampered or malformed event log.

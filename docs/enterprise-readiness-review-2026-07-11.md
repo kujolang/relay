@@ -54,6 +54,7 @@ The correct posture is: **local-first hardened alpha / ecosystem showcase**. The
 | Worktree cleanup authority | Cleanup rejects tampered paths and requires the run-owned workspace target | `src/runtime.kujo`, `tests/relay_worktree_smoke.sh` |
 | Agents SDK tools | A Kujo bridge registers `relay.write_file` and `relay.run_command`, applies Agents SDK approval providers, and delegates to Relay's capability-bound policy worker | `src/agent_bridge.kujo`, `src/runtime.kujo`, `tests/relay_agents_tool_smoke.sh` |
 | Process and evidence boundary | Fixed subprocess PATH, workspace-bound worker capabilities, bounded tool-call budgets, event-chain verification, and versioned run export | `src/common.kujo`, `src/agent_bridge.kujo`, `src/contracts.kujo`, `src/cli.kujo`, store/tool smokes |
+| Evidence completeness | Event reads/exports compare the verified log sequence with authoritative state and enforce an 8 MiB inspection bound | `src/contracts.kujo`, `src/cli.kujo`, `tests/relay_store_smoke.sh` |
 
 ## Remaining enterprise gaps
 
@@ -116,6 +117,15 @@ the deterministic Eval suite. Machine callers can use `runs events` and
 and export refuses tampered logs. These are local hardening improvements, not
 proof of external-provider availability, signed exports, durable multi-host
 storage, or universal enterprise readiness.
+
+## Eighth review slice — complete evidence verification
+
+The machine evidence boundary now rejects not only mutated or reordered event
+records, but also truncated logs, malformed records, oversized logs, and logs
+whose sequence differs from authoritative run state. This keeps a valid prefix
+from being presented as a complete run and gives CI/Paperclip callers a clear
+failure signal for repair or recovery. The implementation remains local-first;
+durable append-only storage, signed exports, and crash recovery are still open.
 
 ## Release recommendation
 
