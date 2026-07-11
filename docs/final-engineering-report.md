@@ -26,7 +26,7 @@ Passed locally with the pinned Kujo release runtime:
 - six AgentEvent-compatible lifecycle/artifact/tool/evaluation events were persisted
 - pause/resume path persisted a resumable checkpoint and completion report
 
-Not proven in this local session: live Ollama Cloud, live Watchdog proxy telemetry, multi-model Capsule A/B implementation scoring, Paperclip/Hermes invocation, and container/microVM-grade workcell isolation. Detached Git worktree provisioning and explicit cleanup are now proven locally, but rollback-on-failure and crash recovery remain open. These are known limitations, not successful integrations.
+Not proven in this local session: live Ollama Cloud, live Watchdog proxy telemetry/correlation, multi-model Capsule A/B implementation scoring, Paperclip/Hermes invocation, and container/microVM-grade workcell isolation. Detached Git worktree provisioning and explicit cleanup are proven locally, while rollback-on-failure and crash recovery remain open. These are known limitations, not successful integrations.
 
 ## Ecosystem recommendations
 
@@ -47,8 +47,12 @@ The current posture is local-first hardened alpha/showcase, not universal enterp
 
 ## Second 2026-07-11 review
 
-The follow-up review preserved the alpha boundary and added fail-closed live Watchdog routing, explicit subprocess environment allowlists, provider-key environment validation, atomic mission writes, output-truncation evidence fields, configurable mission budgets, an explicit Agents SDK smoke skip with receipt, detached worktree provisioning with confirmed cleanup, `doctor --json`, `models probe`, budget and worktree regression smokes, a command reference, and a versioned next-session backlog. The root layout was re-audited and remains intentionally conventional: `main.kujo`, `kujo.toml`, and `bin/relay` are necessary entry/package/launcher files; runtime behavior remains under `src/`. This review is committed as `7dd7cea`, `b0d1712`, `f2c414e`, `d7bd3f6`, and `862aff9`, pushed to `origin/main`. See `docs/enterprise-readiness-review-2026-07-11.md`, `docs/command-reference.md`, and `docs/next-session-enhancement-backlog-2026-07-11-v2.md`.
+The follow-up review preserved the alpha boundary and added fail-closed live Watchdog routing, explicit subprocess environment allowlists, provider-key environment validation, atomic mission writes, output-truncation evidence fields, configurable mission budgets, an explicit Agents SDK smoke skip with receipt, detached worktree provisioning with confirmed cleanup, `doctor --json`, `models probe`, budget and worktree regression smokes, a command reference, and versioned next-session backlogs. The root layout was re-audited and remains intentionally conventional: `main.kujo`, `kujo.toml`, and `bin/relay` are necessary entry/package/launcher files; runtime behavior remains under `src/`. See `docs/enterprise-readiness-review-2026-07-11.md`, `docs/command-reference.md`, and `docs/next-session-enhancement-backlog-2026-07-11-v3.md`.
+
+## Additional 2026-07-11 audit slice
+
+The next audit corrected the stale README claim that worktree provisioning was still absent, forwarded streaming and optional Watchdog proxy authorization through the AI SDK bridge, restricted `kujo run` to approved workspace-local `.kujo` files, made the run index self-healing from authoritative state, and added output/write budgets plus timeout bounds. New store and output-budget smokes pass alongside the prior acceptance set. The implementation is committed as `0e030ed` and pushed. The remaining storage implementation is intentionally described as a rebuildable cache, not durable concurrent transaction storage. The new handoff is `docs/next-session-enhancement-backlog-2026-07-11-v3.md`.
 
 ## Repository handoff
 
-The review hardening is committed as `b21ef02` (`Loop engineering: Build and verify the Kujo Relay composition runtime vertical slice`) and is pushed to the configured `origin/main`. The working tree is clean. The next session should preserve this evidence boundary rather than widening claims.
+The current Relay implementation is committed as `0e030ed` and the documentation follow-up is being finalized on `main`; the next session should preserve this evidence boundary rather than widening claims.

@@ -2,11 +2,11 @@
 
 | Capability | Preferred existing owner | Reuse method | Required adaptation | MVP test/evidence | Risk |
 |---|---|---|---|---|---|
-| Provider communication | AI SDK | `src/ai_bridge.kujo` | runtime payload adapter; live calls fail closed without Watchdog URL | fixture response, stream, model probe, blocked-live test; live provider pending | medium |
+| Provider communication | AI SDK | `src/ai_bridge.kujo` | runtime payload adapter; stream option and optional Watchdog proxy header forwarded through the AI SDK; live calls fail closed without Watchdog URL | fixture response, normalized stream JSONL, model probe, blocked-live test; live provider pending | medium |
 | Agent execution | Agents SDK + Chain of Command | registry and compatible event fields | full runner wiring pending | agent validation + role paths | medium |
 | AI telemetry | Watchdog | configured proxy URL | startup/health/correlation adapter pending | route metadata; live Watchdog pending | high |
 | Mission packet | PackWrite | fake-response `init`, validate generated pack | revision/digest recorded; canonical whole-pack manifest pending | 13-file validated pack + SHA-256 evidence | medium |
-| Execution evidence | RunLedger | `start`/`finish` subprocess calls | attach all event IDs in notes pending | pass receipt with git commit | low |
+| Execution evidence | RunLedger | `start`/`finish` subprocess calls | attach all event IDs in notes pending; Relay index is a rebuildable cache | pass receipt with git commit and store recovery smoke | low |
 | Repository changes | ChangeBucket | `--json --repo` | workcell orchestration pending; mission budgets bound action count | added-file change report and budget failure smoke | low |
 | Evaluation | Eval | generated `eval.json`, run command | richer multi-step suites pending | passing `git diff --check` | low |
 | Capsule context | Capsule | `capsule make` adapter | A/B benchmark loop pending | discovery command | medium |
@@ -20,3 +20,4 @@
 | Workflow definitions | Spec + Dispatch + Loop Engineering | JSON mission slice | declarative loader pending | verified-feature spec | medium |
 | Tools | Agents SDK registry/MCP patterns | policy-checked `write_file`, `run_command` | SDK Tool contract bridge pending | action evidence | high |
 | Workspace isolation | Git worktree/workcell conventions | `workspace_mode: worktree` provisions a detached worktree from an immutable commit; provided mode remains available | full workcell/container isolation, rollback-on-failure, and crash recovery pending | worktree smoke protects source HEAD and requires confirmed cleanup | high |
+| Resource and cache bounds | Kujo runtime + Relay store | mission budgets, bounded process output, atomic state, rebuildable index | locked/database-backed concurrency and retention pending | output-budget and store smokes | medium |

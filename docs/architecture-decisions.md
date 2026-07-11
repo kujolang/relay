@@ -47,3 +47,15 @@ Context: a showcase needs a truthful first-run path and machine-callable diagnos
 ## ADR-012: Explicit detached worktree mode
 
 Context: repository-writing missions must not mutate a caller's source checkout by default, while some local workflows need a real Git workspace. Decision: `workspace_mode: "provided"` preserves the explicit existing behavior; `workspace_mode: "worktree"` resolves an immutable starting commit, creates a detached worktree for the run, records source/worktree/commit metadata, and retains the result until an operator runs `missions cleanup <run-id> --confirm`. Rationale: provide a real isolation primitive without pretending it is a container or identity boundary. Consequence: full workcell isolation, rollback-on-failure, and crash recovery remain follow-up work; cleanup is destructive and therefore explicit.
+
+## ADR-013: Forward streaming and Watchdog proxy authorization through the AI SDK
+
+Context: Relay's stream flag previously stopped at the runtime boundary, and authenticated Watchdog proxy routes need a header without exposing the proxy token in the model request payload. Decision: Relay passes `stream` and optional `X-Watchdog-Proxy-Token` request headers through the existing AI SDK options boundary; the token is injected only into the bounded bridge environment. Rationale: preserve provider independence and keep Watchdog ownership of proxy authentication. Consequence: fixture chat emits normalized JSONL, while true live provider and Watchdog correlation remain environment-dependent.
+
+## ADR-014: Per-run state is authoritative over the run index
+
+Context: a shared JSON index can be malformed, torn, stale, or last-writer-wins under concurrent local processes. Decision: treat `.relay/runs/<run-id>/state.json` as authoritative, validate cached index paths, rebuild from safe run directories when the cache is invalid or incomplete, and expose `runs rebuild`. Rationale: improve recovery without inventing a second database before a locking/storage contract is selected. Consequence: the cache is self-healing but not yet a full multi-process transaction store.
+
+## ADR-015: Explicit mission resource budgets
+
+Context: bounded action count and tokens do not bound repository file writes, command output, or command lifetime. Decision: add positive output/write byte budgets capped at 8 MiB and command timeout validation capped at ten minutes; preserve truncation markers in action evidence. Rationale: reduce denial-of-service and oversized-artifact risk while keeping evidence inspectable. Consequence: missions needing larger limits require a deliberate future storage/workcell policy rather than silently inheriting unlimited process behavior.

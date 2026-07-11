@@ -4,7 +4,7 @@
 
 Relay is not production-ready in a universal enterprise-grade sense today. It is a credible, well-presented Kujo-native local foundation and a useful showcase of Kujo composition, but its current proof is fixture-first and single-workspace. Calling it universally production-ready would overstate the evidence.
 
-The correct posture is: **local-first hardened alpha / ecosystem showcase**. The second review landed in commits `7dd7cea`, `b0d1712`, `f2c414e`, `d7bd3f6`, and `862aff9`, pushed to `origin/main`.
+The correct posture is: **local-first hardened alpha / ecosystem showcase**. The prior reviews landed in commits `7dd7cea`, `b0d1712`, `f2c414e`, `d7bd3f6`, and `862aff9`, pushed to `origin/main`; this additional audit is implemented in `0e030ed` and extends local proof without changing that release posture.
 
 ## Evidence reviewed
 
@@ -16,6 +16,7 @@ The correct posture is: **local-first hardened alpha / ecosystem showcase**. The
 - Capsule adapter failure reproduced: `Symbol 'run_cli' not found in module 'src.cli'`.
 - Existing ecosystem READMEs, source modules, tests, and workflow contracts.
 - Second-review evidence: `doctor --json`, fixture `models probe`, fail-closed live-route check, budget failure smoke, all Relay `kujo check` targets, and expanded Loop Engineering gates.
+- Additional audit evidence: stream option forwarding, Watchdog proxy-token header isolation, hardened `kujo run` path policy, tampered-index recovery, bounded output/write budgets, timeout validation, and new store/output-budget smokes.
 
 ## Enhancements made in this review
 
@@ -39,8 +40,12 @@ The correct posture is: **local-first hardened alpha / ecosystem showcase**. The
 | Atomic tool writes | Mission file actions and Markdown artifacts use sibling temp files plus rename | `src/common.kujo`, mission smoke |
 | Budget enforcement | Mission specs can override step, repair, and token limits; action loops stop at `max_steps` | `src/runtime.kujo`, budget smoke |
 | Operator onboarding | `doctor --json` and `models probe` expose truthful environment and model checks | `src/doctor.kujo`, CLI smoke |
-| Presentation contract | README, command reference, root-layout explanation, and a versioned follow-up backlog document the evidence boundary | README, `docs/command-reference.md`, backlog v2 |
+| Presentation contract | README, command reference, root-layout explanation, and a versioned follow-up backlog document the evidence boundary | README, `docs/command-reference.md`, backlog v3 |
 | Workspace isolation | `workspace_mode: worktree` provisions a detached worktree from an immutable commit; cleanup is explicit and confirmed | `src/runtime.kujo`, worktree smoke |
+| Stream correctness | `chat --stream` forwards the stream option through the AI SDK bridge and emits normalized JSONL delta/done events | `src/ai_bridge.kujo`, `src/cli.kujo`, CLI smoke |
+| Machine credential boundary | Watchdog proxy authorization is passed as a bounded header environment value and omitted from the model payload | `src/adapters.kujo`, `src/ai_bridge.kujo` |
+| Run-index resilience | Per-run `state.json` is authoritative; malformed or incomplete index caches rebuild deterministically | `src/store.kujo`, store smoke |
+| Resource bounds | Mission output/write budgets and command timeout bounds fail closed; truncation remains explicit | `src/runtime.kujo`, output-budget smoke |
 
 ## Remaining enterprise gaps
 
@@ -59,7 +64,7 @@ The correct posture is: **local-first hardened alpha / ecosystem showcase**. The
 2. CaseFile and Redact failure evidence integration.
 3. Watchdog rate limits, budget accounting, and correlation IDs attached to every event.
 4. Capsule A/B benchmark execution and comparable Eval reports.
-5. Bounded cancellation, timeouts, retry classes, provider fallback, and repair receipts.
+5. Bounded cancellation, retry classes, provider fallback, and repair receipts; basic timeouts and output/write bounds are now local proof only.
 6. CI gates using Fence, Concord, ShipCheck, and deterministic release manifests.
 
 ### P2 — Performance and product maturity
@@ -68,7 +73,7 @@ The correct posture is: **local-first hardened alpha / ecosystem showcase**. The
 2. Add bounded parallel read-only verification with serialized writes.
 3. Add streaming event sinks rather than only file-backed post-run JSONL.
 4. Add structured metrics for latency, tokens, retries, queue time, tool duration, and artifact sizes.
-5. Add retention/compaction for `.relay` artifacts and configurable output limits.
+5. Add retention/compaction for `.relay` artifacts and streaming artifact sinks.
 6. Add model capability discovery and explicit fallback-selection explanations.
 
 ## Root-layout review
@@ -83,4 +88,4 @@ The local runtime now fails closed for the highest-risk MVP paths, but it is not
 
 ## Release recommendation
 
-Publish Relay only as a local-first alpha/showcase until all P0 items have executable evidence. The review hardening is committed as `7dd7cea`, `b0d1712`, and `f2c414e`, pushed to `origin/main`; keep the README's enterprise-readiness disclaimer and require a release report that distinguishes fixture, configured-live, and production-environment evidence.
+Publish Relay only as a local-first alpha/showcase until all P0 items have executable evidence. The review hardening, including `0e030ed`, is pushed to `origin/main`; keep the README's enterprise-readiness disclaimer and require a release report that distinguishes fixture, configured-live, and production-environment evidence.

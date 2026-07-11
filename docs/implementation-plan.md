@@ -14,7 +14,7 @@
 
 ## Deferred
 
-Live Ollama Cloud proof, Watchdog server health/telemetry assertion, full Agents SDK runner/tool registry integration, Dispatch workflow import, dynamic agent discovery, full workcell isolation/rollback/recovery, CaseFile failure bundles, Redact integration, MCP adapter, adaptive routing, model-generated tool calls, Capsule A/B scoring, durable concurrent storage, and ShipCheck/Concord release gates. See `docs/next-session-enhancement-backlog-2026-07-11-v2.md`.
+Live Ollama Cloud proof, Watchdog server health/telemetry assertion, full Agents SDK runner/tool registry integration, Dispatch workflow import, dynamic agent discovery, full workcell isolation/rollback/recovery, CaseFile failure bundles, Redact integration, MCP adapter, adaptive routing, model-generated tool calls, Capsule A/B scoring, durable concurrent storage, and ShipCheck/Concord release gates. See `docs/next-session-enhancement-backlog-2026-07-11-v3.md`.
 
 ## Dependency order
 

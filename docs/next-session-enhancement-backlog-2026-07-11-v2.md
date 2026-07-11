@@ -13,6 +13,9 @@ This is the follow-on list from the second enterprise-readiness review. It recor
 - [x] Add `doctor --json`, `models probe`, explicit `--skip-agent-smoke`, and budget smoke coverage.
 - [x] Document the intentional Kujo root layout and stable command/JSON surface.
 - [x] Add detached worktree provisioning from an immutable commit with explicit confirmed cleanup.
+- [x] Forward the AI SDK streaming option and Watchdog proxy authorization header without persisting the token in the request payload.
+- [x] Harden `kujo run` policy paths and add authoritative run-index validation/rebuild behavior.
+- [x] Add mission-level output/write budgets with explicit truncation evidence and timeout bounds.
 
 ## P0 — authority, isolation, and live proof
 
@@ -21,7 +24,7 @@ This is the follow-on list from the second enterprise-readiness review. It recor
 - [ ] Replace declarative action execution with Agents SDK Tool Registry contracts, approval providers, guardrails, cancellation, and tool-result artifacts while preserving the current policy boundary during migration.
 - [ ] Extend worktree mode into a full workcell with rollback-on-failure, stronger isolation, and cleanup/recovery after crashes.
 - [ ] Add authenticated machine mode through the existing guarded MCP boundary with identity, tenant, role, approval, and audit mappings.
-- [ ] Add a locked or database-backed run store with concurrent-run tests, crash recovery, retention, tamper-evident export, and deterministic index rebuild.
+- [ ] Add a locked or database-backed run store with true concurrent-run coordination, crash recovery, retention, tamper-evident export, and deterministic index rebuild beyond the current rebuildable cache.
 
 ## P1 — ecosystem composition and recovery
 
@@ -34,8 +37,8 @@ This is the follow-on list from the second enterprise-readiness review. It recor
 
 ## P2 — performance, operations, and scale
 
-- [ ] Add command output budgets and explicit truncation policy tests; preserve incomplete-evidence markers in all reports.
-- [ ] Add streaming event sinks, rotation/compaction, retention, and artifact-size metrics for large missions.
+- [x] Add command output budgets and explicit truncation policy tests; preserve incomplete-evidence markers in action evidence.
+- [ ] Add streaming event sinks, rotation/compaction, retention, and artifact-size metrics for large missions; current chat streaming is normalized JSONL after the SDK bridge returns.
 - [ ] Add bounded parallel read-only discovery/evaluation while serializing writes and Git mutations.
 - [ ] Record latency, token/cost, retry, queue, tool-duration, artifact-size, and provider-availability metrics through Watchdog/RunLedger contracts.
 - [ ] Add model capability discovery and visible policy-aware routing explanations.
