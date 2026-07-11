@@ -1,0 +1,24 @@
+from src.contracts import event, run_state, agent_profile, RELAY_VERSION, EVENT_CONTRACT
+from src.policy import classify_failure, path_is_safe, command_is_allowed, tool_decision
+
+func check(label, condition) {
+    if condition { print("PASS " + label); return 0 }
+    print("FAIL " + label); return 1
+}
+
+failed := 0
+failed = failed + check("version", RELAY_VERSION == "0.1.0")
+failed = failed + check("event contract", EVENT_CONTRACT == "AgentEvent-compatible-v1")
+e := event("run_started", "m1", "r1", "s1", "a1", {"ok": true}, "")
+failed = failed + check("event required fields", has_key(e, "run_id") && has_key(e, "payload") && has_key(e, "metadata"))
+s := run_state("m1", "verified-feature", ".", "r1")
+failed = failed + check("run state", s["status"] == "created" && s["run_id"] == "r1")
+a := agent_profile("planner", "Planner", "plan", "fixture-model", ["read_repo"], "read_only")
+failed = failed + check("agent authority", a["authority"] == "read_only")
+failed = failed + check("safe relative path", path_is_safe(".", "src/file.txt"))
+failed = failed + check("unsafe traversal", path_is_safe(".", "../secret") == false)
+failed = failed + check("safe command", command_is_allowed("git status", {"allowed_commands": ["git"]}))
+failed = failed + check("blocked command", command_is_allowed("rm -rf /", {"allowed_commands": ["rm"]}) == false)
+decision := tool_decision("write_file", {"path": "x.txt"}, {"workspace": ".", "allow_writes": false})
+failed = failed + check("write approval boundary", decision["status"] == "approval_required")
+exit(failed)

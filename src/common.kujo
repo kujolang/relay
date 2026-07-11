@@ -1,0 +1,94 @@
+func dict_get_or(obj, key, fallback) {
+    if type(obj) != "dict" || has_key(obj, key) == 0 { return fallback }
+    return obj[key]
+}
+
+func env_or(key, fallback) {
+    raw := env(key)
+    if type(raw) == "null" { return fallback }
+    value := trim(to_string(raw))
+    if value == "" { return fallback }
+    return value
+}
+
+func string_or(value, fallback) {
+    if type(value) != "string" { return fallback }
+    value := trim(value)
+    if value == "" { return fallback }
+    return value
+}
+
+func bool_or(value, fallback) {
+    if type(value) == "bool" { return value }
+    if type(value) == "string" {
+        value := to_lower(trim(value))
+        if value == "true" || value == "1" || value == "yes" { return true }
+        if value == "false" || value == "0" || value == "no" { return false }
+    }
+    return fallback
+}
+
+func int_or(value, fallback) {
+    if type(value) == "int" { return value }
+    if type(value) == "string" {
+        try { return parse_int(trim(value)) } except err {}
+    }
+    return fallback
+}
+
+func array_or(value) {
+    if type(value) == "array" { return value }
+    return []
+}
+
+func now_iso() { return format_date(now(), "YYYY-MM-DDTHH:mm:ssZ") }
+
+func safe_json(value) {
+    try { return to_json(value) } except err { return "{}" }
+}
+
+func read_json_or(path, fallback) {
+    if path_exists(path) == false { return fallback }
+    try { return parse_json(read_file(path)) } except err { return fallback }
+}
+
+func write_json(path, value) {
+    parent := path
+    while contains(parent, "/") && substring(parent, len(parent) - 1, len(parent)) != "/" {
+        parent = substring(parent, 0, len(parent) - 1)
+        if substring(parent, len(parent) - 1, len(parent)) == "/" { break }
+    }
+    try {
+        if file_exists(path) { delete_file(path) }
+        write_file(path, safe_json(value)); return true
+    } except err { return false }
+}
+
+func append_jsonl(path, value) {
+    existing := ""
+    if path_exists(path) { existing = read_file(path) }
+    try {
+        if file_exists(path) { delete_file(path) }
+        write_file(path, existing + safe_json(value) + "\n"); return true
+    } except err { return false }
+}
+
+func contains_any(text, needles) {
+    for needle in needles {
+        if contains(to_lower(text), to_lower(needle)) { return true }
+    }
+    return false
+}
+
+export dict_get_or := dict_get_or
+export env_or := env_or
+export string_or := string_or
+export bool_or := bool_or
+export int_or := int_or
+export array_or := array_or
+export now_iso := now_iso
+export safe_json := safe_json
+export read_json_or := read_json_or
+export write_json := write_json
+export append_jsonl := append_jsonl
+export contains_any := contains_any

@@ -1,0 +1,236 @@
+from src.common import dict_get_or, env_or, string_or, bool_or, int_or, now_iso, read_json_or, write_json, append_jsonl, safe_json
+from src.contracts import run_state, event
+from src.registry import find_agent
+from src.policy import tool_decision, classify_failure, path_is_safe, command_is_allowed
+from src.adapters import ai_chat, packwrite_generate, runledger_start, runledger_finish, changebucket, eval_run
+
+func ensure_dir(path) {
+    if path == "" || path == "." || path_is_dir(path) { return }
+    parts := split(path, "/")
+    mut cur := ""
+    if starts_with(path, "/") { cur = "/" }
+    mut i := 0
+    while i < len(parts) {
+        part := parts[i]
+        if part != "" && part != "." {
+            if cur == "/" { cur = "/" + part } else if cur == "" { cur = part } else { cur = cur + "/" + part }
+            if path_is_dir(cur) == false { create_dir(cur) }
+        }
+        i = i + 1
+    }
+}
+
+func relay_root() { return env_or("RELAY_ROOT", ".") }
+func state_root() { return relay_root() + "/.relay" }
+func run_root() { return state_root() + "/runs" }
+func index_path() { return state_root() + "/index.json" }
+
+func save_state(state, run_dir) {
+    state["updated_at"] := now_iso()
+    write_json(run_dir + "/state.json", state)
+    write_json(index_path(), read_json_or(index_path(), {}))
+    return state
+}
+
+func add_event(state, run_dir, kind, step_id, agent_id, payload) {
+    parent := ""
+    if len(state["events"]) > 0 { parent = dict_get_or(state["events"][len(state["events"]) - 1], "event_id", "") }
+    item := event(kind, state["mission_id"], state["run_id"], step_id, agent_id, payload, parent)
+    state["events"] := push(state["events"], item)
+    append_jsonl(run_dir + "/events.jsonl", item)
+    return state
+}
+
+func register_run(state, run_dir) {
+    index := read_json_or(index_path(), {})
+    index[state["run_id"]] := {"run_dir": run_dir, "mission_id": state["mission_id"], "status": state["status"]}
+    write_json(index_path(), index)
+}
+
+func load_spec(path) {
+    spec := read_json_or(path, null)
+    if type(spec) != "dict" { return {"ok": false, "error": "Mission file is missing or invalid JSON: " + path} }
+    if string_or(dict_get_or(spec, "name", ""), "") == "" { return {"ok": false, "error": "Mission requires name"} }
+    if string_or(dict_get_or(spec, "goal", ""), "") == "" { return {"ok": false, "error": "Mission requires goal"} }
+    return {"ok": true, "spec": spec}
+}
+
+func write_prompt(run_dir, spec) {
+    prompt := "# Relay mission\n\nName: " + to_string(spec["name"]) + "\nGoal: " + to_string(spec["goal"]) + "\n\nAcceptance criteria:\n"
+    for criterion in dict_get_or(spec, "acceptance_criteria", []) { prompt = prompt + "- " + to_string(criterion) + "\n" }
+    write_file(run_dir + "/MEGA_PROMPT.md", prompt)
+    return run_dir + "/MEGA_PROMPT.md"
+}
+
+func execute_action(action, spec, state, run_dir) {
+    kind := dict_get_or(action, "type", "")
+    repo := state["repository"]
+    policy := {
+        "workspace": repo,
+        "allow_writes": bool_or(dict_get_or(spec, "allow_writes", false), false),
+        "allowed_commands": dict_get_or(spec, "allowed_commands", ["git", "kujo", "bash"])
+    }
+    if kind == "write_file" {
+        decision := tool_decision("write_file", action, policy)
+        if decision["allowed"] == false { return {"ok": false, "failure_class": "permission_denial", "error": decision["reason"]} }
+        relative := action["path"]
+        target := repo + "/" + relative
+        if path_is_safe(repo, relative) == false { return {"ok": false, "failure_class": "permission_denial", "error": "unsafe path"} }
+        try {
+            if file_exists(target) { delete_file(target) }
+            write_file(target, to_string(dict_get_or(action, "content", "")))
+            return {"ok": true, "tool": "write_file", "path": relative}
+        } except err { return {"ok": false, "failure_class": "repository_failure", "error": to_string(err)} }
+    }
+    if kind == "run_command" {
+        command := string_or(dict_get_or(action, "command", ""), "")
+        if command_is_allowed(command, policy) == false { return {"ok": false, "failure_class": "policy_violation", "error": "command_not_allowlisted"} }
+        result := spawn_process(["/usr/bin/env", "-C", repo, "/bin/sh", "-lc", command], {"inherit_env": true, "timeout_ms": int_or(dict_get_or(action, "timeout_ms", 120000), 120000), "max_output_bytes": 1048576})
+        ok := result.success
+        return {"ok": ok, "tool": "run_command", "command": command, "stdout": result.stdout, "stderr": result.stderr, "failure_class": "tool_failure"}
+    }
+    return {"ok": false, "failure_class": "policy_violation", "error": "unknown_action_type"}
+}
+
+func execute_actions(spec, state, run_dir) {
+    actions := dict_get_or(spec, "actions", [])
+    results := []
+    for action in actions {
+        result := execute_action(action, spec, state, run_dir)
+        results := push(results, result)
+        state["attempt"] := state["attempt"] + 1
+        if result["ok"] == false { return {"ok": false, "results": results, "state": state, "failure": result} }
+    }
+    return {"ok": true, "results": results, "state": state}
+}
+
+func write_eval_config(run_dir, state) {
+    config := {
+        "name": "relay-" + state["mission_id"],
+        "description": "Deterministic Relay acceptance checks",
+        "version": "1.0.0",
+        "output_dir": "./eval_results",
+        "tests": [
+            {"name": "git diff check", "check": "command_succeeds", "params": {"command": "git -C " + state["repository"] + " diff --check"}}
+        ]
+    }
+    path := run_dir + "/eval.json"
+    write_json(path, config)
+    return path
+}
+
+func report(state, run_dir) {
+    json_path := run_dir + "/report.json"
+    write_json(json_path, state)
+    markdown := "# Relay Run Report\n\n- Mission: " + state["mission_id"] + "\n- Run: " + state["run_id"] + "\n- Status: " + state["status"] + "\n- Workflow: " + state["workflow"] + "\n\n## Evidence\n\n- Events: events.jsonl\n- Packet: agent/\n- Changes: changes.json\n- Evaluations: evaluations.json\n"
+    if file_exists(run_dir + "/report.md") { delete_file(run_dir + "/report.md") }
+    write_file(run_dir + "/report.md", markdown)
+}
+
+func create_mission(path, output_path) {
+    name := "verified-feature"
+    goal := "Execute one bounded, policy-controlled repository task and preserve evidence."
+    spec := {"version": "0.1.0", "name": name, "goal": goal, "workflow": "verified-feature", "repository": ".", "allow_writes": false, "acceptance_criteria": ["deterministic checks pass"], "actions": []}
+    if path != "" {
+        loaded := load_spec(path)
+        if loaded["ok"] == false { return loaded }
+        spec = loaded["spec"]
+    }
+    if output_path == "" { output_path = state_root() + "/missions/" + name + ".json" }
+    ensure_dir(state_root() + "/missions")
+    write_json(output_path, spec)
+    return {"ok": true, "path": output_path, "mission": spec}
+}
+
+func run_mission(path, options) {
+    loaded := load_spec(path)
+    if loaded["ok"] == false { return loaded }
+    spec := loaded["spec"]
+    ensure_dir(run_root())
+    mission_id := string_or(dict_get_or(spec, "id", dict_get_or(spec, "name", "mission")), "mission")
+    run_key := mission_id + "-" + to_string(current_timestamp())
+    run_dir := run_root() + "/" + run_key
+    ensure_dir(run_dir)
+    repo := string_or(dict_get_or(spec, "repository", "."), ".")
+    state := run_state(mission_id, string_or(dict_get_or(spec, "workflow", "verified-feature"), "verified-feature"), repo, run_key)
+    ledger := runledger_start(run_dir, string_or(dict_get_or(spec, "model", "fixture-model"), "fixture-model"), string_or(dict_get_or(spec, "provider", "fixture"), "fixture"), to_string(spec["name"]), repo)
+    state["runledger"] := ledger
+    state["status"] := "running"
+    register_run(state, run_dir)
+    state := add_event(state, run_dir, "run_started", "", "relay", {"workflow": state["workflow"], "repository": repo})
+    prompt := write_prompt(run_dir, spec)
+    packet := packwrite_generate(run_dir, "MEGA_PROMPT.md", run_dir + "/agent")
+    state["artifacts"] := push(state["artifacts"], {"kind": "packwrite_agent_pack", "path": packet["artifact_dir"], "ok": packet["ok"]})
+    state := add_event(state, run_dir, "artifact_created", "packet", "planner", {"kind": "packwrite_agent_pack", "path": packet["artifact_dir"], "ok": packet["ok"]})
+    planner := find_agent("planner")
+    model_result := ai_chat([{"role": "system", "content": planner["mandate"]}, {"role": "user", "content": to_string(spec["goal"])}], string_or(dict_get_or(spec, "model", "fixture-model"), "fixture-model"), string_or(dict_get_or(spec, "provider", "fixture"), "fixture"), bool_or(dict_get_or(options, "offline_fixture", true), true), bool_or(dict_get_or(options, "stream", false), false))
+    state["telemetry"] := dict_get_or(model_result, "relay_telemetry", {})
+    state := add_event(state, run_dir, "model_request_completed", "plan", "planner", {"ok": dict_get_or(model_result, "ok", false), "telemetry": state["telemetry"]})
+    actions := execute_actions(spec, state, run_dir)
+    state := actions["state"]
+    state["action_results"] := actions["results"]
+    if actions["ok"] == false {
+        state["status"] := "failed"
+        state["failure"] := {"class": dict_get_or(actions["failure"], "failure_class", "tool_failure"), "message": dict_get_or(actions["failure"], "error", "action failed"), "repair_attempts": 0}
+        state := add_event(state, run_dir, "run_failed", "implementation", "core-developer", state["failure"])
+    } else {
+        state := add_event(state, run_dir, "tool_call_completed", "implementation", "core-developer", {"actions": len(actions["results"]), "ok": true})
+        changes := changebucket(repo, run_dir)
+        state["changes"] := dict_get_or(changes, "data", {"ok": changes["ok"]})
+        write_json(run_dir + "/changes.json", state["changes"])
+        eval_path := write_eval_config(run_dir, state)
+        evaluation := eval_run(run_dir, "eval.json")
+        state["evaluations"] := push(state["evaluations"], dict_get_or(evaluation, "data", {"ok": evaluation["ok"]}))
+        write_json(run_dir + "/evaluations.json", state["evaluations"])
+        if evaluation["ok"] == false { state["status"] := "failed"; state["failure"] := {"class": "evaluation_failure", "message": "Eval command failed", "repair_attempts": 0} } else { state["status"] := "completed" }
+        state := add_event(state, run_dir, "run_completed", "verify", "release-verifier", {"evaluation_ok": evaluation["ok"], "changes_ok": changes["ok"]})
+    }
+    save_state(state, run_dir)
+    verdict := "Relay run " + state["status"]
+    ledger_status := "fail"
+    if state["status"] == "completed" { ledger_status = "pass" }
+    ledger_run_id := string_or(dict_get_or(ledger, "run_id", ""), run_key)
+    finished := runledger_finish(run_dir, ledger_run_id, ledger_status, verdict, "Evidence in " + run_dir)
+    state["runledger_finish"] := finished
+    save_state(state, run_dir)
+    report(state, run_dir)
+    register_run(state, run_dir)
+    return {"ok": state["status"] == "completed", "run": state, "run_dir": run_dir}
+}
+
+func pause_run(run_id) {
+    index := read_json_or(index_path(), {})
+    record := dict_get_or(index, run_id, null)
+    if type(record) != "dict" { return {"ok": false, "error": "unknown run: " + run_id} }
+    state := read_json_or(record["run_dir"] + "/state.json", null)
+    if type(state) != "dict" { return {"ok": false, "error": "run state missing"} }
+    state["status"] := "paused"
+    state := add_event(state, record["run_dir"], "run_cancelled", "pause", "relay", {"reason": "operator_pause", "resumable": true})
+    save_state(state, record["run_dir"])
+    register_run(state, record["run_dir"])
+    return {"ok": true, "run": state}
+}
+
+func resume_run(run_id) {
+    index := read_json_or(index_path(), {})
+    record := dict_get_or(index, run_id, null)
+    if type(record) != "dict" { return {"ok": false, "error": "unknown run: " + run_id} }
+    state := read_json_or(record["run_dir"] + "/state.json", null)
+    if type(state) != "dict" { return {"ok": false, "error": "run state missing"} }
+    if state["status"] != "paused" { return {"ok": false, "error": "run is not paused"} }
+    state["status"] := "completed"
+    state := add_event(state, record["run_dir"], "run_completed", "resume", "relay", {"resumed": true, "checkpoint": "state.json"})
+    save_state(state, record["run_dir"])
+    report(state, record["run_dir"])
+    register_run(state, record["run_dir"])
+    return {"ok": true, "run": state}
+}
+
+export ensure_dir := ensure_dir
+export load_spec := load_spec
+export create_mission := create_mission
+export run_mission := run_mission
+export pause_run := pause_run
+export resume_run := resume_run
+export state_root := state_root
+export run_root := run_root

@@ -1,0 +1,6 @@
+[package]
+name = "relay"
+version = "0.1.0"
+description = "Kujo-native composition runtime for bounded, evidence-backed agent missions."
+
+[dependencies]

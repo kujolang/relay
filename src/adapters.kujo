@@ -1,0 +1,121 @@
+from src.common import dict_get_or, env_or, string_or, safe_json, read_json_or
+
+func relay_root() { return env_or("RELAY_ROOT", env_or("PWD", ".")) }
+func kujo_bin() { return env_or("KUJO_BIN", relay_root() + "/../kujo/target/release/kujo") }
+func repo_root() { return env_or("RELAY_REPO_ROOT", relay_root() + "/..") }
+func ai_sdk_root() { return env_or("RELAY_AI_SDK_PATH", relay_root() + "/../ai-sdk") }
+func watchdog_url() { return env_or("RELAY_WATCHDOG_URL", "") }
+
+func last_json(raw) {
+    text := trim(to_string(raw))
+    if text == "" { return null }
+    try { return parse_json(text) } except err {}
+    lines := split(text, "\n")
+    i := len(lines) - 1
+    while i >= 0 {
+        candidate := trim(lines[i])
+        if candidate != "" {
+            try { return parse_json(candidate) } except err {}
+        }
+        i := i - 1
+    }
+    return null
+}
+
+func run_process(command, cwd, extra_env, timeout_ms) {
+    options := {"inherit_env": true, "timeout_ms": timeout_ms, "max_output_bytes": 8 * 1024 * 1024}
+    if type(extra_env) == "dict" { options["env"] := extra_env }
+    actual_command := command
+    if cwd != "" {
+        actual_command := ["/usr/bin/env", "-C", cwd]
+        for item in command { actual_command := push(actual_command, item) }
+    }
+    try {
+        raw := spawn_process(actual_command, options)
+        return {"success": raw.success, "exit_code": raw.exitcode, "stdout": raw.stdout, "stderr": raw.stderr, "timed_out": raw.timed_out}
+    } except err {
+        return {"success": false, "exit_code": 3, "stdout": "", "stderr": to_string(err)}
+    }
+}
+
+func call_ai(messages, model, provider, base_url, api_key_env, offline, stream) {
+    payload := {
+        "provider_id": "custom",
+        "model": model,
+        "base_url": base_url,
+        "api_key_env": api_key_env,
+        "messages": messages,
+        "temperature": 0.2,
+        "max_tokens": 700,
+        "max_retries": 1,
+        "offline_fixture": offline
+    }
+    if stream { payload["stream"] := true }
+    env_map := {"RELAY_AI_PAYLOAD": safe_json(payload), "AI_SDK_PATH": ai_sdk_root()}
+    bridge := env_or("RELAY_AI_BRIDGE", relay_root() + "/src/ai_bridge.kujo")
+    command := ["/usr/bin/env", "-C", ai_sdk_root(), kujo_bin(), "run", bridge, "--interpreter"]
+    result := run_process(command, "", env_map, 120000)
+    parsed := last_json(dict_get_or(result, "stdout", ""))
+    if type(parsed) != "dict" {
+        return {"ok": false, "error": {"code": "ai_bridge_parse_error", "message": dict_get_or(result, "stderr", "No JSON response")}, "raw": result}
+    }
+    route := "direct_ai_sdk"
+    if watchdog_url() != "" && offline == false { route = "watchdog_proxy" }
+    parsed["relay_telemetry"] := {"route": route, "watchdog_url": watchdog_url(), "provider": provider, "model": model, "stream_requested": stream}
+    return parsed
+}
+
+func ai_chat(messages, model, provider, offline, stream) {
+    base := watchdog_url()
+    if base == "" { base = "https://api.openai.com/v1" }
+    api_key_env := env_or("RELAY_API_KEY_ENV", "OPENAI_API_KEY")
+    return call_ai(messages, model, provider, base, api_key_env, offline, stream)
+}
+
+func packwrite_generate(run_dir, prompt_path, packet_path) {
+    packwrite := env_or("RELAY_PACKWRITE_BIN", relay_root() + "/../packwrite/bin/packwrite")
+    fake_file := env_or("RELAY_PACKWRITE_FAKE_RESPONSE", relay_root() + "/examples/packwrite-response.json")
+    command := ["/usr/bin/env", "-C", run_dir, packwrite, "init", prompt_path, "--output", "agent", "--overwrite"]
+    result := run_process(command, "", {"KUJO": kujo_bin(), "PACKWRITE_FAKE_RESPONSE_FILE": fake_file}, 120000)
+    return {"ok": dict_get_or(result, "success", false), "command": command, "stdout": dict_get_or(result, "stdout", ""), "stderr": dict_get_or(result, "stderr", ""), "artifact_dir": run_dir + "/agent", "packet_path": packet_path}
+}
+
+func runledger_start(run_dir, model, provider, task, repo) {
+    ledger := run_dir + "/ledger"
+    command := ["/usr/bin/env", "-C", run_dir, env_or("RELAY_RUNLEDGER_BIN", relay_root() + "/../runledger/bin/runledger"), "start", "--model", model, "--provider", provider, "--task", task, "--repo", repo, "--ledger", ledger]
+    result := run_process(command, "", {"KUJO": kujo_bin()}, 60000)
+    output := dict_get_or(result, "stdout", "")
+    run_id := ""
+    for line in split(output, "\n") {
+        if starts_with(trim(line), "Started run: ") { run_id = trim(substring(trim(line), 13, len(trim(line)))) }
+    }
+    return {"ok": dict_get_or(result, "success", false), "run_id": run_id, "ledger": ledger, "output": output, "error": dict_get_or(result, "stderr", "")}
+}
+
+func runledger_finish(run_dir, run_id, status, verdict, notes) {
+    command := ["/usr/bin/env", "-C", run_dir, env_or("RELAY_RUNLEDGER_BIN", relay_root() + "/../runledger/bin/runledger"), "finish", run_id, "--status", status, "--verdict", verdict, "--notes", notes, "--ledger", run_dir + "/ledger"]
+    result := run_process(command, "", {"KUJO": kujo_bin()}, 60000)
+    return {"ok": dict_get_or(result, "success", false), "output": dict_get_or(result, "stdout", ""), "error": dict_get_or(result, "stderr", "")}
+}
+
+func changebucket(repo, run_dir) {
+    command := ["/usr/bin/env", env_or("RELAY_CHANGEBUCKET_BIN", relay_root() + "/../changebucket/bin/changebucket"), "--json", "--repo", repo]
+    result := run_process(command, run_dir, {"KUJO": kujo_bin()}, 60000)
+    return {"ok": dict_get_or(result, "success", false), "data": last_json(dict_get_or(result, "stdout", "")), "stdout": dict_get_or(result, "stdout", ""), "stderr": dict_get_or(result, "stderr", "")}
+}
+
+func eval_run(run_dir, config_path) {
+    command := ["/usr/bin/env", "-C", run_dir, kujo_bin(), "run", env_or("RELAY_EVAL_ENTRY", relay_root() + "/../eval/main.kujo"), "--", "run", config_path, "--json"]
+    result := run_process(command, "", {}, 120000)
+    return {"ok": dict_get_or(result, "success", false), "data": last_json(dict_get_or(result, "stdout", "")), "stdout": dict_get_or(result, "stdout", ""), "stderr": dict_get_or(result, "stderr", "")}
+}
+
+export kujo_bin := kujo_bin
+export repo_root := repo_root
+export watchdog_url := watchdog_url
+export ai_chat := ai_chat
+export packwrite_generate := packwrite_generate
+export runledger_start := runledger_start
+export runledger_finish := runledger_finish
+export changebucket := changebucket
+export eval_run := eval_run

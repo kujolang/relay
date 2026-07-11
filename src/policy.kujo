@@ -1,0 +1,52 @@
+from src.common import contains_any, dict_get_or, string_or
+
+func classify_failure(code) {
+    if contains_any(code, ["auth", "unauthorized", "401"]) { return "authentication_failure" }
+    if contains_any(code, ["rate", "429", "allowance"]) { return "rate_or_allowance_limit" }
+    if contains_any(code, ["timeout", "timed_out"]) { return "timeout" }
+    if contains_any(code, ["tool", "command"]) { return "tool_failure" }
+    if contains_any(code, ["permission", "denied", "policy"]) { return "permission_denial" }
+    if contains_any(code, ["test", "eval"]) { return "evaluation_failure" }
+    if contains_any(code, ["repo", "git"]) { return "repository_failure" }
+    return "provider_failure"
+}
+
+func path_is_safe(root, requested) {
+    if type(requested) != "string" || trim(requested) == "" { return false }
+    clean := requested
+    if starts_with(clean, "/") || contains(clean, "..") || contains(clean, "\\") { return false }
+    if starts_with(clean, "./") { clean = substring(clean, 2, len(clean)) }
+    return true
+}
+
+func command_is_allowed(command, policy) {
+    value := string_or(command, "")
+    if value == "" { return false }
+    if contains_any(value, ["rm -rf", "sudo", "mkfs", "dd if=", "force-push", "credential", ".env", "id_rsa"]) { return false }
+    allowed := dict_get_or(policy, "allowed_commands", ["git", "kujo", "bash", "sh"])
+    for prefix in allowed {
+        if starts_with(value, prefix + " ") || value == prefix { return true }
+    }
+    return false
+}
+
+func tool_decision(tool_name, input, policy) {
+    if tool_name == "write_file" {
+        path := dict_get_or(input, "path", "")
+        if path_is_safe(dict_get_or(policy, "workspace", "."), path) == false {
+            return {"allowed": false, "status": "denied", "reason": "path_outside_workspace"}
+        }
+        if dict_get_or(policy, "allow_writes", false) == false {
+            return {"allowed": false, "status": "approval_required", "reason": "write_authority_not_granted"}
+        }
+    }
+    if tool_name == "run_command" && command_is_allowed(dict_get_or(input, "command", ""), policy) == false {
+        return {"allowed": false, "status": "denied", "reason": "command_not_allowlisted"}
+    }
+    return {"allowed": true, "status": "allowed", "reason": "policy_match"}
+}
+
+export classify_failure := classify_failure
+export path_is_safe := path_is_safe
+export command_is_allowed := command_is_allowed
+export tool_decision := tool_decision

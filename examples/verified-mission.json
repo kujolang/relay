@@ -1,0 +1,17 @@
+{
+  "version": "0.1.0",
+  "id": "relay-fixture-mission",
+  "name": "relay-fixture-mission",
+  "goal": "Make one bounded repository change and verify it deterministically.",
+  "workflow": "verified-feature",
+  "repository": "./examples/workspace",
+  "provider": "fixture",
+  "model": "fixture-model",
+  "allow_writes": true,
+  "allowed_commands": ["git", "kujo"],
+  "acceptance_criteria": ["the approved file exists", "git diff --check passes"],
+  "actions": [
+    {"type": "write_file", "path": "RELAY_OUTPUT.txt", "content": "Created by the policy-controlled Relay fixture mission.\n"},
+    {"type": "run_command", "command": "git status --short"}
+  ]
+}

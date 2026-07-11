@@ -1,0 +1,173 @@
+from src.common import dict_get_or, env_or, string_or, bool_or, read_json_or, safe_json, write_json
+from src.contracts import RELAY_VERSION
+from src.registry import agent_catalog, find_agent, agent_path
+from src.adapters import ai_chat
+from src.runtime import ensure_dir, create_mission, run_mission, pause_run, resume_run, state_root, run_root
+
+func has_flag(flags, name) { return has_key(flags, name) }
+
+func positional(values, index, fallback) {
+    if type(values) != "array" || index < 0 || index >= len(values) { return fallback }
+    return values[index]
+}
+
+func parse_tokens(tokens) {
+    positionals := []
+    flags := {}
+    mut i := 0
+    while i < len(tokens) {
+        token := tokens[i]
+        if starts_with(token, "--") {
+            key := substring(token, 2, len(token))
+            if key == "json" || key == "stream" || key == "fixture" || key == "offline" || key == "help" {
+                flags[key] := true
+            } else if i + 1 < len(tokens) {
+                flags[key] := tokens[i + 1]
+                i = i + 1
+            } else { flags[key] := "" }
+        } else { positionals := push(positionals, token) }
+        i = i + 1
+    }
+    return {"positionals": positionals, "flags": flags}
+}
+
+func output(payload, json_mode) {
+    if json_mode { print(safe_json(payload)); return }
+    if type(payload) == "dict" {
+        if has_key(payload, "error") { print("error: " + to_string(payload["error"])); return }
+        if has_key(payload, "ok") { print("ok: " + to_string(payload["ok"])) }
+        if has_key(payload, "path") { print("path: " + to_string(payload["path"])) }
+        if has_key(payload, "run_dir") { print("run_dir: " + to_string(payload["run_dir"])) }
+        if has_key(payload, "status") { print("status: " + to_string(payload["status"])) }
+        if has_key(payload, "run") && type(payload["run"]) == "dict" { print("run: " + to_string(dict_get_or(payload["run"], "run_id", ""))) }
+    } else { print(to_string(payload)) }
+}
+
+func help_text() {
+    return "Relay " + RELAY_VERSION + " — Kujo-native mission composition runtime\n\n" +
+        "Usage: relay <chat|models|agents|missions|runs|benchmark> ...\n\n" +
+        "  chat <prompt> [--model <id>] [--provider <id>] [--fixture] [--stream] [--json]\n" +
+        "  models list|inspect <model>\n" +
+        "  agents list|inspect <agent>|validate\n" +
+        "  missions create [spec.json] [--output path]\n" +
+        "  missions run <spec.json> [--fixture] [--json]\n" +
+        "  missions inspect <run-id>|pause <run-id>|resume <run-id>|report <run-id>\n" +
+        "  runs list|inspect <run-id>|events <run-id>|changes <run-id>|evaluations <run-id>\n" +
+        "  benchmark run <repo> [--json] (Capsule discovery slice)"
+}
+
+func cmd_chat(tokens) {
+    parsed := parse_tokens(tokens)
+    if len(parsed["positionals"]) == 0 { return {"ok": false, "error": "chat requires a prompt"} }
+    prompt := join(parsed["positionals"], " ")
+    model := string_or(dict_get_or(parsed["flags"], "model", "fixture-model"), "fixture-model")
+    provider := string_or(dict_get_or(parsed["flags"], "provider", "fixture"), "fixture")
+    offline := has_flag(parsed["flags"], "fixture") || has_flag(parsed["flags"], "offline") || env_or("RELAY_OFFLINE_FIXTURE", "true") == "true"
+    result := ai_chat([{"role": "user", "content": prompt}], model, provider, offline, has_flag(parsed["flags"], "stream"))
+    if has_flag(parsed["flags"], "stream") {
+        content := dict_get_or(result, "output_text", dict_get_or(result, "content", dict_get_or(result, "response", "")))
+        print(safe_json({"type": "delta", "content": content}))
+        print(safe_json({"type": "done", "ok": dict_get_or(result, "ok", false), "telemetry": dict_get_or(result, "relay_telemetry", {})}))
+        return {"ok": dict_get_or(result, "ok", false), "result": result}
+    }
+    return result
+}
+
+func cmd_models(tokens) {
+    parsed := parse_tokens(tokens)
+    sub := positional(parsed["positionals"], 0, "list")
+    models := [
+        {"id": "fixture-model", "provider": "fixture", "capabilities": ["chat", "structured_output"], "offline": true},
+        {"id": env_or("RELAY_MODEL", "gpt-4.1-mini"), "provider": env_or("RELAY_PROVIDER", "openai-compatible"), "capabilities": ["chat", "streaming", "tool_calls"], "offline": false}
+    ]
+    if sub == "inspect" { for model in models { if model["id"] == positional(parsed["positionals"], 1, "") { return {"ok": true, "model": model} } }; return {"ok": false, "error": "unknown model"} }
+    return {"ok": true, "models": models, "routing": "explicit profile selection; fallback is visible in run evidence"}
+}
+
+func cmd_agents(tokens) {
+    parsed := parse_tokens(tokens)
+    sub := positional(parsed["positionals"], 0, "list")
+    if sub == "inspect" {
+        agent := find_agent(positional(parsed["positionals"], 1, ""))
+        if type(agent) == "null" { return {"ok": false, "error": "unknown agent"} }
+        agent["source_path"] := agent_path(agent["id"])
+        agent["source_exists"] := path_is_dir(agent_path(agent["id"]))
+        return {"ok": true, "agent": agent}
+    }
+    if sub == "validate" {
+        errors := []
+        for agent in agent_catalog() { if path_is_dir(agent_path(agent["id"])) == false { errors := push(errors, agent["id"] + " source path missing") } }
+        return {"ok": len(errors) == 0, "errors": errors, "count": len(agent_catalog())}
+    }
+    return {"ok": true, "agents": agent_catalog(), "source": env_or("KUJO_AGENTS_PATH", "../kujo-agents") + "/chain-of-command"}
+}
+
+func cmd_missions(tokens) {
+    parsed := parse_tokens(tokens)
+    sub := positional(parsed["positionals"], 0, "help")
+    if sub == "create" {
+        source := positional(parsed["positionals"], 1, "")
+        return create_mission(source, string_or(dict_get_or(parsed["flags"], "output", ""), ""))
+    }
+    if sub == "run" {
+        path := positional(parsed["positionals"], 1, "")
+        if path == "" { return {"ok": false, "error": "missions run requires a spec path"} }
+        offline := has_flag(parsed["flags"], "fixture")
+        if env_or("RELAY_OFFLINE_FIXTURE", "true") == "true" { offline = true }
+        return run_mission(path, {"offline_fixture": offline, "stream": false})
+    }
+    id := positional(parsed["positionals"], 1, "")
+    index := read_json_or(state_root() + "/index.json", {})
+    if sub == "pause" { return pause_run(id) }
+    if sub == "resume" { return resume_run(id) }
+    if sub == "inspect" || sub == "report" {
+        record := dict_get_or(index, id, null)
+        if type(record) != "dict" { return {"ok": false, "error": "unknown run: " + id} }
+        state := read_json_or(record["run_dir"] + "/state.json", {})
+        if sub == "report" { return {"ok": true, "report_json": record["run_dir"] + "/report.json", "report_markdown": record["run_dir"] + "/report.md", "status": dict_get_or(state, "status", "unknown")} }
+        return {"ok": true, "run": state, "run_dir": record["run_dir"]}
+    }
+    return {"ok": false, "error": "unknown missions command"}
+}
+
+func cmd_runs(tokens) {
+    parsed := parse_tokens(tokens)
+    sub := positional(parsed["positionals"], 0, "list")
+    index := read_json_or(state_root() + "/index.json", {})
+    id := positional(parsed["positionals"], 1, "")
+    if sub == "list" { return {"ok": true, "runs": index} }
+    record := dict_get_or(index, id, null)
+    if type(record) != "dict" { return {"ok": false, "error": "unknown run: " + id} }
+    if sub == "inspect" { return {"ok": true, "run": read_json_or(record["run_dir"] + "/state.json", {}), "run_dir": record["run_dir"]} }
+    if sub == "events" { return {"ok": true, "events": read_file(record["run_dir"] + "/events.jsonl")} }
+    if sub == "changes" { return {"ok": true, "changes": read_json_or(record["run_dir"] + "/changes.json", {})} }
+    if sub == "evaluations" { return {"ok": true, "evaluations": read_json_or(record["run_dir"] + "/evaluations.json", [])} }
+    return {"ok": false, "error": "unknown runs command"}
+}
+
+func cmd_benchmark(tokens) {
+    parsed := parse_tokens(tokens)
+    repo := positional(parsed["positionals"], 1, ".")
+    capsule := env_or("RELAY_CAPSULE_BIN", "../benchmarks-capsule/bin/capsule")
+    result := spawn_process(["/usr/bin/env", capsule, "make", repo, "--out", state_root() + "/capsule", "--stable"], {"inherit_env": true, "env": {"KUJO": env_or("KUJO_BIN", "kujo")}, "timeout_ms": 120000, "max_output_bytes": 1048576})
+    return {"ok": dict_get_or(result, "success", false), "benchmark": "capsule-discovery", "stdout": dict_get_or(result, "stdout", ""), "stderr": dict_get_or(result, "stderr", ""), "artifacts": state_root() + "/capsule"}
+}
+
+export func main(argv) {
+    if len(argv) == 0 || argv[0] == "help" || argv[0] == "--help" { print(help_text()); return 0 }
+    command := argv[0]
+    rest := slice(argv, 1, len(argv))
+    parsed := parse_tokens(rest)
+    json_mode := has_flag(parsed["flags"], "json")
+    result := null
+    if command == "chat" { result = cmd_chat(rest) }
+    else if command == "models" { result = cmd_models(rest) }
+    else if command == "agents" { result = cmd_agents(rest) }
+    else if command == "missions" { result = cmd_missions(rest) }
+    else if command == "runs" { result = cmd_runs(rest) }
+    else if command == "benchmark" { result = cmd_benchmark(rest) }
+    else { print(help_text()); return 2 }
+    output(result, json_mode)
+    if type(result) == "dict" && dict_get_or(result, "ok", true) == false { return 1 }
+    return 0
+}

@@ -1,0 +1,11 @@
+# Relay entrypoint. Core orchestration lives in src/; this file only maps exit codes.
+from src.cli import main
+
+mut code := 3
+try {
+    code = main(args())
+} except runtime_error {
+    eprint("relay: unexpected runtime failure: " + to_string(runtime_error))
+    code = 3
+}
+exit(code)

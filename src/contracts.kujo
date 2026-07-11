@@ -1,0 +1,62 @@
+from src.common import dict_get_or, string_or, array_or, now_iso
+
+export RELAY_VERSION := "0.1.0"
+export EVENT_CONTRACT := "AgentEvent-compatible-v1"
+
+func event(kind, mission_id, run_id, step_id, agent_id, payload, parent_event_id) {
+    return {
+        "type": "AgentEvent",
+        "kind": kind,
+        "run_id": run_id,
+        "agent_id": agent_id,
+        "session_id": run_id,
+        "step_id": step_id,
+        "event_id": "evt-" + to_string(current_timestamp()) + "-" + kind,
+        "timestamp": now_iso(),
+        "parent_event_id": parent_event_id,
+        "payload": payload,
+        "metadata": {
+            "mission_id": mission_id,
+            "contract_version": EVENT_CONTRACT
+        }
+    }
+}
+
+func run_state(mission_id, workflow, repo, run_id) {
+    return {
+        "type": "RelayRun",
+        "contract_version": "relay-run-v1",
+        "mission_id": mission_id,
+        "run_id": run_id,
+        "workflow": workflow,
+        "status": "created",
+        "repository": repo,
+        "started_at": now_iso(),
+        "updated_at": now_iso(),
+        "current_step": "",
+        "attempt": 0,
+        "budgets": {"max_steps": 8, "max_repairs": 1, "max_tokens": 4000},
+        "events": [],
+        "artifacts": [],
+        "evaluations": [],
+        "changes": {},
+        "failure": null
+    }
+}
+
+func agent_profile(id, name, mandate, model, tools, authority) {
+    return {
+        "id": id,
+        "name": name,
+        "mandate": mandate,
+        "model_preference": {"preferred": [model], "fallback": "fixture-model"},
+        "allowed_tools": tools,
+        "authority": authority,
+        "stop_conditions": ["budget_exceeded", "policy_violation", "acceptance_met"],
+        "handoff_targets": []
+    }
+}
+
+export event := event
+export run_state := run_state
+export agent_profile := agent_profile

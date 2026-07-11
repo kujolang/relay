@@ -1,0 +1,26 @@
+from src.common import env_or
+from src.contracts import agent_profile
+
+func agent_catalog() {
+    return [
+        agent_profile("planner", "Planner", "Break a bounded repository mission into verifiable steps.", "fixture-model", ["read_repo", "write_packet"], "read_only"),
+        agent_profile("core-developer", "Core Developer", "Implement only approved changes in the isolated workspace.", "fixture-model", ["read_repo", "write_file", "run_command"], "workspace_write"),
+        agent_profile("code-reviewer", "Code Reviewer", "Review the diff and acceptance evidence independently.", "fixture-model", ["read_repo", "run_command"], "read_only"),
+        agent_profile("release-verifier", "Release Verifier", "Run deterministic checks and report release readiness.", "fixture-model", ["read_repo", "run_command"], "read_only")
+    ]
+}
+
+func agent_path(id) {
+    return env_or("KUJO_AGENTS_PATH", "../kujo-agents") + "/chain-of-command/" + id
+}
+
+func find_agent(id) {
+    for item in agent_catalog() {
+        if item["id"] == id { return item }
+    }
+    return null
+}
+
+export agent_catalog := agent_catalog
+export agent_path := agent_path
+export find_agent := find_agent
