@@ -1,0 +1,20 @@
+{
+  "version": "0.1.0",
+  "id": "relay-step-budget",
+  "name": "relay-step-budget",
+  "goal": "Prove the bounded step budget stops a mission before excess actions.",
+  "workflow": "verified-feature",
+  "repository": "/tmp/relay-budget-workspace",
+  "model": "fixture-model",
+  "provider": "fixture",
+  "allow_writes": false,
+  "budgets": {
+    "max_steps": 1,
+    "max_repairs": 0,
+    "max_tokens": 4000
+  },
+  "actions": [
+    {"type": "run_command", "command": "git status --short"},
+    {"type": "run_command", "command": "git status --short"}
+  ]
+}

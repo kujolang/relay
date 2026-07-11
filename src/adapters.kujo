@@ -1,4 +1,4 @@
-from src.common import dict_get_or, env_or, string_or, safe_json, read_json_or, redact_text
+from src.common import dict_get_or, env_or, string_or, safe_json, read_json_or, redact_text, process_options, safe_env_name
 
 func relay_root() { return env_or("RELAY_ROOT", env_or("PWD", ".")) }
 func kujo_bin() { return env_or("KUJO_BIN", relay_root() + "/../kujo/target/release/kujo") }
@@ -24,8 +24,7 @@ func last_json(raw) {
 }
 
 func run_process(command, cwd, extra_env, timeout_ms) {
-    options := {"inherit_env": true, "timeout_ms": timeout_ms, "max_output_bytes": 8 * 1024 * 1024}
-    if type(extra_env) == "dict" { options["env"] := extra_env }
+    options := process_options(extra_env, timeout_ms, 8 * 1024 * 1024)
     actual_command := command
     if cwd != "" {
         actual_command := ["/usr/bin/env", "-C", cwd]
@@ -33,13 +32,19 @@ func run_process(command, cwd, extra_env, timeout_ms) {
     }
     try {
         raw := spawn_process(actual_command, options)
-        return {"success": raw.success, "exit_code": raw.exitcode, "stdout": redact_text(raw.stdout), "stderr": redact_text(raw.stderr), "timed_out": raw.timed_out}
+        return {"success": raw.success, "exit_code": raw.exitcode, "stdout": redact_text(raw.stdout), "stderr": redact_text(raw.stderr), "timed_out": raw.timed_out, "stdout_truncated": raw.stdout_truncated, "stderr_truncated": raw.stderr_truncated}
     } except err {
-        return {"success": false, "exit_code": 3, "stdout": "", "stderr": to_string(err)}
+        return {"success": false, "exit_code": 3, "stdout": "", "stderr": redact_text(to_string(err)), "timed_out": false, "stdout_truncated": false, "stderr_truncated": false}
     }
 }
 
 func call_ai(messages, model, provider, base_url, api_key_env, offline, stream) {
+    if offline == false && watchdog_url() == "" {
+        return {"ok": false, "error": {"code": "watchdog_route_required", "message": "Live AI calls require RELAY_WATCHDOG_URL"}, "relay_telemetry": {"route": "blocked_no_watchdog", "provider": provider, "model": model}}
+    }
+    if safe_env_name(api_key_env) == false {
+        return {"ok": false, "error": {"code": "invalid_api_key_env", "message": "RELAY_API_KEY_ENV must be a safe non-reserved environment variable name"}, "relay_telemetry": {"route": "blocked_invalid_env", "provider": provider, "model": model}}
+    }
     payload := {
         "provider_id": "custom",
         "model": model,
@@ -53,6 +58,8 @@ func call_ai(messages, model, provider, base_url, api_key_env, offline, stream) 
     }
     if stream { payload["stream"] := true }
     env_map := {"RELAY_AI_PAYLOAD": safe_json(payload), "AI_SDK_PATH": ai_sdk_root()}
+    api_key := env(api_key_env)
+    if type(api_key) != "null" { env_map[api_key_env] := api_key }
     bridge := env_or("RELAY_AI_BRIDGE", relay_root() + "/src/ai_bridge.kujo")
     command := ["/usr/bin/env", "-C", ai_sdk_root(), kujo_bin(), "run", bridge, "--interpreter"]
     result := run_process(command, "", env_map, 120000)
@@ -134,6 +141,9 @@ func capsule_run(repo, output_dir) {
 }
 
 export kujo_bin := kujo_bin
+export ai_sdk_root := ai_sdk_root
+export agents_sdk_root := agents_sdk_root
+export run_process := run_process
 export repo_root := repo_root
 export watchdog_url := watchdog_url
 export ai_chat := ai_chat

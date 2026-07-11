@@ -22,10 +22,9 @@ printf '%s' "$paused" | grep -q '"checkpoint"'
 run_id="$(printf '%s' "$paused" | ruby -rjson -e 'd=JSON.parse(STDIN.read); print d["run"]["run_id"]')"
 test -n "$run_id"
 resumed="$($KUJO run "$ROOT/main.kujo" -- missions resume "$run_id" --json)"
-case "$resumed" in
-  *'"ok":true'*'"status":"completed"'*'"runledger_finish"'*) ;;
-  *) echo "resume run did not complete with evidence" >&2; exit 1 ;;
-esac
+printf '%s' "$resumed" | grep -q '"ok":true'
+printf '%s' "$resumed" | grep -q '"status":"completed"'
+printf '%s' "$resumed" | grep -q '"runledger_finish"'
 
 test -f "$WORK/RELAY_OUTPUT.txt"
 echo "PASS relay mission smoke"

@@ -1,6 +1,6 @@
 from src.contracts import event, run_state, agent_profile, RELAY_VERSION, EVENT_CONTRACT
 from src.policy import classify_failure, path_is_safe, path_is_within_workspace, command_is_allowed, tool_decision
-from src.common import safe_id, redact_text
+from src.common import safe_id, redact_text, shell_quote_single, process_options, safe_env_name
 
 func check(label, condition) {
     if condition { print("PASS " + label); return 0 }
@@ -26,9 +26,18 @@ failed = failed + check("unsafe git command", command_is_allowed("git commit -am
 failed = failed + check("blocked command", command_is_allowed("rm -rf /", {"allowed_commands": ["rm"]}) == false)
 failed = failed + check("blocked push", command_is_allowed("git push --force", {"allowed_commands": ["git"]}) == false)
 failed = failed + check("blocked shell chain", command_is_allowed("git status; touch escaped", {"allowed_commands": ["git"]}) == false)
+failed = failed + check("blocked env expansion", command_is_allowed("git status $HOME", {"allowed_commands": ["git"]}) == false)
+failed = failed + check("blocked glob expansion", command_is_allowed("git status *", {"allowed_commands": ["git"]}) == false)
+failed = failed + check("shell quote", contains(shell_quote_single("repo's path"), "'\"'\"'"))
+process := process_options({"RELAY_TEST_ENV": "ok"}, 1000, 4096)
+failed = failed + check("bounded process environment", process["inherit_env"] == false && has_key(process["env"], "RELAY_TEST_ENV"))
+failed = failed + check("safe API env name", safe_env_name("OLLAMA_API_KEY") && safe_env_name("VENDOR_TOKEN_1"))
+failed = failed + check("reserved API env name denied", safe_env_name("PATH") == false)
+failed = failed + check("invalid API env name denied", safe_env_name("OPENAI-API-KEY") == false)
 decision := tool_decision("write_file", {"path": "x.txt"}, {"workspace": ".", "allow_writes": false})
 failed = failed + check("write approval boundary", decision["status"] == "approval_required")
 failed = failed + check("unknown tool denied", tool_decision("unknown", {}, {})["allowed"] == false)
 failed = failed + check("safe id", safe_id("feature/name", "fallback") == "feature-name")
 failed = failed + check("redaction", contains(redact_text("Authorization: Bearer secret"), "[REDACTED]"))
+failed = failed + check("expanded redaction", contains(redact_text("ANTHROPIC_API_KEY=secret"), "[REDACTED]"))
 exit(failed)

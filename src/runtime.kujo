@@ -1,4 +1,4 @@
-from src.common import dict_get_or, env_or, string_or, bool_or, int_or, now_iso, safe_id, read_json_or, write_json, append_jsonl, safe_json
+from src.common import dict_get_or, env_or, string_or, bool_or, int_or, now_iso, safe_id, read_json_or, write_json, append_jsonl, safe_json, shell_quote_single, write_text_atomic, process_options, redact_text
 from src.contracts import run_state, event
 from src.registry import find_agent
 from src.policy import tool_decision, classify_failure, path_is_safe, path_is_within_workspace, command_is_allowed
@@ -28,7 +28,6 @@ func index_path() { return state_root() + "/index.json" }
 func save_state(state, run_dir) {
     state["updated_at"] := now_iso()
     write_json(run_dir + "/state.json", state)
-    write_json(index_path(), read_json_or(index_path(), {}))
     return state
 }
 
@@ -55,6 +54,14 @@ func load_spec(path) {
     actions := dict_get_or(spec, "actions", [])
     if type(actions) != "array" { return {"ok": false, "error": "Mission actions must be an array"} }
     if len(actions) > 32 { return {"ok": false, "error": "Mission exceeds the 32-action safety limit"} }
+    budgets := dict_get_or(spec, "budgets", {})
+    if type(budgets) != "dict" { return {"ok": false, "error": "Mission budgets must be an object"} }
+    for key in ["max_steps", "max_repairs", "max_tokens"] {
+        if has_key(budgets, key) {
+            value := int_or(budgets[key], -1)
+            if value < 0 { return {"ok": false, "error": "Mission budget " + key + " must be a non-negative integer"} }
+        }
+    }
     repository := string_or(dict_get_or(spec, "repository", ""), "")
     if repository == "" || path_is_dir(repository) == false { return {"ok": false, "error": "Mission repository must be an existing directory"} }
     if path_exists(repository + "/.git") == false { return {"ok": false, "error": "Mission repository must be a Git workspace"} }
@@ -67,7 +74,7 @@ func load_spec(path) {
 func write_prompt(run_dir, spec) {
     prompt := "# Relay mission\n\nName: " + to_string(spec["name"]) + "\nGoal: " + to_string(spec["goal"]) + "\n\nAcceptance criteria:\n"
     for criterion in dict_get_or(spec, "acceptance_criteria", []) { prompt = prompt + "- " + to_string(criterion) + "\n" }
-    write_file(run_dir + "/MEGA_PROMPT.md", prompt)
+    write_text_atomic(run_dir + "/MEGA_PROMPT.md", prompt)
     return run_dir + "/MEGA_PROMPT.md"
 }
 
@@ -86,17 +93,18 @@ func execute_action(action, spec, state, run_dir) {
         target := repo + "/" + relative
         if path_is_within_workspace(repo, relative) == false { return {"ok": false, "failure_class": "permission_denial", "error": "unsafe or symlinked path"} }
         try {
-            if file_exists(target) { delete_file(target) }
-            write_file(target, to_string(dict_get_or(action, "content", "")))
+            if write_text_atomic(target, to_string(dict_get_or(action, "content", ""))) == false { return {"ok": false, "failure_class": "repository_failure", "error": "atomic write failed"} }
             return {"ok": true, "tool": "write_file", "path": relative}
         } except err { return {"ok": false, "failure_class": "repository_failure", "error": to_string(err)} }
     }
     if kind == "run_command" {
         command := string_or(dict_get_or(action, "command", ""), "")
         if command_is_allowed(command, policy) == false { return {"ok": false, "failure_class": "policy_violation", "error": "command_not_allowlisted"} }
-        result := spawn_process(["/usr/bin/env", "-C", repo, "/bin/sh", "-lc", command], {"inherit_env": true, "timeout_ms": int_or(dict_get_or(action, "timeout_ms", 120000), 120000), "max_output_bytes": 1048576})
+        result := spawn_process(["/usr/bin/env", "-C", repo, "/bin/sh", "-lc", command], process_options({}, int_or(dict_get_or(action, "timeout_ms", 120000), 120000), 1048576))
         ok := result.success
-        return {"ok": ok, "tool": "run_command", "command": command, "stdout": result.stdout, "stderr": result.stderr, "failure_class": "tool_failure"}
+        output_truncated := result.stdout_truncated
+        if result.stderr_truncated { output_truncated = true }
+        return {"ok": ok, "tool": "run_command", "command": redact_text(command), "stdout": redact_text(result.stdout), "stderr": redact_text(result.stderr), "timed_out": result.timed_out, "stdout_truncated": result.stdout_truncated, "stderr_truncated": result.stderr_truncated, "output_truncated": output_truncated, "failure_class": "tool_failure"}
     }
     return {"ok": false, "failure_class": "policy_violation", "error": "unknown_action_type"}
 }
@@ -105,6 +113,9 @@ func execute_actions(spec, state, run_dir) {
     actions := dict_get_or(spec, "actions", [])
     results := []
     for action in actions {
+        if state["attempt"] >= state["budgets"]["max_steps"] {
+            return {"ok": false, "results": results, "state": state, "failure": {"failure_class": "budget_exceeded", "error": "Mission max_steps budget exceeded"}}
+        }
         result := execute_action(action, spec, state, run_dir)
         results := push(results, result)
         state["attempt"] := state["attempt"] + 1
@@ -116,13 +127,13 @@ func execute_actions(spec, state, run_dir) {
 func write_eval_config(run_dir, state) {
     repo := state["repository"]
     mut tests := [
-        {"name": "git diff check", "check": "command_succeeds", "params": {"command": "git -C " + repo + " diff --check"}}
+        {"name": "git diff check", "check": "command_succeeds", "params": {"command": "git -C " + shell_quote_single(repo) + " diff --check"}}
     ]
     for action in dict_get_or(state["mission_spec"], "actions", []) {
         if dict_get_or(action, "type", "") == "write_file" {
             relative := string_or(dict_get_or(action, "path", ""), "")
             if relative != "" {
-                tests := push(tests, {"name": "file exists: " + relative, "check": "command_succeeds", "params": {"command": "test -f " + repo + "/" + relative}})
+                tests := push(tests, {"name": "file exists: " + relative, "check": "command_succeeds", "params": {"command": "test -f " + shell_quote_single(repo + "/" + relative)}})
             }
         }
     }
@@ -146,8 +157,7 @@ func report(state, run_dir) {
     failure_line := "- Failure: none\n"
     if type(failure) == "dict" && len(failure) > 0 { failure_line = "- Failure: " + to_string(dict_get_or(failure, "class", "unknown")) + " — " + to_string(dict_get_or(failure, "message", "")) + "\n" }
     markdown := "# Relay Run Report\n\n- Mission: " + state["mission_id"] + "\n- Run: " + state["run_id"] + "\n- Status: " + state["status"] + "\n- Current step: " + to_string(dict_get_or(state, "current_step", "")) + "\n- Workflow: " + state["workflow"] + "\n- Repository: " + state["repository"] + "\n" + failure_line + "\n## Evidence\n\n- Events: events.jsonl\n- Packet: agent/\n- Changes: changes.json\n- Evaluations: evaluations.json\n- JSON report: report.json\n"
-    if file_exists(run_dir + "/report.md") { delete_file(run_dir + "/report.md") }
-    write_file(run_dir + "/report.md", markdown)
+    write_text_atomic(run_dir + "/report.md", markdown)
 }
 
 func create_mission(path, output_path) {
@@ -177,6 +187,12 @@ func run_mission(path, options) {
     repo := string_or(dict_get_or(spec, "repository", "."), ".")
     state := run_state(mission_id, string_or(dict_get_or(spec, "workflow", "verified-feature"), "verified-feature"), repo, run_key)
     state["mission_spec"] := spec
+    configured_budgets := dict_get_or(spec, "budgets", {})
+    budgets := state["budgets"]
+    for key in ["max_steps", "max_repairs", "max_tokens"] {
+        if has_key(configured_budgets, key) { budgets[key] := int_or(configured_budgets[key], budgets[key]) }
+    }
+    state["budgets"] := budgets
     ledger := runledger_start(run_dir, string_or(dict_get_or(spec, "model", "fixture-model"), "fixture-model"), string_or(dict_get_or(spec, "provider", "fixture"), "fixture"), to_string(spec["name"]), repo)
     state["runledger"] := ledger
     state["status"] := "running"
@@ -189,7 +205,8 @@ func run_mission(path, options) {
     if path_exists(run_dir + "/agent/MASTER.md") { packet_artifact["integrity_sha256"] := sha256_file(run_dir + "/agent/MASTER.md") }
     state["artifacts"] := push(state["artifacts"], packet_artifact)
     state := add_event(state, run_dir, "artifact_created", "packet", "planner", packet_artifact)
-    agent_sdk := agents_sdk_smoke()
+    agent_sdk := {"ok": true, "skipped": true, "reason": "configured skip"}
+    if bool_or(dict_get_or(options, "agents_sdk_smoke", true), true) { agent_sdk = agents_sdk_smoke() }
     state["agent_sdk"] := agent_sdk
     state := add_event(state, run_dir, "artifact_created", "agent-sdk", "planner", {"kind": "agents_sdk_offline_smoke", "ok": agent_sdk["ok"]})
     planner := find_agent("planner")

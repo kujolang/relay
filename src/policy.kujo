@@ -1,4 +1,4 @@
-from src.common import contains_any, dict_get_or, string_or
+from src.common import contains_any, dict_get_or, string_or, process_options
 
 func classify_failure(code) {
     if contains_any(code, ["auth", "unauthorized", "401"]) { return "authentication_failure" }
@@ -59,7 +59,7 @@ func path_parent(path) {
 
 func real_path(path) {
     try {
-        result := spawn_process(["realpath", path], {"inherit_env": true, "timeout_ms": 5000, "max_output_bytes": 4096})
+        result := spawn_process(["realpath", path], process_options({}, 5000, 4096))
         if result.success { return trim(result.stdout) }
     } except err {}
     return ""
@@ -80,7 +80,7 @@ func command_is_allowed(command, policy) {
     value := string_or(command, "")
     if value == "" { return false }
     if contains_any(value, ["rm -rf", "sudo", "mkfs", "dd if=", "force-push", "--force", "reset --hard", "clean -f", "credential", ".env", ".ssh", "id_rsa", "git push", "git config", "git remote", "git checkout", "git switch", "git reset", "git clean"]) { return false }
-    if contains_any(value, [";", "&&", "||", "|", "`", "$(", ">", "<"]) { return false }
+    if contains_any(value, [";", "&&", "||", "|", "`", "$", ">", "<", "~", "*", "?", "{", "}", "\\", "\n", "\r"]) { return false }
     allowed := dict_get_or(policy, "allowed_commands", ["git", "kujo"])
     for prefix in allowed {
         if prefix == "git" && (starts_with(value, "git status") || starts_with(value, "git diff") || starts_with(value, "git rev-parse") || starts_with(value, "git log") || starts_with(value, "git show")) { return true }
