@@ -1,0 +1,18 @@
+{
+  "version": "0.1.0",
+  "id": "relay-agents-sdk-tools-mission",
+  "name": "relay-agents-sdk-tools-mission",
+  "goal": "Use the Agents SDK tool registry to create one bounded repository artifact.",
+  "workflow": "verified-feature",
+  "repository": "/tmp/relay-agents-sdk-tools-workspace",
+  "provider": "fixture",
+  "model": "fixture-model",
+  "allow_writes": true,
+  "approval": {"approved": true, "actor": "fixture-operator", "reason": "disposable isolated workspace"},
+  "allowed_commands": ["git"],
+  "acceptance_criteria": ["the Agents SDK tool-created file exists", "git diff --check passes"],
+  "agent_tools": [
+    {"name": "relay.write_file", "input": {"path": "RELAY_AGENT_TOOL_OUTPUT.txt", "content": "Created through the Agents SDK tool registry.\n"}}
+  ],
+  "actions": []
+}

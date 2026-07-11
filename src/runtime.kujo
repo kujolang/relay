@@ -2,7 +2,7 @@ from src.common import dict_get_or, env_or, string_or, bool_or, int_or, now_iso,
 from src.contracts import run_state, event
 from src.registry import find_agent
 from src.policy import tool_decision, classify_failure, path_is_safe, path_is_within_workspace, command_is_allowed
-from src.adapters import ai_chat_correlated, agents_sdk_smoke, packwrite_generate, runledger_start, runledger_finish, changebucket, eval_run
+from src.adapters import ai_chat_correlated, agents_sdk_smoke, agents_sdk_tool_run, packwrite_generate, runledger_start, runledger_finish, changebucket, eval_run
 from src.store import rebuild_run_index, load_run_index, persist_run_index
 
 func ensure_dir(path) {
@@ -139,6 +139,32 @@ func execute_action(action, spec, state, run_dir) {
     return {"ok": false, "failure_class": "policy_violation", "error": "unknown_action_type"}
 }
 
+func execute_tool_request(request, supplied_capability) {
+    if type(request) != "dict" { return {"ok": false, "error": "tool request must be an object"} }
+    capability := string_or(dict_get_or(request, "capability", ""), "")
+    expected_capability := string_or(supplied_capability, env_or("RELAY_TOOL_CAPABILITY", ""))
+    if capability == "" || capability != expected_capability { return {"ok": false, "error": "tool capability is invalid"} }
+    workspace := string_or(dict_get_or(request, "workspace", ""), "")
+    if workspace == "" || path_is_dir(workspace) == false || path_is_symlink(workspace) { return {"ok": false, "error": "tool workspace is invalid"} }
+    original_spec := dict_get_or(request, "mission_spec", {})
+    if type(original_spec) != "dict" { return {"ok": false, "error": "mission policy is missing"} }
+    spec := original_spec
+    spec["repository"] := workspace
+    tool_name := string_or(dict_get_or(request, "tool_name", ""), "")
+    input := dict_get_or(request, "input", {})
+    action := {}
+    if tool_name == "relay.write_file" {
+        action = {"type": "write_file", "path": dict_get_or(input, "path", ""), "content": dict_get_or(input, "content", "")}
+    } else if tool_name == "relay.run_command" {
+        action = {"type": "run_command", "command": dict_get_or(input, "command", ""), "timeout_ms": dict_get_or(input, "timeout_ms", 120000)}
+    } else { return {"ok": false, "error": "unknown Relay tool"} }
+    budgets := {"max_output_bytes": int_or(dict_get_or(dict_get_or(spec, "budgets", {}), "max_output_bytes", 1048576), 1048576), "max_write_bytes": int_or(dict_get_or(dict_get_or(spec, "budgets", {}), "max_write_bytes", 1048576), 1048576)}
+    state := {"repository": workspace, "budgets": budgets}
+    result := execute_action(action, spec, state, state_root())
+    if dict_get_or(result, "ok", false) == false { return {"ok": false, "error": {"code": dict_get_or(result, "failure_class", "tool_failure"), "message": dict_get_or(result, "error", "tool execution failed")}, "result": result} }
+    return {"ok": true, "tool_name": tool_name, "result": result, "artifacts": []}
+}
+
 func execute_actions(spec, state, run_dir) {
     actions := dict_get_or(spec, "actions", [])
     results := []
@@ -253,6 +279,13 @@ func run_mission(path, options) {
     if bool_or(dict_get_or(options, "agents_sdk_smoke", true), true) { agent_sdk = agents_sdk_smoke() }
     state["agent_sdk"] := agent_sdk
     state := add_event(state, run_dir, "artifact_created", "agent-sdk", "planner", {"kind": "agents_sdk_offline_smoke", "ok": agent_sdk["ok"]})
+    agent_sdk_tools := {"ok": true, "skipped": true, "reason": "no mission agent_tools configured"}
+    configured_agent_tools := dict_get_or(spec, "agent_tools", [])
+    if type(configured_agent_tools) == "array" && len(configured_agent_tools) > 0 {
+        agent_sdk_tools = agents_sdk_tool_run(repo, spec, state["run_id"], state["run_id"] + "-session")
+    }
+    state["agent_sdk_tools"] := agent_sdk_tools
+    state := add_event(state, run_dir, "tool_call_completed", "agent-sdk-tools", "core-developer", {"kind": "agents_sdk_tool_registry", "ok": agent_sdk_tools["ok"], "skipped": dict_get_or(agent_sdk_tools, "skipped", false), "data": dict_get_or(agent_sdk_tools, "data", {})})
     planner := find_agent("planner")
     model_result := ai_chat_correlated([{"role": "system", "content": planner["mandate"]}, {"role": "user", "content": to_string(spec["goal"])}], string_or(dict_get_or(spec, "model", "fixture-model"), "fixture-model"), string_or(dict_get_or(spec, "provider", "fixture"), "fixture"), bool_or(dict_get_or(options, "offline_fixture", true), true), bool_or(dict_get_or(options, "stream", false), false), state["run_id"])
     state["telemetry"] := dict_get_or(model_result, "relay_telemetry", {})
@@ -262,7 +295,7 @@ func run_mission(path, options) {
     budgets["used_tokens"] := used_tokens
     state["budgets"] := budgets
     state := add_event(state, run_dir, "model_request_completed", "plan", "planner", {"ok": dict_get_or(model_result, "ok", false), "telemetry": state["telemetry"]})
-    preflight_ok := ledger["ok"] && packet["ok"] && agent_sdk["ok"] && dict_get_or(model_result, "ok", false) && used_tokens <= state["budgets"]["max_tokens"]
+    preflight_ok := ledger["ok"] && packet["ok"] && agent_sdk["ok"] && agent_sdk_tools["ok"] && dict_get_or(model_result, "ok", false) && used_tokens <= state["budgets"]["max_tokens"]
     if preflight_ok && bool_or(dict_get_or(options, "pause_after_plan", false), false) {
         state["status"] := "paused"
         state["current_step"] := "implementation"
@@ -422,5 +455,6 @@ export run_mission := run_mission
 export pause_run := pause_run
 export cleanup_run := cleanup_run
 export resume_run := resume_run
+export execute_tool_request := execute_tool_request
 export state_root := state_root
 export run_root := run_root

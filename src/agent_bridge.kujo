@@ -1,0 +1,136 @@
+# Agents SDK bridge executed with the Agents SDK checkout as its working
+# directory. The SDK owns registry, approval, and runner semantics; Relay owns
+# policy and repository authority through the bounded tools worker callback.
+from src.agents.ai.adapter import create_ai_sdk_adapter
+from src.agents.runner import create_agent_runner, run_agent
+from src.agents.core_types import create_agent, create_agent_run_request
+from src.agents.tools.registry import create_tool_registry, register_tool
+
+func get(obj, key, fallback) {
+    if type(obj) == "dict" && has_key(obj, key) { return obj[key] }
+    return fallback
+}
+
+func json_safe(value) {
+    if type(value) == "function" { return null }
+    if type(value) == "dict" {
+        safe_map := {}
+        for key in keys(value) { safe_map[key] := json_safe(value[key]) }
+        return safe_map
+    }
+    if type(value) == "array" {
+        safe_items := []
+        for item in value { safe_items = push(safe_items, json_safe(item)) }
+        return safe_items
+    }
+    return value
+}
+
+func last_json(raw) {
+    text := trim(to_string(raw))
+    try { return parse_json(text) } except err {}
+    candidate_lines := split(text, "\n")
+    i := len(candidate_lines) - 1
+    while i >= 0 {
+        candidate := trim(candidate_lines[i])
+        if candidate != "" {
+            try { return parse_json(candidate) } except err {}
+        }
+        i = i - 1
+    }
+    return null
+}
+
+func process_options(extra_env, timeout_ms) {
+    env_map := {}
+    allowed := []
+    for name in ["PATH", "HOME", "TMPDIR", "TMP", "TEMP", "LANG", "LC_ALL"] {
+        value := env(name)
+        if type(value) != "null" { env_map[name] := value; allowed := push(allowed, name) }
+    }
+    for name in keys(extra_env) { env_map[name] := extra_env[name]; allowed := push(allowed, name) }
+    return {"inherit_env": false, "timeout_ms": timeout_ms, "max_output_bytes": 8388608, "env": env_map, "env_allow": allowed}
+}
+
+func call_relay_worker(tool_name, input_payload, context, payload) {
+    relay_root := to_string(get(payload, "relay_root", env("RELAY_ROOT")))
+    kujo_bin := to_string(get(payload, "kujo_bin", env("KUJO_BIN")))
+    capability := to_string(get(payload, "capability", ""))
+    clean_input := {}
+    if tool_name == "relay.write_file" { clean_input = {"path": to_string(get(input_payload, "path", "")), "content": to_string(get(input_payload, "content", ""))} }
+    if tool_name == "relay.run_command" { clean_input = {"command": to_string(get(input_payload, "command", "")), "timeout_ms": get(input_payload, "timeout_ms", 120000)} }
+    raw_spec := get(payload, "mission_spec", {})
+    clean_spec := {"allow_writes": get(raw_spec, "allow_writes", false), "approval": get(raw_spec, "approval", {}), "allowed_commands": get(raw_spec, "allowed_commands", ["git", "kujo"]), "budgets": get(raw_spec, "budgets", {})}
+    request := {
+        "tool_name": tool_name,
+        "input": clean_input,
+        "run_id": get(payload, "run_id", ""),
+        "session_id": get(payload, "session_id", ""),
+        "agent_id": get(context, "agent_id", ""),
+        "workspace": get(payload, "workspace", ""),
+        "mission_spec": clean_spec,
+        "capability": capability
+    }
+    command := ["/usr/bin/env", "-C", relay_root, kujo_bin, "run", relay_root + "/main.kujo", "--", "tools", "execute", "--capability", capability, "--json"]
+    result := spawn_process(command, process_options({"RELAY_TOOL_REQUEST": to_json(request)}, 120000))
+    parsed := last_json(result.stdout)
+    if type(parsed) != "dict" { return {"ok": false, "error": {"message": "Relay tools worker returned no JSON", "stderr": to_string(result.stderr)}} }
+    if result.success == false || get(parsed, "ok", false) == false { return {"ok": false, "error": {"message": get(get(parsed, "error", {}), "message", "Relay tools worker failed"), "worker_success": result.success, "worker_stdout": to_string(result.stdout), "worker_stderr": to_string(result.stderr)}} }
+    return {"ok": true, "output": get(parsed, "result", {}), "artifacts": get(parsed, "artifacts", [])}
+}
+
+func summarize_agent_result(result) {
+    metadata := get(result, "metadata", {})
+    calls := get(metadata, "tool_calls", [])
+    summaries := []
+    for call in calls {
+        call_result := get(call, "result", {})
+        call_error := get(call_result, "error", {})
+        summaries = push(summaries, {"tool_name": get(call, "tool_name", ""), "ok": get(call_result, "ok", false), "output": get(call_result, "output", {}), "error_kind": get(call_error, "kind", ""), "error_message": get(call_error, "message", "")})
+    }
+    error_payload := get(result, "error", {})
+    return {"ok": get(result, "status", "failed") == "completed", "status": get(result, "status", "failed"), "output_text": get(get(result, "output", {}), "text", get(result, "output_text", "")), "tool_calls": summaries, "error_kind": get(error_payload, "kind", "")}
+}
+
+payload_text := env("RELAY_AGENT_PAYLOAD")
+if type(payload_text) == "null" || trim(to_string(payload_text)) == "" { print(to_json({"ok": false, "error": {"code": "missing_agent_payload"}})); exit(1) }
+payload := parse_json(payload_text)
+
+fake_chat := func(client, messages, request_options) {
+    return {"ok": true, "provider": "relay-agent-fixture", "model": get(payload, "model", "fixture-model"), "output_text": get(payload, "output_text", "Relay Agents SDK tool execution"), "tool_calls": get(payload, "tool_calls", []), "usage": {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0}}
+}
+adapter := create_ai_sdk_adapter({"chat_completion_fn": fake_chat})
+runner := create_agent_runner({"ai_adapter": adapter})
+agent := create_agent({"id": get(payload, "agent_id", "relay-agent"), "name": get(payload, "agent_name", "Relay Agent")})
+
+registry := create_tool_registry({"metadata": {"owner": "relay", "authority": "policy_worker"}})
+write_register := register_tool(registry, {
+    "id": "relay.write_file",
+    "name": "relay.write_file",
+    "description": "Write one approved file through Relay policy.",
+    "permissions": ["write"],
+    "risk": "high",
+    "input_schema": {"type": "object", "required": ["path", "content"], "properties": {"path": {"type": "string"}, "content": {"type": "string"}}},
+    "handler": func(input_payload, context) { return call_relay_worker("relay.write_file", input_payload, context, payload) }
+})
+write_registry := get(write_register, "registry", registry)
+command_register := register_tool(write_registry, {
+    "id": "relay.run_command",
+    "name": "relay.run_command",
+    "description": "Run one approved read-oriented command through Relay policy.",
+    "permissions": [],
+    "risk": "medium",
+    "input_schema": {"type": "object", "required": ["command"], "properties": {"command": {"type": "string"}, "timeout_ms": {"type": "integer"}}},
+    "handler": func(input_payload, context) { return call_relay_worker("relay.run_command", input_payload, context, payload) }
+})
+if get(write_register, "ok", false) == false || get(command_register, "ok", false) == false { print(to_json({"ok": false, "error": {"code": "tool_registry_setup_failed"}})); exit(1) }
+
+approval_policy := {"mode": "write_tool"}
+approval_provider := {"kind": "deny_all"}
+if get(payload, "approval_approved", false) == true { approval_provider = {"kind": "auto"} }
+run_request := create_agent_run_request(get(payload, "prompt", "Execute the approved Relay tool plan"), {"run_id": get(payload, "run_id", "relay-agent-run"), "session_id": get(payload, "session_id", "relay-agent-session"), "metadata": {"relay_tool_execution": true}})
+registry_final := get(command_register, "registry", get(write_register, "registry", registry))
+result := run_agent(runner, agent, run_request, {"tool_registry": registry_final, "approval_policy": approval_policy, "approval_provider": approval_provider, "max_iterations": get(payload, "max_iterations", 4)})
+summary := summarize_agent_result(result)
+print(to_json(summary))
+if get(summary, "ok", false) == false { exit(1) }

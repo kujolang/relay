@@ -2,7 +2,7 @@ from src.common import dict_get_or, env_or, string_or, bool_or, read_json_or, sa
 from src.contracts import RELAY_VERSION
 from src.registry import agent_catalog, find_agent, agent_path
 from src.adapters import ai_chat, capsule_run
-from src.runtime import ensure_dir, create_mission, run_mission, pause_run, cleanup_run, resume_run, state_root, run_root
+from src.runtime import ensure_dir, create_mission, run_mission, pause_run, cleanup_run, resume_run, execute_tool_request, state_root, run_root
 from src.store import load_run_index, rebuild_run_index, persist_run_index
 from src.doctor import doctor
 
@@ -60,6 +60,7 @@ func help_text() {
         "  missions run <spec.json> [--fixture] [--pause-after-plan] [--skip-agent-smoke] [--json]\n" +
         "  missions inspect <run-id>|pause <run-id>|resume <run-id>|cleanup <run-id> --confirm|report <run-id>\n" +
         "  runs list|rebuild|inspect <run-id>|events <run-id>|changes <run-id>|evaluations <run-id>\n" +
+        "  tools execute --json (bounded Agents SDK worker callback)\n" +
         "  benchmark run <repo> [--json] (Capsule discovery slice)"
 }
 
@@ -185,6 +186,17 @@ func cmd_benchmark(tokens) {
     return result
 }
 
+func cmd_tools(tokens) {
+    parsed := parse_tokens(tokens)
+    sub := positional(parsed["positionals"], 0, "")
+    if sub != "execute" { return {"ok": false, "error": "unknown tools command"} }
+    raw := env("RELAY_TOOL_REQUEST")
+    if type(raw) == "null" || trim(to_string(raw)) == "" { return {"ok": false, "error": "RELAY_TOOL_REQUEST is required"} }
+    request := null
+    try { request = parse_json(raw) } except err { return {"ok": false, "error": "RELAY_TOOL_REQUEST is invalid JSON"} }
+    return execute_tool_request(request, dict_get_or(parsed["flags"], "capability", ""))
+}
+
 export func main(argv) {
     if len(argv) == 0 || argv[0] == "help" || argv[0] == "--help" { print(help_text()); return 0 }
     command := argv[0]
@@ -197,6 +209,7 @@ export func main(argv) {
     else if command == "agents" { result = cmd_agents(rest) }
     else if command == "missions" { result = cmd_missions(rest) }
     else if command == "runs" { result = cmd_runs(rest) }
+    else if command == "tools" { result = cmd_tools(rest) }
     else if command == "benchmark" { result = cmd_benchmark(rest) }
     else if command == "doctor" { result = doctor() }
     else { print(help_text()); return 2 }

@@ -1,4 +1,4 @@
-from src.common import dict_get_or, env_or, string_or, safe_json, read_json_or, redact_text, process_options, safe_env_name
+from src.common import dict_get_or, env_or, string_or, bool_or, safe_json, read_json_or, redact_text, process_options, safe_env_name
 from src.watchdog import watchdog_verify
 
 func relay_root() { return env_or("RELAY_ROOT", env_or("PWD", ".")) }
@@ -115,6 +115,35 @@ func agents_sdk_smoke() {
     return {"ok": dict_get_or(result, "success", false), "data": last_json(dict_get_or(result, "stdout", "")), "stdout": dict_get_or(result, "stdout", ""), "stderr": dict_get_or(result, "stderr", "")}
 }
 
+func agents_sdk_tool_run(workspace, spec, run_id, session_id) {
+    tools := dict_get_or(spec, "agent_tools", [])
+    mission_spec := spec
+    mission_spec["allow_writes"] := bool_or(dict_get_or(spec, "allow_writes", false), false)
+    mission_spec["budgets"] := dict_get_or(spec, "budgets", {})
+    payload := {
+        "relay_root": relay_root(),
+        "kujo_bin": kujo_bin(),
+        "capability": sha256(run_id + "|" + session_id + "|relay-agent-tools"),
+        "run_id": run_id,
+        "session_id": session_id,
+        "workspace": workspace,
+        "agent_id": string_or(dict_get_or(spec, "agent", "core-developer"), "core-developer"),
+        "agent_name": "Relay mission agent",
+        "prompt": string_or(dict_get_or(spec, "goal", "Execute approved Relay tools"), "Execute approved Relay tools"),
+        "output_text": "Relay mission Agents SDK tool execution",
+        "tool_calls": tools,
+        "approval_approved": bool_or(dict_get_or(dict_get_or(spec, "approval", {}), "approved", false), false),
+        "mission_spec": mission_spec
+    }
+    env_map := {"RELAY_AGENT_PAYLOAD": safe_json(payload), "RELAY_ROOT": relay_root(), "KUJO_BIN": kujo_bin()}
+    command := ["/usr/bin/env", "-C", agents_sdk_root(), kujo_bin(), "run", relay_root() + "/src/agent_bridge.kujo", "--interpreter"]
+    result := run_process(command, "", env_map, 120000)
+    parsed := last_json(dict_get_or(result, "stdout", ""))
+    ok := dict_get_or(result, "success", false)
+    if type(parsed) != "dict" || dict_get_or(parsed, "ok", false) == false { ok = false }
+    return {"ok": ok, "data": parsed, "stdout": dict_get_or(result, "stdout", ""), "stderr": dict_get_or(result, "stderr", "")}
+}
+
 func packwrite_generate(run_dir, prompt_path, packet_path) {
     packwrite := env_or("RELAY_PACKWRITE_BIN", relay_root() + "/../packwrite/bin/packwrite")
     fake_file := env_or("RELAY_PACKWRITE_FAKE_RESPONSE", relay_root() + "/examples/packwrite-response.json")
@@ -168,6 +197,7 @@ export watchdog_url := watchdog_url
 export ai_chat := ai_chat
 export ai_chat_correlated := ai_chat_correlated
 export agents_sdk_smoke := agents_sdk_smoke
+export agents_sdk_tool_run := agents_sdk_tool_run
 export packwrite_generate := packwrite_generate
 export runledger_start := runledger_start
 export runledger_finish := runledger_finish
