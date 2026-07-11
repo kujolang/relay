@@ -30,6 +30,8 @@ The correct posture is: **local-first hardened alpha / ecosystem showcase**.
 | Evaluation authority | Failed ChangeBucket or Eval evidence now fails the run | `src/runtime.kujo` |
 | Resume correctness | `--pause-after-plan` creates a real checkpoint; resume executes pending actions and re-verifies evidence | mission run events/state |
 | Event performance | JSONL uses `append_file` instead of rereading/rebuilding the whole file | `src/common.kujo` |
+| State durability | JSON state writes use sibling temp files and rename into place | `src/common.kujo` |
+| Acceptance coverage | Generated Eval config checks each declared file-write output in addition to `git diff --check` | `src/runtime.kujo`, mission smoke |
 | Capsule adapter | Uses the shared process adapter and preserves truthful failure output | `src/adapters.kujo`, `src/cli.kujo` |
 
 ## Remaining enterprise gaps
@@ -71,4 +73,4 @@ The local runtime now fails closed for the highest-risk MVP paths, but it is not
 
 ## Release recommendation
 
-Publish Relay only as a local-first alpha/showcase until all P0 items have executable evidence. Keep the README's enterprise-readiness disclaimer and require a release report that distinguishes fixture, configured-live, and production-environment evidence.
+Publish Relay only as a local-first alpha/showcase until all P0 items have executable evidence. The review hardening is committed as `b21ef02` and pushed to `origin/main`; keep the README's enterprise-readiness disclaimer and require a release report that distinguishes fixture, configured-live, and production-environment evidence.

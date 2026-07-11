@@ -22,6 +22,7 @@ Passed locally with the pinned Kujo release runtime:
 - RunLedger recorded a pass with starting commit and changed-file count
 - ChangeBucket recorded the added file
 - Eval passed `git diff --check`
+- generated Eval config also checks that each declared `write_file` action produced a file
 - six AgentEvent-compatible lifecycle/artifact/tool/evaluation events were persisted
 - pause/resume path persisted a resumable checkpoint and completion report
 
@@ -42,8 +43,8 @@ The current run engine accepts explicit action plans instead of allowing an Agen
 
 ## 2026-07-11 enterprise-readiness review
 
-The current posture is local-first hardened alpha/showcase, not universal enterprise production. This review added realpath workspace checks, shell/Git command deny rules, explicit write approvals, subprocess redaction, packet digest metadata, unique run suffixes, preflight failure handling, ChangeBucket/Eval completion authority, efficient JSONL append, shared Capsule process handling, and a real pause-after-plan/resume checkpoint. See `docs/enterprise-readiness-review-2026-07-11.md` and `docs/next-session-enhancement-backlog.md` for the evidence boundary and prioritized remaining work.
+The current posture is local-first hardened alpha/showcase, not universal enterprise production. This review added realpath workspace checks, shell/Git command deny rules, explicit write approvals, subprocess redaction, packet digest metadata, unique run suffixes, preflight failure handling, ChangeBucket/Eval completion authority, atomic JSON persistence, efficient JSONL append, generated file-existence acceptance checks, shared Capsule process handling, and a real pause-after-plan/resume checkpoint. See `docs/enterprise-readiness-review-2026-07-11.md` and `docs/next-session-enhancement-backlog.md` for the evidence boundary and prioritized remaining work.
 
 ## Repository handoff
 
-The repository has a configured `origin` remote. Final commit IDs and push status must be recorded after the current review's verification and release attempt.
+The review hardening is committed as `b21ef02` (`Loop engineering: Build and verify the Kujo Relay composition runtime vertical slice`) and is pushed to the configured `origin/main`. The working tree is clean. The next session should preserve this evidence boundary rather than widening claims.
