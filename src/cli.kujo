@@ -1,7 +1,7 @@
 from src.common import dict_get_or, env_or, string_or, bool_or, read_json_or, safe_json, write_json
 from src.contracts import RELAY_VERSION
 from src.registry import agent_catalog, find_agent, agent_path
-from src.adapters import ai_chat
+from src.adapters import ai_chat, capsule_run
 from src.runtime import ensure_dir, create_mission, run_mission, pause_run, resume_run, state_root, run_root
 
 func has_flag(flags, name) { return has_key(flags, name) }
@@ -21,7 +21,7 @@ func parse_tokens(tokens) {
             key := substring(token, 2, len(token))
             if key == "json" || key == "stream" || key == "fixture" || key == "offline" || key == "help" {
                 flags[key] := true
-            } else if i + 1 < len(tokens) {
+            } else if i + 1 < len(tokens) && starts_with(tokens[i + 1], "--") == false {
                 flags[key] := tokens[i + 1]
                 i = i + 1
             } else { flags[key] := "" }
@@ -50,7 +50,7 @@ func help_text() {
         "  models list|inspect <model>\n" +
         "  agents list|inspect <agent>|validate\n" +
         "  missions create [spec.json] [--output path]\n" +
-        "  missions run <spec.json> [--fixture] [--json]\n" +
+        "  missions run <spec.json> [--fixture] [--pause-after-plan] [--json]\n" +
         "  missions inspect <run-id>|pause <run-id>|resume <run-id>|report <run-id>\n" +
         "  runs list|inspect <run-id>|events <run-id>|changes <run-id>|evaluations <run-id>\n" +
         "  benchmark run <repo> [--json] (Capsule discovery slice)"
@@ -114,7 +114,7 @@ func cmd_missions(tokens) {
         if path == "" { return {"ok": false, "error": "missions run requires a spec path"} }
         offline := has_flag(parsed["flags"], "fixture")
         if env_or("RELAY_OFFLINE_FIXTURE", "true") == "true" { offline = true }
-        return run_mission(path, {"offline_fixture": offline, "stream": false})
+        return run_mission(path, {"offline_fixture": offline, "stream": false, "pause_after_plan": has_flag(parsed["flags"], "pause-after-plan")})
     }
     id := positional(parsed["positionals"], 1, "")
     index := read_json_or(state_root() + "/index.json", {})
@@ -148,9 +148,9 @@ func cmd_runs(tokens) {
 func cmd_benchmark(tokens) {
     parsed := parse_tokens(tokens)
     repo := positional(parsed["positionals"], 1, ".")
-    capsule := env_or("RELAY_CAPSULE_BIN", "../benchmarks-capsule/bin/capsule")
-    result := spawn_process(["/usr/bin/env", capsule, "make", repo, "--out", state_root() + "/capsule", "--stable"], {"inherit_env": true, "env": {"KUJO": env_or("KUJO_BIN", "kujo")}, "timeout_ms": 120000, "max_output_bytes": 1048576})
-    return {"ok": dict_get_or(result, "success", false), "benchmark": "capsule-discovery", "stdout": dict_get_or(result, "stdout", ""), "stderr": dict_get_or(result, "stderr", ""), "artifacts": state_root() + "/capsule"}
+    result := capsule_run(repo, state_root() + "/capsule")
+    result["benchmark"] := "capsule-discovery"
+    return result
 }
 
 export func main(argv) {

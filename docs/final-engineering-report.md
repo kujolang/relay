@@ -22,7 +22,7 @@ Passed locally with the pinned Kujo release runtime:
 - RunLedger recorded a pass with starting commit and changed-file count
 - ChangeBucket recorded the added file
 - Eval passed `git diff --check`
-- five AgentEvent-compatible lifecycle/artifact/tool/evaluation events were persisted
+- six AgentEvent-compatible lifecycle/artifact/tool/evaluation events were persisted
 - pause/resume path persisted a resumable checkpoint and completion report
 
 Not proven in this local session: live Ollama Cloud, live Watchdog proxy telemetry, multi-model Capsule A/B implementation scoring, Paperclip/Hermes invocation, and automated worktree provisioning. These are known limitations, not successful integrations.
@@ -38,8 +38,12 @@ Not proven in this local session: live Ollama Cloud, live Watchdog proxy telemet
 
 ## Known limitations
 
-The current run engine accepts explicit action plans instead of allowing an Agents SDK model to request tools. Agent roles are loaded as a small registry, not dynamically resolved from all Chain of Command definitions. `resume` is a checkpoint proof for the MVP and does not yet replay an interrupted step. Live Watchdog/Ollama and failure-repair flows require follow-up integration work.
+The current run engine accepts explicit action plans instead of allowing an Agents SDK model to request tools. Agent roles are loaded as a small registry, not dynamically resolved from all Chain of Command definitions. Resume currently supports the explicit post-plan checkpoint only; arbitrary interrupted-step replay and failure-repair flows require follow-up integration work. Live Watchdog/Ollama remains unverified.
+
+## 2026-07-11 enterprise-readiness review
+
+The current posture is local-first hardened alpha/showcase, not universal enterprise production. This review added realpath workspace checks, shell/Git command deny rules, explicit write approvals, subprocess redaction, packet digest metadata, unique run suffixes, preflight failure handling, ChangeBucket/Eval completion authority, efficient JSONL append, shared Capsule process handling, and a real pause-after-plan/resume checkpoint. See `docs/enterprise-readiness-review-2026-07-11.md` and `docs/next-session-enhancement-backlog.md` for the evidence boundary and prioritized remaining work.
 
 ## Repository handoff
 
-Local commits are `22e9e84`, `b1d911e`, and `9292287`; the working tree is clean. Push was attempted and is blocked because this newly created local repository has no configured remote or push destination. No remote URL was inferred or added.
+The repository has a configured `origin` remote. Final commit IDs and push status must be recorded after the current review's verification and release attempt.

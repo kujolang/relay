@@ -1,7 +1,7 @@
-from src.common import dict_get_or, env_or, string_or, bool_or, int_or, now_iso, read_json_or, write_json, append_jsonl, safe_json
+from src.common import dict_get_or, env_or, string_or, bool_or, int_or, now_iso, safe_id, read_json_or, write_json, append_jsonl, safe_json
 from src.contracts import run_state, event
 from src.registry import find_agent
-from src.policy import tool_decision, classify_failure, path_is_safe, command_is_allowed
+from src.policy import tool_decision, classify_failure, path_is_safe, path_is_within_workspace, command_is_allowed
 from src.adapters import ai_chat, agents_sdk_smoke, packwrite_generate, runledger_start, runledger_finish, changebucket, eval_run
 
 func ensure_dir(path) {
@@ -52,6 +52,15 @@ func load_spec(path) {
     if type(spec) != "dict" { return {"ok": false, "error": "Mission file is missing or invalid JSON: " + path} }
     if string_or(dict_get_or(spec, "name", ""), "") == "" { return {"ok": false, "error": "Mission requires name"} }
     if string_or(dict_get_or(spec, "goal", ""), "") == "" { return {"ok": false, "error": "Mission requires goal"} }
+    actions := dict_get_or(spec, "actions", [])
+    if type(actions) != "array" { return {"ok": false, "error": "Mission actions must be an array"} }
+    if len(actions) > 32 { return {"ok": false, "error": "Mission exceeds the 32-action safety limit"} }
+    repository := string_or(dict_get_or(spec, "repository", ""), "")
+    if repository == "" || path_is_dir(repository) == false { return {"ok": false, "error": "Mission repository must be an existing directory"} }
+    if path_exists(repository + "/.git") == false { return {"ok": false, "error": "Mission repository must be a Git workspace"} }
+    if bool_or(dict_get_or(spec, "allow_writes", false), false) && dict_get_or(dict_get_or(spec, "approval", {}), "approved", false) != true {
+        return {"ok": false, "error": "Write-enabled missions require approval.approved=true"}
+    }
     return {"ok": true, "spec": spec}
 }
 
@@ -68,14 +77,14 @@ func execute_action(action, spec, state, run_dir) {
     policy := {
         "workspace": repo,
         "allow_writes": bool_or(dict_get_or(spec, "allow_writes", false), false),
-        "allowed_commands": dict_get_or(spec, "allowed_commands", ["git", "kujo", "bash"])
+        "allowed_commands": dict_get_or(spec, "allowed_commands", ["git", "kujo"])
     }
     if kind == "write_file" {
         decision := tool_decision("write_file", action, policy)
         if decision["allowed"] == false { return {"ok": false, "failure_class": "permission_denial", "error": decision["reason"]} }
         relative := action["path"]
         target := repo + "/" + relative
-        if path_is_safe(repo, relative) == false { return {"ok": false, "failure_class": "permission_denial", "error": "unsafe path"} }
+        if path_is_within_workspace(repo, relative) == false { return {"ok": false, "failure_class": "permission_denial", "error": "unsafe or symlinked path"} }
         try {
             if file_exists(target) { delete_file(target) }
             write_file(target, to_string(dict_get_or(action, "content", "")))
@@ -105,14 +114,25 @@ func execute_actions(spec, state, run_dir) {
 }
 
 func write_eval_config(run_dir, state) {
+    repo := state["repository"]
+    mut tests := [
+        {"name": "git diff check", "check": "command_succeeds", "params": {"command": "git -C " + repo + " diff --check"}}
+    ]
+    for action in dict_get_or(state["mission_spec"], "actions", []) {
+        if dict_get_or(action, "type", "") == "write_file" {
+            relative := string_or(dict_get_or(action, "path", ""), "")
+            if relative != "" {
+                tests := push(tests, {"name": "file exists: " + relative, "check": "command_succeeds", "params": {"command": "test -f " + repo + "/" + relative}})
+            }
+        }
+    }
     config := {
         "name": "relay-" + state["mission_id"],
         "description": "Deterministic Relay acceptance checks",
         "version": "1.0.0",
         "output_dir": "./eval_results",
-        "tests": [
-            {"name": "git diff check", "check": "command_succeeds", "params": {"command": "git -C " + state["repository"] + " diff --check"}}
-        ]
+        "allowed_paths": [repo],
+        "tests": tests
     }
     path := run_dir + "/eval.json"
     write_json(path, config)
@@ -122,7 +142,10 @@ func write_eval_config(run_dir, state) {
 func report(state, run_dir) {
     json_path := run_dir + "/report.json"
     write_json(json_path, state)
-    markdown := "# Relay Run Report\n\n- Mission: " + state["mission_id"] + "\n- Run: " + state["run_id"] + "\n- Status: " + state["status"] + "\n- Workflow: " + state["workflow"] + "\n\n## Evidence\n\n- Events: events.jsonl\n- Packet: agent/\n- Changes: changes.json\n- Evaluations: evaluations.json\n"
+    failure := dict_get_or(state, "failure", {})
+    failure_line := "- Failure: none\n"
+    if type(failure) == "dict" && len(failure) > 0 { failure_line = "- Failure: " + to_string(dict_get_or(failure, "class", "unknown")) + " — " + to_string(dict_get_or(failure, "message", "")) + "\n" }
+    markdown := "# Relay Run Report\n\n- Mission: " + state["mission_id"] + "\n- Run: " + state["run_id"] + "\n- Status: " + state["status"] + "\n- Current step: " + to_string(dict_get_or(state, "current_step", "")) + "\n- Workflow: " + state["workflow"] + "\n- Repository: " + state["repository"] + "\n" + failure_line + "\n## Evidence\n\n- Events: events.jsonl\n- Packet: agent/\n- Changes: changes.json\n- Evaluations: evaluations.json\n- JSON report: report.json\n"
     if file_exists(run_dir + "/report.md") { delete_file(run_dir + "/report.md") }
     write_file(run_dir + "/report.md", markdown)
 }
@@ -147,36 +170,63 @@ func run_mission(path, options) {
     if loaded["ok"] == false { return loaded }
     spec := loaded["spec"]
     ensure_dir(run_root())
-    mission_id := string_or(dict_get_or(spec, "id", dict_get_or(spec, "name", "mission")), "mission")
-    run_key := mission_id + "-" + to_string(current_timestamp())
+    mission_id := safe_id(string_or(dict_get_or(spec, "id", dict_get_or(spec, "name", "mission")), "mission"), "mission")
+    run_key := mission_id + "-" + to_string(current_timestamp()) + "-" + to_string(random_int(1000, 999999))
     run_dir := run_root() + "/" + run_key
     ensure_dir(run_dir)
     repo := string_or(dict_get_or(spec, "repository", "."), ".")
     state := run_state(mission_id, string_or(dict_get_or(spec, "workflow", "verified-feature"), "verified-feature"), repo, run_key)
+    state["mission_spec"] := spec
     ledger := runledger_start(run_dir, string_or(dict_get_or(spec, "model", "fixture-model"), "fixture-model"), string_or(dict_get_or(spec, "provider", "fixture"), "fixture"), to_string(spec["name"]), repo)
     state["runledger"] := ledger
     state["status"] := "running"
+    state["current_step"] := "plan"
     register_run(state, run_dir)
     state := add_event(state, run_dir, "run_started", "", "relay", {"workflow": state["workflow"], "repository": repo})
     prompt := write_prompt(run_dir, spec)
     packet := packwrite_generate(run_dir, "MEGA_PROMPT.md", run_dir + "/agent")
-    state["artifacts"] := push(state["artifacts"], {"kind": "packwrite_agent_pack", "path": packet["artifact_dir"], "ok": packet["ok"]})
-    state := add_event(state, run_dir, "artifact_created", "packet", "planner", {"kind": "packwrite_agent_pack", "path": packet["artifact_dir"], "ok": packet["ok"]})
+    packet_artifact := {"kind": "packwrite_agent_pack", "path": packet["artifact_dir"], "ok": packet["ok"], "revision": 1}
+    if path_exists(run_dir + "/agent/MASTER.md") { packet_artifact["integrity_sha256"] := sha256_file(run_dir + "/agent/MASTER.md") }
+    state["artifacts"] := push(state["artifacts"], packet_artifact)
+    state := add_event(state, run_dir, "artifact_created", "packet", "planner", packet_artifact)
     agent_sdk := agents_sdk_smoke()
     state["agent_sdk"] := agent_sdk
     state := add_event(state, run_dir, "artifact_created", "agent-sdk", "planner", {"kind": "agents_sdk_offline_smoke", "ok": agent_sdk["ok"]})
     planner := find_agent("planner")
     model_result := ai_chat([{"role": "system", "content": planner["mandate"]}, {"role": "user", "content": to_string(spec["goal"])}], string_or(dict_get_or(spec, "model", "fixture-model"), "fixture-model"), string_or(dict_get_or(spec, "provider", "fixture"), "fixture"), bool_or(dict_get_or(options, "offline_fixture", true), true), bool_or(dict_get_or(options, "stream", false), false))
     state["telemetry"] := dict_get_or(model_result, "relay_telemetry", {})
+    usage := dict_get_or(model_result, "usage", {})
+    used_tokens := int_or(dict_get_or(usage, "total_tokens", 0), 0)
+    budgets := dict_get_or(state, "budgets", {})
+    budgets["used_tokens"] := used_tokens
+    state["budgets"] := budgets
     state := add_event(state, run_dir, "model_request_completed", "plan", "planner", {"ok": dict_get_or(model_result, "ok", false), "telemetry": state["telemetry"]})
-    actions := execute_actions(spec, state, run_dir)
+    preflight_ok := ledger["ok"] && packet["ok"] && agent_sdk["ok"] && dict_get_or(model_result, "ok", false) && used_tokens <= state["budgets"]["max_tokens"]
+    if preflight_ok && bool_or(dict_get_or(options, "pause_after_plan", false), false) {
+        state["status"] := "paused"
+        state["current_step"] := "implementation"
+        state["checkpoint"] := {"step": "implementation", "reason": "pause_after_plan", "created_at": now_iso()}
+        state := add_event(state, run_dir, "run_cancelled", "implementation", "relay", {"reason": "checkpoint_requested", "resumable": true})
+        save_state(state, run_dir)
+        report(state, run_dir)
+        register_run(state, run_dir)
+        return {"ok": true, "run": state, "run_dir": run_dir}
+    }
+    mut actions := {"ok": false, "results": [], "state": state, "failure": {"failure_class": "integration_failure", "error": "mission preflight failed"}}
+    if preflight_ok {
+        state["current_step"] := "implementation"
+        actions = execute_actions(spec, state, run_dir)
+    }
     state := actions["state"]
     state["action_results"] := actions["results"]
     if actions["ok"] == false {
         state["status"] := "failed"
-        state["failure"] := {"class": dict_get_or(actions["failure"], "failure_class", "tool_failure"), "message": dict_get_or(actions["failure"], "error", "action failed"), "repair_attempts": 0}
+        failure_class := dict_get_or(actions["failure"], "failure_class", "tool_failure")
+        if preflight_ok == false { failure_class = "integration_failure" }
+        state["failure"] := {"class": failure_class, "message": dict_get_or(actions["failure"], "error", "action or preflight failed"), "repair_attempts": 0}
         state := add_event(state, run_dir, "run_failed", "implementation", "core-developer", state["failure"])
     } else {
+        state["current_step"] := "verify"
         state := add_event(state, run_dir, "tool_call_completed", "implementation", "core-developer", {"actions": len(actions["results"]), "ok": true})
         changes := changebucket(repo, run_dir)
         state["changes"] := dict_get_or(changes, "data", {"ok": changes["ok"]})
@@ -185,8 +235,17 @@ func run_mission(path, options) {
         evaluation := eval_run(run_dir, "eval.json")
         state["evaluations"] := push(state["evaluations"], dict_get_or(evaluation, "data", {"ok": evaluation["ok"]}))
         write_json(run_dir + "/evaluations.json", state["evaluations"])
-        if evaluation["ok"] == false { state["status"] := "failed"; state["failure"] := {"class": "evaluation_failure", "message": "Eval command failed", "repair_attempts": 0} } else { state["status"] := "completed" }
-        state := add_event(state, run_dir, "run_completed", "verify", "release-verifier", {"evaluation_ok": evaluation["ok"], "changes_ok": changes["ok"]})
+        if evaluation["ok"] == false || changes["ok"] == false {
+            state["status"] := "failed"
+            failure_class := "evaluation_failure"
+            if changes["ok"] == false { failure_class = "evidence_failure" }
+            state["failure"] := {"class": failure_class, "message": "Acceptance evidence did not pass", "repair_attempts": 0}
+            state := add_event(state, run_dir, "run_failed", "verify", "release-verifier", {"evaluation_ok": evaluation["ok"], "changes_ok": changes["ok"], "failure": state["failure"]})
+        } else {
+            state["status"] := "completed"
+            state["current_step"] := ""
+            state := add_event(state, run_dir, "run_completed", "verify", "release-verifier", {"evaluation_ok": true, "changes_ok": true})
+        }
     }
     save_state(state, run_dir)
     verdict := "Relay run " + state["status"]
@@ -207,6 +266,7 @@ func pause_run(run_id) {
     if type(record) != "dict" { return {"ok": false, "error": "unknown run: " + run_id} }
     state := read_json_or(record["run_dir"] + "/state.json", null)
     if type(state) != "dict" { return {"ok": false, "error": "run state missing"} }
+    if state["status"] != "running" { return {"ok": false, "error": "only running runs can be paused; use --pause-after-plan for a resumable checkpoint"} }
     state["status"] := "paused"
     state := add_event(state, record["run_dir"], "run_cancelled", "pause", "relay", {"reason": "operator_pause", "resumable": true})
     save_state(state, record["run_dir"])
@@ -221,12 +281,47 @@ func resume_run(run_id) {
     state := read_json_or(record["run_dir"] + "/state.json", null)
     if type(state) != "dict" { return {"ok": false, "error": "run state missing"} }
     if state["status"] != "paused" { return {"ok": false, "error": "run is not paused"} }
-    state["status"] := "completed"
-    state := add_event(state, record["run_dir"], "run_completed", "resume", "relay", {"resumed": true, "checkpoint": "state.json"})
+    checkpoint := dict_get_or(state, "checkpoint", null)
+    if type(checkpoint) != "dict" || dict_get_or(checkpoint, "step", "") != "implementation" {
+        return {"ok": false, "error": "run has no supported resumable checkpoint"}
+    }
+    state["status"] := "running"
+    state := add_event(state, record["run_dir"], "handoff_started", "resume", "relay", {"checkpoint": checkpoint})
+    actions := execute_actions(state["mission_spec"], state, record["run_dir"])
+    state := actions["state"]
+    state["action_results"] := actions["results"]
+    if actions["ok"] == false {
+        state["status"] := "failed"
+        state["failure"] := {"class": dict_get_or(actions["failure"], "failure_class", "tool_failure"), "message": dict_get_or(actions["failure"], "error", "resumed action failed"), "repair_attempts": 0}
+        state := add_event(state, record["run_dir"], "run_failed", "implementation", "core-developer", state["failure"])
+    } else {
+        state["current_step"] := "verify"
+        changes := changebucket(state["repository"], record["run_dir"])
+        state["changes"] := dict_get_or(changes, "data", {"ok": changes["ok"]})
+        write_json(record["run_dir"] + "/changes.json", state["changes"])
+        write_eval_config(record["run_dir"], state)
+        evaluation := eval_run(record["run_dir"], "eval.json")
+        state["evaluations"] := push(state["evaluations"], dict_get_or(evaluation, "data", {"ok": evaluation["ok"]}))
+        write_json(record["run_dir"] + "/evaluations.json", state["evaluations"])
+        if changes["ok"] && evaluation["ok"] {
+            state["status"] := "completed"
+            state["current_step"] := ""
+            state := add_event(state, record["run_dir"], "run_completed", "resume", "release-verifier", {"resumed": true, "evaluation_ok": true, "changes_ok": true})
+        } else {
+            state["status"] := "failed"
+            state["failure"] := {"class": "evidence_failure", "message": "Resumed acceptance evidence did not pass", "repair_attempts": 0}
+            state := add_event(state, record["run_dir"], "run_failed", "resume", "release-verifier", state["failure"])
+        }
+    }
+    save_state(state, record["run_dir"])
+    ledger_id := string_or(dict_get_or(dict_get_or(state, "runledger", {}), "run_id", ""), run_id)
+    ledger_status := "fail"
+    if state["status"] == "completed" { ledger_status = "pass" }
+    state["runledger_finish"] := runledger_finish(record["run_dir"], ledger_id, ledger_status, "Relay resumed run " + state["status"], "Evidence in " + record["run_dir"])
     save_state(state, record["run_dir"])
     report(state, record["run_dir"])
     register_run(state, record["run_dir"])
-    return {"ok": true, "run": state}
+    return {"ok": state["status"] == "completed", "run": state, "run_dir": record["run_dir"]}
 }
 
 export ensure_dir := ensure_dir

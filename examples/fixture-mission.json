@@ -8,6 +8,7 @@
   "provider": "fixture",
   "model": "fixture-model",
   "allow_writes": true,
+  "approval": {"approved": true, "actor": "fixture-operator", "reason": "disposable isolated workspace"},
   "allowed_commands": ["git", "kujo"],
   "acceptance_criteria": ["the approved file exists", "git diff --check passes"],
   "actions": [

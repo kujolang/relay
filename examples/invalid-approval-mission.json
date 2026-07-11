@@ -1,0 +1,8 @@
+{
+  "version": "0.1.0",
+  "name": "invalid-approval",
+  "goal": "This mission must be rejected before execution.",
+  "repository": ".",
+  "allow_writes": true,
+  "actions": []
+}

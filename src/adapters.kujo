@@ -1,4 +1,4 @@
-from src.common import dict_get_or, env_or, string_or, safe_json, read_json_or
+from src.common import dict_get_or, env_or, string_or, safe_json, read_json_or, redact_text
 
 func relay_root() { return env_or("RELAY_ROOT", env_or("PWD", ".")) }
 func kujo_bin() { return env_or("KUJO_BIN", relay_root() + "/../kujo/target/release/kujo") }
@@ -33,7 +33,7 @@ func run_process(command, cwd, extra_env, timeout_ms) {
     }
     try {
         raw := spawn_process(actual_command, options)
-        return {"success": raw.success, "exit_code": raw.exitcode, "stdout": raw.stdout, "stderr": raw.stderr, "timed_out": raw.timed_out}
+        return {"success": raw.success, "exit_code": raw.exitcode, "stdout": redact_text(raw.stdout), "stderr": redact_text(raw.stderr), "timed_out": raw.timed_out}
     } except err {
         return {"success": false, "exit_code": 3, "stdout": "", "stderr": to_string(err)}
     }
@@ -70,7 +70,17 @@ func ai_chat(messages, model, provider, offline, stream) {
     base := watchdog_url()
     if base == "" { base = "https://api.openai.com/v1" }
     api_key_env := env_or("RELAY_API_KEY_ENV", "OPENAI_API_KEY")
-    return call_ai(messages, model, provider, base, api_key_env, offline, stream)
+    primary := call_ai(messages, model, provider, base, api_key_env, offline, stream)
+    fallback_model := env_or("RELAY_FALLBACK_MODEL", "")
+    if dict_get_or(primary, "ok", false) == false && fallback_model != "" && fallback_model != model {
+        fallback := call_ai(messages, fallback_model, provider, base, api_key_env, offline, stream)
+        telemetry := dict_get_or(fallback, "relay_telemetry", {})
+        telemetry["fallback_from"] := model
+        telemetry["fallback_reason"] := dict_get_or(dict_get_or(primary, "error", {}), "code", "primary_failed")
+        fallback["relay_telemetry"] := telemetry
+        return fallback
+    }
+    return primary
 }
 
 func agents_sdk_smoke() {
@@ -117,6 +127,12 @@ func eval_run(run_dir, config_path) {
     return {"ok": dict_get_or(result, "success", false), "data": last_json(dict_get_or(result, "stdout", "")), "stdout": dict_get_or(result, "stdout", ""), "stderr": dict_get_or(result, "stderr", "")}
 }
 
+func capsule_run(repo, output_dir) {
+    capsule := env_or("RELAY_CAPSULE_BIN", relay_root() + "/../benchmarks-capsule/bin/capsule")
+    result := run_process(["/usr/bin/env", capsule, "make", repo, "--out", output_dir, "--stable"], "", {"KUJO": kujo_bin()}, 120000)
+    return {"ok": dict_get_or(result, "success", false), "stdout": dict_get_or(result, "stdout", ""), "stderr": dict_get_or(result, "stderr", ""), "artifacts": output_dir}
+}
+
 export kujo_bin := kujo_bin
 export repo_root := repo_root
 export watchdog_url := watchdog_url
@@ -127,3 +143,4 @@ export runledger_start := runledger_start
 export runledger_finish := runledger_finish
 export changebucket := changebucket
 export eval_run := eval_run
+export capsule_run := capsule_run

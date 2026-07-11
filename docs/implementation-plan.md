@@ -8,11 +8,12 @@
 - PackWrite packet generation and validation.
 - One isolated Git workspace with policy-checked file and command actions.
 - RunLedger start/finish receipt, ChangeBucket JSON, Eval JSON, AgentEvent JSONL, resumable state, Markdown/JSON report.
-- Contract tests and fixture end-to-end evidence.
+- Contract tests, security tests, CLI smoke tests, and fixture end-to-end evidence.
+- Explicit write approvals, realpath workspace checks, command injection deny rules, redacted subprocess evidence, packet digest metadata, bounded preflight, and real pause-after-plan/resume.
 
 ## Deferred
 
-Live Ollama Cloud proof, Watchdog server health/telemetry assertion, full Agents SDK runner/tool registry integration, Dispatch workflow import, dynamic agent discovery, automated worktree creation, CaseFile failure bundles, Redact integration, MCP adapter, adaptive routing, model-generated tool calls, Capsule A/B scoring, and ShipCheck/Concord release gates.
+Live Ollama Cloud proof, Watchdog server health/telemetry assertion, full Agents SDK runner/tool registry integration, Dispatch workflow import, dynamic agent discovery, automated worktree creation, CaseFile failure bundles, Redact integration, MCP adapter, adaptive routing, model-generated tool calls, Capsule A/B scoring, durable concurrent storage, and ShipCheck/Concord release gates. See `docs/next-session-enhancement-backlog.md`.
 
 ## Dependency order
 

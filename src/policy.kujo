@@ -11,26 +11,90 @@ func classify_failure(code) {
     return "provider_failure"
 }
 
+func canonicalize_path(raw_path) {
+    value := replace(trim(to_string(raw_path)), "\\", "/")
+    absolute := starts_with(value, "/")
+    stack := []
+    for part in split(value, "/") {
+        if part == "" || part == "." { continue }
+        if part == ".." {
+            if len(stack) > 0 { stack = slice(stack, 0, len(stack) - 1) }
+            continue
+        }
+        stack := push(stack, part)
+    }
+    joined := join(stack, "/")
+    if absolute { return "/" + joined }
+    if joined == "" { return "." }
+    return joined
+}
+
+func path_is_within_root(candidate, root) {
+    candidate := canonicalize_path(candidate)
+    root := canonicalize_path(root)
+    if root == "." { return starts_with(candidate, "/") == false }
+    return candidate == root || starts_with(candidate, root + "/")
+}
+
 func path_is_safe(root, requested) {
     if type(requested) != "string" || trim(requested) == "" { return false }
     clean := requested
-    if starts_with(clean, "/") || contains(clean, "..") || contains(clean, "\\") { return false }
+    if starts_with(clean, "/") || contains(clean, "\\") { return false }
+    if contains_any(clean, [";", "&&", "||", "|", "`", "$(", ">", "<"]) { return false }
+    for segment in split(clean, "/") {
+        if segment == ".." || segment == ".env" || starts_with(segment, ".env.") || segment == ".git" || starts_with(segment, ".ssh") { return false }
+    }
     if starts_with(clean, "./") { clean = substring(clean, 2, len(clean)) }
-    return true
+    return path_is_within_root(root + "/" + clean, root)
+}
+
+func path_parent(path) {
+    i := len(path) - 1
+    while i >= 0 {
+        if substring(path, i, i + 1) == "/" { return substring(path, 0, i) }
+        i = i - 1
+    }
+    return "."
+}
+
+func real_path(path) {
+    try {
+        result := spawn_process(["realpath", path], {"inherit_env": true, "timeout_ms": 5000, "max_output_bytes": 4096})
+        if result.success { return trim(result.stdout) }
+    } except err {}
+    return ""
+}
+
+func path_is_within_workspace(root, requested) {
+    if path_is_safe(root, requested) == false { return false }
+    root_real := real_path(root)
+    if root_real == "" { return false }
+    target := root + "/" + requested
+    target_real := real_path(target)
+    if target_real != "" { return path_is_within_root(target_real, root_real) }
+    parent_real := real_path(path_parent(target))
+    return parent_real != "" && path_is_within_root(parent_real, root_real)
 }
 
 func command_is_allowed(command, policy) {
     value := string_or(command, "")
     if value == "" { return false }
-    if contains_any(value, ["rm -rf", "sudo", "mkfs", "dd if=", "force-push", "credential", ".env", "id_rsa"]) { return false }
-    allowed := dict_get_or(policy, "allowed_commands", ["git", "kujo", "bash", "sh"])
+    if contains_any(value, ["rm -rf", "sudo", "mkfs", "dd if=", "force-push", "--force", "reset --hard", "clean -f", "credential", ".env", ".ssh", "id_rsa", "git push", "git config", "git remote", "git checkout", "git switch", "git reset", "git clean"]) { return false }
+    if contains_any(value, [";", "&&", "||", "|", "`", "$(", ">", "<"]) { return false }
+    allowed := dict_get_or(policy, "allowed_commands", ["git", "kujo"])
     for prefix in allowed {
-        if starts_with(value, prefix + " ") || value == prefix { return true }
+        if prefix == "git" && (starts_with(value, "git status") || starts_with(value, "git diff") || starts_with(value, "git rev-parse") || starts_with(value, "git log") || starts_with(value, "git show")) { return true }
+        if prefix == "kujo" && (starts_with(value, "kujo run") || starts_with(value, "kujo test")) { return true }
+        if prefix == "bash" && starts_with(value, "bash scripts/") { return true }
+        if prefix == "sh" && starts_with(value, "sh scripts/") { return true }
     }
     return false
 }
 
 func tool_decision(tool_name, input, policy) {
+    if tool_name != "write_file" && tool_name != "run_command" {
+        return {"allowed": false, "status": "denied", "reason": "unknown_tool"}
+    }
     if tool_name == "write_file" {
         path := dict_get_or(input, "path", "")
         if path_is_safe(dict_get_or(policy, "workspace", "."), path) == false {
@@ -48,5 +112,8 @@ func tool_decision(tool_name, input, policy) {
 
 export classify_failure := classify_failure
 export path_is_safe := path_is_safe
+export canonicalize_path := canonicalize_path
+export path_is_within_root := path_is_within_root
+export path_is_within_workspace := path_is_within_workspace
 export command_is_allowed := command_is_allowed
 export tool_decision := tool_decision
