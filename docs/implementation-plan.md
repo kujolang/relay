@@ -11,16 +11,17 @@
 - Contract tests, security tests, CLI smoke tests, and fixture end-to-end evidence.
 - Explicit write approvals, realpath workspace checks, command injection deny rules, redacted subprocess evidence, packet digest metadata, bounded preflight, and real pause-after-plan/resume.
 - Fail-closed live Watchdog routing, explicit subprocess environments, configurable budgets, operator diagnostics/probes, detached worktree creation with confirmed cleanup, opt-in authenticated Watchdog health/config/request-correlation verification through a narrow Kujo HTTP adapter, shell-free command execution, a locked rebuildable index, and AgentEvent integrity hashes.
+- A bounded Agents SDK Tool Registry bridge with approval-provider enforcement, direct Relay policy-worker execution, and one isolated fixture mission that creates a real repository artifact.
 
 ## Deferred
 
-Live Ollama Cloud proof, a live Watchdog-backed mission against a real external provider, full Agents SDK runner/tool registry integration, Dispatch workflow import, dynamic agent discovery, full workcell isolation/rollback/recovery, CaseFile failure bundles, Redact integration, MCP adapter, adaptive routing, model-generated tool calls, Capsule A/B scoring, durable concurrent storage, and ShipCheck/Concord release gates. Local real-Watchdog and stub-provider correlation proof is now present. See `docs/next-session-enhancement-backlog-2026-07-11-v5.md`.
+Live Ollama Cloud proof, a live Watchdog-backed mission against a real external provider, provider-driven model tool planning, richer Agents SDK runner/tool-result artifact integration, Dispatch workflow import, dynamic agent discovery, full workcell isolation/rollback/recovery, CaseFile failure bundles, Redact integration, MCP adapter, adaptive routing, Capsule A/B scoring, durable concurrent storage, and ShipCheck/Concord release gates. Local real-Watchdog/stub-provider correlation and one fixture mission through the Agents SDK Tool Registry are proven. See `docs/next-session-enhancement-backlog-2026-07-11-v6.md`.
 
 ## Dependency order
 
 1. Stabilize cross-repository package/import and process contracts.
 2. Run the Watchdog adapter against real configured providers, beginning with Ollama Cloud and one independent OpenAI-compatible provider.
-3. Replace explicit action lists with Agents SDK Tool contracts and approvals.
+3. Extend the proven Agents SDK Tool Registry bridge to provider-driven tool planning, typed tool-result artifacts, cancellation, and richer approval/guardrail receipts.
 4. Add Dispatch/Spec workflow loader and bounded checkpoint transitions.
 5. Extend detached worktree mode into full workcell creation, cleanup, rollback, and crash recovery.
 6. Implement CaseFile/Redact and complete Capsule benchmark comparison.

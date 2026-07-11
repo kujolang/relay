@@ -6,7 +6,7 @@ Kujo already has nearly all important primitives: AI SDK provider normalization,
 
 ## What was reused and newly built
 
-Reused directly: AI SDK normalized responses and fixture behavior, PackWrite CLI/validator, RunLedger CLI/records, ChangeBucket JSON, Eval config/checks, Capsule CLI shape, Chain of Command role locations, Watchdog's HTTP API/proxy contract, and AgentEvent-compatible field names. Newly built: Relay mission/run state, a narrow Watchdog verification adapter, adapter boundary, policy-checked declarative actions, evidence aggregation, report surface, and CLI routing.
+Reused directly: AI SDK normalized responses and fixture behavior, PackWrite CLI/validator, RunLedger CLI/records, ChangeBucket JSON, Eval config/checks, Capsule CLI shape, Chain of Command role locations, Watchdog's HTTP API/proxy contract, and AgentEvent-compatible field names. Newly built: Relay mission/run state, a narrow Watchdog verification adapter, adapter boundary, policy-checked declarative actions, evidence aggregation, report surface, CLI routing, and a capability-bound Agents SDK Tool Registry worker seam.
 
 Deliberately not built: another provider client, another general workflow engine, another telemetry database, another packet schema, unrestricted shell access, adaptive model router, or a fake claim of live Ollama/Watchdog success.
 
@@ -25,6 +25,8 @@ Passed locally with the pinned Kujo release runtime:
 - generated Eval config also checks that each declared `write_file` action produced a file
 - six AgentEvent-compatible lifecycle/artifact/tool/evaluation events were persisted
 - pause/resume path persisted a resumable checkpoint and completion report
+- isolated mission through the Agents SDK Tool Registry created a real file and
+  approval denial created no file
 
 Not proven in this local session: live Ollama Cloud or another external provider, multi-model Capsule A/B implementation scoring, Paperclip/Hermes invocation, and container/microVM-grade workcell isolation. A local real Watchdog process forwarding to a Kujo stub provider is proven, including token-authenticated proxy/API calls, persisted correlation lookup, and secret non-leakage. Detached Git worktree provisioning and explicit cleanup are proven locally, while rollback-on-failure and crash recovery remain open. These are known limitations, not successful external integrations.
 
@@ -39,7 +41,7 @@ Not proven in this local session: live Ollama Cloud or another external provider
 
 ## Known limitations
 
-The current run engine accepts explicit action plans instead of allowing an Agents SDK model to request tools. Agent roles are loaded as a small registry, not dynamically resolved from all Chain of Command definitions. Resume currently supports the explicit post-plan checkpoint only; arbitrary interrupted-step replay and failure-repair flows require follow-up integration work. External-provider/Ollama remains unverified; local real-Watchdog correlation is covered by the dedicated smoke.
+The current run engine still accepts explicit action plans, but missions may now opt into a bounded fixture-driven Agents SDK Tool Registry call list. Provider-driven model tool planning, dynamic role discovery, typed tool-result artifacts, arbitrary interrupted-step replay, and failure-repair flows require follow-up integration work. External-provider/Ollama remains unverified; local real-Watchdog correlation is covered by the dedicated smoke.
 
 ## 2026-07-11 enterprise-readiness review
 
@@ -69,6 +71,23 @@ redundant root implementation files: `main.kujo`, `kujo.toml`, and `bin/relay`
 remain idiomatic Kujo entry/package/launcher files. The current handoff is
 `docs/next-session-enhancement-backlog-2026-07-11-v5.md`.
 
+## Sixth 2026-07-11 review
+
+This review added a Kujo-native Agents SDK Tool Registry bridge. Mission specs
+can provide bounded `agent_tools`; the bridge registers existing SDK tools and
+approval providers, then delegates to a capability-bound Relay worker so
+workspace, direct-argv, write, and budget policy remain authoritative. The
+isolated mission smoke created a real repository artifact through
+`relay.write_file`, captured the tool result in the run event stream, and proved
+approval denial. The bridge is intentionally fixture-driven for now; live
+provider-generated tool planning, richer artifact receipts, authenticated
+service mode, and stronger workcell isolation remain open. The next handoff is
+`docs/next-session-enhancement-backlog-2026-07-11-v6.md`.
+
 ## Repository handoff
 
-The current Relay implementation includes `a3e31ba` plus the documentation commit below; both are pushed to `origin/main`, and the tree is clean. The next session should preserve this evidence boundary rather than widening claims.
+The current Relay implementation includes the bounded Agents SDK tool mission
+slice in `8ebac07`, with the review documentation in the follow-up commit.
+Both are intended to be pushed to `origin/main`, and the tree should remain
+clean. The next session should preserve this evidence boundary rather than
+widening claims.

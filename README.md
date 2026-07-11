@@ -2,7 +2,7 @@
 
 Kujo Relay is a Kujo-native composition and execution layer for bounded agent missions. The CLI is a thin wrapper over reusable runtime modules. It composes existing AI SDK, Agents SDK, PackWrite, RunLedger, ChangeBucket, Eval, Capsule, and Chain of Command contracts instead of replacing them.
 
-Status: `0.1.0` hardened local alpha. Offline execution, bounded repository work, resumable checkpoints, packet integrity metadata, redacted subprocess evidence, explicit environment isolation, shell-free command execution, budgets, deterministic evaluation, detached worktree missions, locked/self-healing run-index rebuilds, integrity-sealed events, and real local Watchdog correlation are verified locally. Relay is not yet enterprise-production-ready or universally useful: external live-provider proof, authenticated multi-tenant operation, full workcell isolation/recovery, full Agents SDK tool execution, durable concurrent storage, and release gates remain open.
+Status: `0.1.0` hardened local alpha. Offline execution, bounded repository work, resumable checkpoints, packet integrity metadata, redacted subprocess evidence, explicit environment isolation, shell-free command execution, budgets, deterministic evaluation, detached worktree missions, locked/self-healing run-index rebuilds, integrity-sealed events, real local Watchdog correlation, and one isolated fixture mission using the Agents SDK Tool Registry are verified locally. Relay is not yet enterprise-production-ready or universally useful: external live-provider proof, authenticated multi-tenant operation, full workcell isolation/recovery, provider-driven tool execution, durable concurrent storage, and release gates remain open.
 
 ## Enterprise-readiness position
 
@@ -59,11 +59,11 @@ Implemented and truthful in this slice:
 - `models list|inspect|probe`
 - `agents list|inspect|validate`
 - `doctor`, including dependency, agent-registry, live-route, and credential posture checks
-- `missions create|run|inspect|pause|resume|cleanup|report`
+- `missions create|run|inspect|pause|resume|cleanup|report`; mission specs may opt into the bounded `agent_tools` bridge
 - `runs list|rebuild|inspect|events|changes|evaluations`
 - `benchmark run` for the Capsule discovery slice
 
-`missions run` accepts explicit step, repair, token, output, and write budgets. The default Agents SDK aggregate smoke can be skipped for a deliberately configured run with `--skip-agent-smoke`; the run records that it was skipped. Not yet implemented: adaptive routing, model-generated tool plans, full multi-step Dispatch workflow loading, interactive approval UI, live Ollama Cloud proof, authenticated service mode, full workcell recovery, durable concurrent storage, and the complete Capsule A/B benchmark rubric. Those remain explicit follow-up work rather than placeholder commands.
+`missions run` accepts explicit step, repair, token, output, and write budgets. A mission can set `agent_tools` to bounded `relay.write_file` or `relay.run_command` calls; the Agents SDK registry and approval provider execute them through Relay's policy worker, and the run records the result. The default Agents SDK aggregate smoke can be skipped for a deliberately configured run with `--skip-agent-smoke`; the run records that it was skipped. Not yet implemented: provider-driven model tool planning, adaptive routing, full multi-step Dispatch workflow loading, interactive approval UI, live Ollama Cloud proof, authenticated service mode, full workcell recovery, durable concurrent storage, and the complete Capsule A/B benchmark rubric. Those remain explicit follow-up work rather than placeholder commands.
 
 ## Safety boundary
 
@@ -74,6 +74,7 @@ Mission actions are declarative and policy checked. Write-enabled missions requi
 - `main.kujo`: thin CLI entrypoint
 - `src/runtime.kujo`: mission state machine, actions, evidence, resume
 - `src/adapters.kujo`: subprocess adapters to existing Kujo tools and AI SDK
+- `src/agent_bridge.kujo`: Agents SDK Tool Registry and approval-provider bridge
 - `src/contracts.kujo`: Relay run and AgentEvent-compatible contracts
 - `src/policy.kujo`: authority and failure classification
 - `src/store.kujo`: locked, validated/rebuildable run-index cache
@@ -88,6 +89,7 @@ Mission actions are declarative and policy checked. Write-enabled missions requi
 - `tests/relay_output_budget_smoke.sh`: bounded command evidence and explicit truncation smoke test
 - `tests/relay_watchdog_smoke.sh`: configured Watchdog health/config/request-correlation contract smoke test
 - `tests/relay_watchdog_real_smoke.sh`: actual local Watchdog server, token auth, stub upstream, and correlation smoke test
+- `tests/relay_agents_tool_smoke.sh`: isolated mission through the Agents SDK Tool Registry plus denied-write approval proof
 
 ## Repository layout decision
 
@@ -108,7 +110,8 @@ bash tests/relay_store_smoke.sh
 bash tests/relay_output_budget_smoke.sh
 bash tests/relay_watchdog_smoke.sh
 bash tests/relay_watchdog_real_smoke.sh
+bash tests/relay_agents_tool_smoke.sh
 git diff --check
 ```
 
-For the full integration evidence boundary and deferred enterprise work, see [`docs/enterprise-readiness-review-2026-07-11.md`](docs/enterprise-readiness-review-2026-07-11.md), [`docs/command-reference.md`](docs/command-reference.md), and the current [`docs/next-session-enhancement-backlog-2026-07-11-v5.md`](docs/next-session-enhancement-backlog-2026-07-11-v5.md).
+For the full integration evidence boundary and deferred enterprise work, see [`docs/enterprise-readiness-review-2026-07-11.md`](docs/enterprise-readiness-review-2026-07-11.md), [`docs/command-reference.md`](docs/command-reference.md), and the current [`docs/next-session-enhancement-backlog-2026-07-11-v6.md`](docs/next-session-enhancement-backlog-2026-07-11-v6.md).

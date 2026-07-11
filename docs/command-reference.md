@@ -34,15 +34,23 @@ relay missions create [spec.json] [--output <path>] [--json]
 relay missions run <spec.json> [--fixture] [--pause-after-plan] [--skip-agent-smoke] [--json]
 relay missions inspect|pause|resume|cleanup|report <run-id> [--json]
 relay runs list|rebuild|inspect|events|changes|evaluations <run-id> [--json]
+relay tools execute --json (internal capability-bound worker callback)
 relay benchmark run <repository> [--json]
 ```
 
 ## Mission contract
 
-Mission specs are JSON objects with `name`, `goal`, a Git `repository`, `actions`, and optional `workflow`, `model`, `provider`, `allow_writes`, `approval`, `allowed_commands`, `acceptance_criteria`, and `budgets` fields. Supported actions are deliberately narrow:
+Mission specs are JSON objects with `name`, `goal`, a Git `repository`, `actions`, and optional `workflow`, `model`, `provider`, `allow_writes`, `approval`, `allowed_commands`, `acceptance_criteria`, `budgets`, and bounded `agent_tools` fields. Supported actions are deliberately narrow:
 
 - `write_file`: relative path, only with `allow_writes: true` and `approval.approved: true`.
 - `run_command`: read-oriented `git`, `kujo`, `bash scripts/`, or `sh scripts/` commands that pass policy. Commands are tokenized and executed as direct argv; shell pipelines, substitutions, globbing, tabs, and quoting expressions are rejected.
+
+`agent_tools` is an opt-in list of `{name,input}` calls currently limited to
+`relay.write_file` and `relay.run_command`. The Agents SDK Tool Registry and
+approval provider run in `src/agent_bridge.kujo`; a capability-bound worker then
+delegates to Relay's policy executor. It does not grant the Agents SDK direct
+filesystem or shell authority. Provider-generated tool planning, interactive
+approvals, and authenticated remote invocation are not yet enabled.
 
 Budget fields are non-negative integers: `max_steps`, `max_repairs`, and `max_tokens`; `max_output_bytes` and `max_write_bytes` must be positive. Output and write budgets are capped at 8 MiB per mission; command timeouts must be between 1 ms and 10 minutes. A budget failure is recorded as a failed run with a typed failure class; it is never reported as completed.
 

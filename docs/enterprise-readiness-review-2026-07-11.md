@@ -52,6 +52,7 @@ The correct posture is: **local-first hardened alpha / ecosystem showcase**. The
 | Index concurrency | Atomic lock directory, stale-lock recovery, cache-size/symlink checks, and state/status freshness validation protect the rebuildable index | `src/store.kujo`, contract and store smokes |
 | Event integrity | AgentEvent-compatible JSONL records carry deterministic SHA-256 integrity fields and tamper validation | `src/contracts.kujo`, contract smoke |
 | Worktree cleanup authority | Cleanup rejects tampered paths and requires the run-owned workspace target | `src/runtime.kujo`, `tests/relay_worktree_smoke.sh` |
+| Agents SDK tools | A Kujo bridge registers `relay.write_file` and `relay.run_command`, applies Agents SDK approval providers, and delegates to Relay's capability-bound policy worker | `src/agent_bridge.kujo`, `src/runtime.kujo`, `tests/relay_agents_tool_smoke.sh` |
 
 ## Remaining enterprise gaps
 
@@ -61,7 +62,7 @@ The correct posture is: **local-first hardened alpha / ecosystem showcase**. The
 2. Live Ollama Cloud and at least one other OpenAI-compatible provider smoke test.
 3. Authenticated service/MCP boundary with identity, tenant, role, and approval mapping.
 4. Full workcell isolation, rollback, and crash recovery beyond the now-proven detached Git worktree mode and confirmed cleanup.
-5. Full Agents SDK Tool Registry and approval-provider execution instead of explicit action lists.
+5. Provider-driven Agents SDK tool planning and richer tool-result/artifact integration; a bounded Tool Registry and approval-provider bridge plus one isolated fixture mission are now proven.
 6. Durable run store with database-backed retention/recovery, multi-host concurrency, and signed/tamper-evident export; the local cache now has an atomic lock and event hashes.
 
 ### P1 — Required for broad enterprise usefulness
@@ -91,6 +92,17 @@ The second review found no redundant root implementation files. New behavior rem
 ## Security posture
 
 The local runtime now fails closed for the highest-risk MVP paths and removes shell interpretation from mission commands, but it is not a complete security boundary. External direct-argv commands remain local process authority, the new worktree mode is repository-local rather than a container/microVM boundary, and there is no identity-aware remote service. Never expose the CLI or future MCP adapter to untrusted callers until auth, tenancy, secret policy, network egress, and stronger workcell isolation are implemented and tested.
+
+## Sixth review slice — Agents SDK tool boundary
+
+The runtime now has a bounded `agent_tools` mission seam. `src/agent_bridge.kujo`
+uses the existing Agents SDK Tool Registry and approval provider, while a
+capability-bound worker calls Relay's existing workspace, command, write, and
+budget policy. `tests/relay_agents_tool_smoke.sh` proves a real isolated mission
+creates a repository file through `relay.write_file`, records the Tool Registry
+event in the RunLedger-backed run, and rejects an unapproved write without
+creating the file. This is fixture-model execution evidence, not proof of
+provider-driven model tool planning or universal enterprise isolation.
 
 ## Release recommendation
 
