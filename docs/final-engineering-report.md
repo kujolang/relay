@@ -38,3 +38,7 @@ Not proven in this local session: live Ollama Cloud, live Watchdog proxy telemet
 ## Known limitations
 
 The current run engine accepts explicit action plans instead of allowing an Agents SDK model to request tools. Agent roles are loaded as a small registry, not dynamically resolved from all Chain of Command definitions. `resume` is a checkpoint proof for the MVP and does not yet replay an interrupted step. Live Watchdog/Ollama and failure-repair flows require follow-up integration work.
+
+## Repository handoff
+
+Local commits are `22e9e84`, `b1d911e`, and `9292287`; the working tree is clean. Push was attempted and is blocked because this newly created local repository has no configured remote or push destination. No remote URL was inferred or added.
