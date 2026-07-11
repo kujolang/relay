@@ -4,6 +4,7 @@ func relay_root() { return env_or("RELAY_ROOT", env_or("PWD", ".")) }
 func kujo_bin() { return env_or("KUJO_BIN", relay_root() + "/../kujo/target/release/kujo") }
 func repo_root() { return env_or("RELAY_REPO_ROOT", relay_root() + "/..") }
 func ai_sdk_root() { return env_or("RELAY_AI_SDK_PATH", relay_root() + "/../ai-sdk") }
+func agents_sdk_root() { return env_or("RELAY_AGENTS_SDK_PATH", relay_root() + "/../agents-sdk") }
 func watchdog_url() { return env_or("RELAY_WATCHDOG_URL", "") }
 
 func last_json(raw) {
@@ -72,6 +73,12 @@ func ai_chat(messages, model, provider, offline, stream) {
     return call_ai(messages, model, provider, base, api_key_env, offline, stream)
 }
 
+func agents_sdk_smoke() {
+    command := ["/usr/bin/env", "-C", agents_sdk_root(), kujo_bin(), "run", "examples/examples_smoke_runner.kujo", "--interpreter"]
+    result := run_process(command, "", {}, 120000)
+    return {"ok": dict_get_or(result, "success", false), "data": last_json(dict_get_or(result, "stdout", "")), "stdout": dict_get_or(result, "stdout", ""), "stderr": dict_get_or(result, "stderr", "")}
+}
+
 func packwrite_generate(run_dir, prompt_path, packet_path) {
     packwrite := env_or("RELAY_PACKWRITE_BIN", relay_root() + "/../packwrite/bin/packwrite")
     fake_file := env_or("RELAY_PACKWRITE_FAKE_RESPONSE", relay_root() + "/examples/packwrite-response.json")
@@ -114,6 +121,7 @@ export kujo_bin := kujo_bin
 export repo_root := repo_root
 export watchdog_url := watchdog_url
 export ai_chat := ai_chat
+export agents_sdk_smoke := agents_sdk_smoke
 export packwrite_generate := packwrite_generate
 export runledger_start := runledger_start
 export runledger_finish := runledger_finish

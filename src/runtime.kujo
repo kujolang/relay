@@ -2,7 +2,7 @@ from src.common import dict_get_or, env_or, string_or, bool_or, int_or, now_iso,
 from src.contracts import run_state, event
 from src.registry import find_agent
 from src.policy import tool_decision, classify_failure, path_is_safe, command_is_allowed
-from src.adapters import ai_chat, packwrite_generate, runledger_start, runledger_finish, changebucket, eval_run
+from src.adapters import ai_chat, agents_sdk_smoke, packwrite_generate, runledger_start, runledger_finish, changebucket, eval_run
 
 func ensure_dir(path) {
     if path == "" || path == "." || path_is_dir(path) { return }
@@ -162,6 +162,9 @@ func run_mission(path, options) {
     packet := packwrite_generate(run_dir, "MEGA_PROMPT.md", run_dir + "/agent")
     state["artifacts"] := push(state["artifacts"], {"kind": "packwrite_agent_pack", "path": packet["artifact_dir"], "ok": packet["ok"]})
     state := add_event(state, run_dir, "artifact_created", "packet", "planner", {"kind": "packwrite_agent_pack", "path": packet["artifact_dir"], "ok": packet["ok"]})
+    agent_sdk := agents_sdk_smoke()
+    state["agent_sdk"] := agent_sdk
+    state := add_event(state, run_dir, "artifact_created", "agent-sdk", "planner", {"kind": "agents_sdk_offline_smoke", "ok": agent_sdk["ok"]})
     planner := find_agent("planner")
     model_result := ai_chat([{"role": "system", "content": planner["mandate"]}, {"role": "user", "content": to_string(spec["goal"])}], string_or(dict_get_or(spec, "model", "fixture-model"), "fixture-model"), string_or(dict_get_or(spec, "provider", "fixture"), "fixture"), bool_or(dict_get_or(options, "offline_fixture", true), true), bool_or(dict_get_or(options, "stream", false), false))
     state["telemetry"] := dict_get_or(model_result, "relay_telemetry", {})
