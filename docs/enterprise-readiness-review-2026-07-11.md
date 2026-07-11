@@ -4,7 +4,7 @@
 
 Relay is not production-ready in a universal enterprise-grade sense today. It is a credible, well-presented Kujo-native local foundation and a useful showcase of Kujo composition, but its current proof is fixture-first and single-workspace. Calling it universally production-ready would overstate the evidence.
 
-The correct posture is: **local-first hardened alpha / ecosystem showcase**. The second review landed in commits `7dd7cea` and `b0d1712`, pushed to `origin/main`.
+The correct posture is: **local-first hardened alpha / ecosystem showcase**. The second review landed in commits `7dd7cea`, `b0d1712`, `f2c414e`, `d7bd3f6`, and `862aff9`, pushed to `origin/main`.
 
 ## Evidence reviewed
 
