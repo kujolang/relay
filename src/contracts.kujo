@@ -43,6 +43,22 @@ func event_integrity_valid(item) {
     return expected != "" && expected == sha256(event_integrity_input(item))
 }
 
+func event_chain_integrity_valid(items) {
+    if type(items) != "array" { return false }
+    parent := ""
+    seen := {}
+    for item in items {
+        if type(item) != "dict" { return false }
+        event_id := string_or(dict_get_or(item, "event_id", ""), "")
+        if event_id == "" || has_key(seen, event_id) { return false }
+        if string_or(dict_get_or(item, "parent_event_id", ""), "") != parent { return false }
+        if event_integrity_valid(item) == false { return false }
+        seen[event_id] := true
+        parent = event_id
+    }
+    return true
+}
+
 func run_state(mission_id, workflow, repo, run_id) {
     return {
         "type": "RelayRun",
@@ -58,7 +74,7 @@ func run_state(mission_id, workflow, repo, run_id) {
         "updated_at": now_iso(),
         "current_step": "",
         "attempt": 0,
-        "budgets": {"max_steps": 8, "max_repairs": 1, "max_tokens": 4000, "max_output_bytes": 1048576, "max_write_bytes": 1048576, "used_tokens": 0},
+        "budgets": {"max_steps": 8, "max_repairs": 1, "max_tokens": 4000, "max_tool_calls": 4, "max_output_bytes": 1048576, "max_write_bytes": 1048576, "used_tokens": 0},
         "events": [],
         "artifacts": [],
         "evaluations": [],
@@ -82,5 +98,6 @@ func agent_profile(id, name, mandate, model, tools, authority) {
 
 export event := event
 export event_integrity_valid := event_integrity_valid
+export event_chain_integrity_valid := event_chain_integrity_valid
 export run_state := run_state
 export agent_profile := agent_profile

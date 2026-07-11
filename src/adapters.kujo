@@ -123,7 +123,7 @@ func agents_sdk_tool_run(workspace, spec, run_id, session_id) {
     payload := {
         "relay_root": relay_root(),
         "kujo_bin": kujo_bin(),
-        "capability": sha256(run_id + "|" + session_id + "|relay-agent-tools"),
+        "capability": sha256(run_id + "|" + session_id + "|" + workspace + "|relay-agent-tools"),
         "run_id": run_id,
         "session_id": session_id,
         "workspace": workspace,

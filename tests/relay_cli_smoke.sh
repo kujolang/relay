@@ -15,6 +15,7 @@ case "$doctor" in
   *'"ok":true'*'"mode":"fixture"'*) ;;
   *) echo "fixture doctor contract did not pass" >&2; exit 1 ;;
 esac
+printf '%s' "$doctor" | grep -q 'Relay source tree'
 
 probe="$($KUJO run "$ROOT/main.kujo" -- models probe fixture-model --fixture --json)"
 case "$probe" in
@@ -49,5 +50,12 @@ case "$invalid" in
   *"approval.approved=true"*) ;;
   *) echo "unapproved write mission was not rejected" >&2; exit 1 ;;
 esac
+
+set +e
+invalid_tool="$($KUJO run "$ROOT/main.kujo" -- missions run "$ROOT/examples/invalid-agent-tool-mission.json" --fixture --json 2>&1)"
+tool_status=$?
+set -e
+test "$tool_status" -ne 0
+printf '%s' "$invalid_tool" | grep -q 'agent tool is not supported'
 
 echo "PASS relay CLI smoke"

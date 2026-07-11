@@ -34,6 +34,23 @@ rebuilt="$($KUJO run "$ROOT/main.kujo" -- runs rebuild --json)"
 printf '%s' "$rebuilt" | grep -q '"index_source":"rebuild"'
 printf '%s' "$rebuilt" | grep -q "\"$run_id\""
 
+export_path="/tmp/relay-run-export-$run_id.json"
+rm -f "$export_path"
+exported="$($KUJO run "$ROOT/main.kujo" -- runs export "$run_id" --output "$export_path" --json)"
+printf '%s' "$exported" | grep -q '"integrity_valid":true'
+test -f "$export_path"
+jq -e --arg run_id "$run_id" '.format == "relay-run-export-v1" and .run_id == $run_id and .integrity_valid == true and (.events | length) > 0' "$export_path" >/dev/null
+
+# Integrity-sealed event records must fail closed when an on-disk payload is
+# modified without recomputing its digest.
+ruby -rjson -e 'path=ARGV.fetch(0); lines=File.readlines(path); event=JSON.parse(lines.fetch(0)); event["payload"]["tampered"]=true; lines[0]=JSON.generate(event)+"\n"; File.write(path, lines.join)' "$ROOT/.relay/runs/$run_id/events.jsonl"
+set +e
+tampered_events="$($KUJO run "$ROOT/main.kujo" -- runs events "$run_id" --json 2>&1)"
+events_rc=$?
+set -e
+test "$events_rc" -ne 0
+printf '%s' "$tampered_events" | grep -q '"integrity_valid":false'
+
 set +e
 unknown="$($KUJO run "$ROOT/main.kujo" -- runs inspect attacker --json 2>&1)"
 rc=$?

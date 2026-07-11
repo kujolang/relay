@@ -101,10 +101,23 @@ func write_text_atomic(path, content) {
     } except err { return false }
 }
 
+func safe_process_path() {
+    # External adapters use absolute sibling-tool paths. Mission commands are
+    # resolved only from these fixed system locations so a caller-controlled
+    # PATH cannot replace `git`, `kujo`, or a policy helper with a workspace
+    # executable.
+    return "/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+}
+
 func process_options(extra_env, timeout_ms, max_output_bytes) {
     mut env_map := {}
     mut allowed := []
     for name in ["PATH", "HOME", "TMPDIR", "TMP", "TEMP", "LANG", "LC_ALL"] {
+        if name == "PATH" {
+            env_map["PATH"] := safe_process_path()
+            allowed := push(allowed, "PATH")
+            continue
+        }
         value := env(name)
         if type(value) != "null" {
             env_map[name] := value
@@ -177,6 +190,7 @@ export shell_quote_single := shell_quote_single
 export command_args := command_args
 export safe_env_name := safe_env_name
 export write_text_atomic := write_text_atomic
+export safe_process_path := safe_process_path
 export process_options := process_options
 export read_json_or := read_json_or
 export write_json := write_json

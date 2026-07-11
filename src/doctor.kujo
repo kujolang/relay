@@ -14,6 +14,8 @@ func doctor() {
     checks := []
     checks := push(checks, path_check("kujo runtime", kujo_bin(), false, true))
     checks := push(checks, path_check("Relay entrypoint", root + "/main.kujo", false, true))
+    checks := push(checks, path_check("Relay source tree", root + "/src", true, true))
+    checks := push(checks, path_check("Relay launcher", root + "/bin/relay", false, false))
     checks := push(checks, path_check("AI SDK checkout", ai_sdk_root(), true, true))
     checks := push(checks, path_check("Agents SDK checkout", agents_sdk_root(), true, true))
     checks := push(checks, path_check("PackWrite binary", env_or("RELAY_PACKWRITE_BIN", root + "/../packwrite/bin/packwrite"), false, true))

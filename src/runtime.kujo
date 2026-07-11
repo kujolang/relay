@@ -57,11 +57,12 @@ func load_spec(path) {
     if len(actions) > 32 { return {"ok": false, "error": "Mission exceeds the 32-action safety limit"} }
     budgets := dict_get_or(spec, "budgets", {})
     if type(budgets) != "dict" { return {"ok": false, "error": "Mission budgets must be an object"} }
-    for key in ["max_steps", "max_repairs", "max_tokens", "max_output_bytes", "max_write_bytes"] {
+    for key in ["max_steps", "max_repairs", "max_tokens", "max_tool_calls", "max_output_bytes", "max_write_bytes"] {
         if has_key(budgets, key) {
             value := int_or(budgets[key], -1)
             if value < 0 { return {"ok": false, "error": "Mission budget " + key + " must be a non-negative integer"} }
-            if (key == "max_output_bytes" || key == "max_write_bytes") && value == 0 { return {"ok": false, "error": "Mission budget " + key + " must be greater than zero"} }
+            if (key == "max_tool_calls" || key == "max_output_bytes" || key == "max_write_bytes") && value == 0 { return {"ok": false, "error": "Mission budget " + key + " must be greater than zero"} }
+            if key == "max_tool_calls" && value > 16 { return {"ok": false, "error": "Mission budget max_tool_calls exceeds the 16-call safety limit"} }
             if (key == "max_output_bytes" || key == "max_write_bytes") && value > 8388608 { return {"ok": false, "error": "Mission budget " + key + " exceeds the 8 MiB safety limit"} }
         }
     }
@@ -71,6 +72,27 @@ func load_spec(path) {
             timeout_ms := int_or(dict_get_or(action, "timeout_ms", 120000), -1)
             if timeout_ms <= 0 || timeout_ms > 600000 { return {"ok": false, "error": "run_command timeout_ms must be between 1 and 600000"} }
         }
+    }
+    allowed_commands := dict_get_or(spec, "allowed_commands", ["git", "kujo"])
+    if type(allowed_commands) != "array" { return {"ok": false, "error": "Mission allowed_commands must be an array"} }
+    for allowed_command in allowed_commands {
+        if type(allowed_command) != "string" || trim(allowed_command) == "" { return {"ok": false, "error": "Mission allowed_commands must contain non-empty strings"} }
+    }
+    agent_tools := dict_get_or(spec, "agent_tools", [])
+    if type(agent_tools) != "array" { return {"ok": false, "error": "Mission agent_tools must be an array"} }
+    if len(agent_tools) > 16 { return {"ok": false, "error": "Mission exceeds the 16-tool-call safety limit"} }
+    for tool_call in agent_tools {
+        if type(tool_call) != "dict" { return {"ok": false, "error": "Mission agent_tools must contain objects"} }
+        tool_name := string_or(dict_get_or(tool_call, "name", ""), "")
+        input := dict_get_or(tool_call, "input", {})
+        if type(input) != "dict" { return {"ok": false, "error": "Mission agent tool input must be an object"} }
+        if tool_name == "relay.write_file" {
+            if string_or(dict_get_or(input, "path", ""), "") == "" || type(dict_get_or(input, "content", null)) != "string" { return {"ok": false, "error": "relay.write_file requires path and string content"} }
+        } else if tool_name == "relay.run_command" {
+            if string_or(dict_get_or(input, "command", ""), "") == "" { return {"ok": false, "error": "relay.run_command requires command"} }
+            tool_timeout := int_or(dict_get_or(input, "timeout_ms", 120000), -1)
+            if tool_timeout <= 0 || tool_timeout > 600000 { return {"ok": false, "error": "relay.run_command timeout_ms must be between 1 and 600000"} }
+        } else { return {"ok": false, "error": "Mission agent tool is not supported: " + tool_name} }
     }
     workspace_mode := string_or(dict_get_or(spec, "workspace_mode", "provided"), "provided")
     if workspace_mode != "provided" && workspace_mode != "worktree" { return {"ok": false, "error": "workspace_mode must be provided or worktree"} }
@@ -142,10 +164,14 @@ func execute_action(action, spec, state, run_dir) {
 func execute_tool_request(request, supplied_capability) {
     if type(request) != "dict" { return {"ok": false, "error": "tool request must be an object"} }
     capability := string_or(dict_get_or(request, "capability", ""), "")
-    expected_capability := string_or(supplied_capability, env_or("RELAY_TOOL_CAPABILITY", ""))
-    if capability == "" || capability != expected_capability { return {"ok": false, "error": "tool capability is invalid"} }
     workspace := string_or(dict_get_or(request, "workspace", ""), "")
     if workspace == "" || path_is_dir(workspace) == false || path_is_symlink(workspace) { return {"ok": false, "error": "tool workspace is invalid"} }
+    run_id := string_or(dict_get_or(request, "run_id", ""), "")
+    session_id := string_or(dict_get_or(request, "session_id", ""), "")
+    expected_capability := sha256(run_id + "|" + session_id + "|" + workspace + "|relay-agent-tools")
+    supplied := string_or(supplied_capability, env_or("RELAY_TOOL_CAPABILITY", ""))
+    if capability == "" || capability != expected_capability || supplied != expected_capability { return {"ok": false, "error": "tool capability is invalid"} }
+    if path_exists(workspace + "/.git") == false || path_is_symlink(workspace + "/.git") { return {"ok": false, "error": "tool workspace must be a Git workspace"} }
     original_spec := dict_get_or(request, "mission_spec", {})
     if type(original_spec) != "dict" { return {"ok": false, "error": "mission policy is missing"} }
     spec := original_spec
@@ -190,6 +216,15 @@ func write_eval_config(run_dir, state) {
             relative := string_or(dict_get_or(action, "path", ""), "")
             if relative != "" {
                 tests := push(tests, {"name": "file exists: " + relative, "check": "command_succeeds", "params": {"command": "test -f " + shell_quote_single(repo + "/" + relative)}})
+            }
+        }
+    }
+    for tool_call in dict_get_or(state["mission_spec"], "agent_tools", []) {
+        if dict_get_or(tool_call, "name", "") == "relay.write_file" {
+            input := dict_get_or(tool_call, "input", {})
+            relative := string_or(dict_get_or(input, "path", ""), "")
+            if relative != "" {
+                tests := push(tests, {"name": "agent tool file exists: " + relative, "check": "command_succeeds", "params": {"command": "test -f " + shell_quote_single(repo + "/" + relative)}})
             }
         }
     }
@@ -254,7 +289,7 @@ func run_mission(path, options) {
     state["workspace"] := workspace
     configured_budgets := dict_get_or(spec, "budgets", {})
     budgets := state["budgets"]
-    for key in ["max_steps", "max_repairs", "max_tokens", "max_output_bytes", "max_write_bytes"] {
+    for key in ["max_steps", "max_repairs", "max_tokens", "max_tool_calls", "max_output_bytes", "max_write_bytes"] {
         if has_key(configured_budgets, key) { budgets[key] := int_or(configured_budgets[key], budgets[key]) }
     }
     state["budgets"] := budgets

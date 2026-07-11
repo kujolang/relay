@@ -1,5 +1,5 @@
 from src.common import dict_get_or, env_or, string_or, bool_or, read_json_or, safe_json, write_json
-from src.contracts import RELAY_VERSION
+from src.contracts import RELAY_VERSION, event_chain_integrity_valid
 from src.registry import agent_catalog, find_agent, agent_path
 from src.adapters import ai_chat, capsule_run
 from src.runtime import ensure_dir, create_mission, run_mission, pause_run, cleanup_run, resume_run, execute_tool_request, state_root, run_root
@@ -59,7 +59,7 @@ func help_text() {
         "  missions create [spec.json] [--output path]\n" +
         "  missions run <spec.json> [--fixture] [--pause-after-plan] [--skip-agent-smoke] [--json]\n" +
         "  missions inspect <run-id>|pause <run-id>|resume <run-id>|cleanup <run-id> --confirm|report <run-id>\n" +
-        "  runs list|rebuild|inspect <run-id>|events <run-id>|changes <run-id>|evaluations <run-id>\n" +
+        "  runs list|rebuild|inspect <run-id>|events <run-id>|changes <run-id>|evaluations <run-id>|export <run-id> [--output path]\n" +
         "  tools execute --json (bounded Agents SDK worker callback)\n" +
         "  benchmark run <repo> [--json] (Capsule discovery slice)"
 }
@@ -172,7 +172,27 @@ func cmd_runs(tokens) {
     record := dict_get_or(index, id, null)
     if type(record) != "dict" { return {"ok": false, "error": "unknown run: " + id} }
     if sub == "inspect" { return {"ok": true, "run": read_json_or(record["run_dir"] + "/state.json", {}), "run_dir": record["run_dir"]} }
-    if sub == "events" { return {"ok": true, "events": read_file(record["run_dir"] + "/events.jsonl")} }
+    if sub == "events" || sub == "export" {
+        raw_events := read_file(record["run_dir"] + "/events.jsonl")
+        events := []
+        for line in split(raw_events, "\n") {
+            if trim(line) == "" { continue }
+            try { events = push(events, parse_json(line)) } except err { return {"ok": false, "error": "run event log contains invalid JSON", "integrity_valid": false} }
+        }
+        valid := event_chain_integrity_valid(events)
+        event_bundle := {"integrity_valid": valid, "events": events, "events_jsonl": raw_events}
+        if sub == "events" { event_bundle["ok"] := valid; return event_bundle }
+        if valid == false { event_bundle["ok"] := false; event_bundle["error"] := "run event integrity verification failed"; return event_bundle }
+        state := read_json_or(record["run_dir"] + "/state.json", {})
+        bundle := {"format": "relay-run-export-v1", "run_id": id, "integrity_valid": true, "run": state, "events": events, "changes": read_json_or(record["run_dir"] + "/changes.json", {}), "evaluations": read_json_or(record["run_dir"] + "/evaluations.json", []), "report": read_json_or(record["run_dir"] + "/report.json", {})}
+        output_path := string_or(dict_get_or(parsed["flags"], "output", ""), "")
+        if output_path != "" {
+            if write_json(output_path, bundle) == false { return {"ok": false, "error": "run export could not be written"} }
+            return {"ok": true, "output": output_path, "run_id": id, "integrity_valid": true}
+        }
+        bundle["ok"] := true
+        return bundle
+    }
     if sub == "changes" { return {"ok": true, "changes": read_json_or(record["run_dir"] + "/changes.json", {})} }
     if sub == "evaluations" { return {"ok": true, "evaluations": read_json_or(record["run_dir"] + "/evaluations.json", [])} }
     return {"ok": false, "error": "unknown runs command"}

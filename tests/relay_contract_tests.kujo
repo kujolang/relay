@@ -1,4 +1,4 @@
-from src.contracts import event, event_integrity_valid, run_state, agent_profile, RELAY_VERSION, EVENT_CONTRACT
+from src.contracts import event, event_integrity_valid, event_chain_integrity_valid, run_state, agent_profile, RELAY_VERSION, EVENT_CONTRACT
 from src.policy import classify_failure, path_is_safe, path_is_within_workspace, command_is_allowed, tool_decision
 from src.common import safe_id, redact_text, shell_quote_single, command_args, process_options, safe_env_name
 from src.store import safe_run_key, acquire_index_lock, release_index_lock
@@ -19,6 +19,11 @@ tampered_payload := e["payload"]
 tampered_payload["tampered"] := true
 e["payload"] := tampered_payload
 failed = failed + check("tampered event rejected", event_integrity_valid(e) == false)
+chain_first := event("run_started", "m1", "r1", "s1", "a1", {"ok": true}, "")
+chain_second := event("run_completed", "m1", "r1", "s2", "a1", {"ok": true}, chain_first["event_id"])
+failed = failed + check("event chain integrity", event_chain_integrity_valid([chain_first, chain_second]))
+chain_second["parent_event_id"] := "tampered-parent"
+failed = failed + check("event chain tamper rejected", event_chain_integrity_valid([chain_first, chain_second]) == false)
 s := run_state("m1", "verified-feature", ".", "r1")
 failed = failed + check("run state", s["status"] == "created" && s["run_id"] == "r1")
 a := agent_profile("planner", "Planner", "plan", "fixture-model", ["read_repo"], "read_only")
@@ -49,6 +54,7 @@ failed = failed + check("direct command argv", len(argv) == 3 && argv[0] == "git
 failed = failed + check("tabbed command denied", command_is_allowed("git status\t--short", {"allowed_commands": ["git"]}) == false)
 process := process_options({"RELAY_TEST_ENV": "ok"}, 1000, 4096)
 failed = failed + check("bounded process environment", process["inherit_env"] == false && process["max_output_bytes"] == 4096 && has_key(process["env"], "RELAY_TEST_ENV"))
+failed = failed + check("fixed process PATH", process["env"]["PATH"] == "/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin")
 failed = failed + check("safe API env name", safe_env_name("OLLAMA_API_KEY") && safe_env_name("VENDOR_TOKEN_1"))
 failed = failed + check("reserved API env name denied", safe_env_name("PATH") == false)
 failed = failed + check("invalid API env name denied", safe_env_name("OPENAI-API-KEY") == false)

@@ -44,7 +44,9 @@ func last_json(raw) {
 func process_options(extra_env, timeout_ms) {
     env_map := {}
     allowed := []
-    for name in ["PATH", "HOME", "TMPDIR", "TMP", "TEMP", "LANG", "LC_ALL"] {
+    env_map["PATH"] := "/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+    allowed := push(allowed, "PATH")
+    for name in ["HOME", "TMPDIR", "TMP", "TEMP", "LANG", "LC_ALL"] {
         value := env(name)
         if type(value) != "null" { env_map[name] := value; allowed := push(allowed, name) }
     }
@@ -71,8 +73,17 @@ func call_relay_worker(tool_name, input_payload, context, payload) {
         "mission_spec": clean_spec,
         "capability": capability
     }
-    command := ["/usr/bin/env", "-C", relay_root, kujo_bin, "run", relay_root + "/main.kujo", "--", "tools", "execute", "--capability", capability, "--json"]
-    result := spawn_process(command, process_options({"RELAY_TOOL_REQUEST": to_json(request)}, 120000))
+    budgets := get(raw_spec, "budgets", {})
+    max_tool_calls := get(budgets, "max_tool_calls", 4)
+    if type(max_tool_calls) != "int" || max_tool_calls < 1 { max_tool_calls = 4 }
+    call_count := get(payload, "tool_call_count", 0)
+    if type(call_count) != "int" { call_count = 0 }
+    if call_count >= max_tool_calls {
+        return {"ok": false, "error": {"code": "budget_exceeded", "message": "Agents SDK tool-call budget exceeded"}}
+    }
+    payload["tool_call_count"] := call_count + 1
+    command := ["/usr/bin/env", "-C", relay_root, kujo_bin, "run", relay_root + "/main.kujo", "--", "tools", "execute", "--json"]
+    result := spawn_process(command, process_options({"RELAY_TOOL_REQUEST": to_json(request), "RELAY_TOOL_CAPABILITY": capability}, 120000))
     parsed := last_json(result.stdout)
     if type(parsed) != "dict" { return {"ok": false, "error": {"message": "Relay tools worker returned no JSON", "stderr": to_string(result.stderr)}} }
     if result.success == false || get(parsed, "ok", false) == false { return {"ok": false, "error": {"message": get(get(parsed, "error", {}), "message", "Relay tools worker failed"), "worker_success": result.success, "worker_stdout": to_string(result.stdout), "worker_stderr": to_string(result.stderr)}} }
