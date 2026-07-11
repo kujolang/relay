@@ -17,6 +17,7 @@ Passed locally with the pinned Kujo release runtime:
 - `kujo run tests/relay_contract_tests.kujo --interpreter`
 - fixture `relay chat` JSON and normalized stream output
 - fixture mission with real write to `/tmp/relay-fixture-workspace`
+- Agents SDK offline aggregate smoke executed as part of the mission and recorded in run state
 - PackWrite generated and validated 13 artifacts
 - RunLedger recorded a pass with starting commit and changed-file count
 - ChangeBucket recorded the added file

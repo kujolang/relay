@@ -43,6 +43,8 @@ CLI → Relay runtime → role registry → AI SDK bridge → fixture or configu
 
 The live Watchdog route is selected when `RELAY_WATCHDOG_URL` is set and fixture mode is off. The local proof deliberately used AI SDK fixture mode, so it proves the SDK contract and response normalization but does not claim a live Watchdog or Ollama Cloud request.
 
+The mission also executes the Agents SDK offline aggregate smoke runner and records its result as an evidence field. This proves the existing SDK is callable from the composition runtime's adapter boundary; it does not yet mean Relay delegates model/tool execution to the Agents SDK runner for every mission step.
+
 ## Gaps and cautions
 
 - Cross-repository Kujo imports are not a stable package dependency mechanism in this checkout; Relay uses narrow subprocess adapters and an AI SDK bridge rather than copying large runtimes.
