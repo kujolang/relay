@@ -4,7 +4,7 @@
 
 Relay is not production-ready in a universal enterprise-grade sense today. It is a credible, well-presented Kujo-native local foundation and a useful showcase of Kujo composition, but its current proof is fixture-first and single-workspace. Calling it universally production-ready would overstate the evidence.
 
-The correct posture is: **local-first hardened alpha / ecosystem showcase**. The prior reviews landed in commits `7dd7cea`, `b0d1712`, `f2c414e`, `d7bd3f6`, and `862aff9`, pushed to `origin/main`; this additional audit is implemented in `0e030ed` and extends local proof without changing that release posture.
+The correct posture is: **local-first hardened alpha / ecosystem showcase**. The prior reviews landed in commits `7dd7cea`, `b0d1712`, `f2c414e`, `d7bd3f6`, and `862aff9`, pushed to `origin/main`; the previous audit is implemented in `0e030ed`, and this review extends local Watchdog proof without changing that release posture.
 
 ## Evidence reviewed
 
@@ -17,6 +17,7 @@ The correct posture is: **local-first hardened alpha / ecosystem showcase**. The
 - Existing ecosystem READMEs, source modules, tests, and workflow contracts.
 - Second-review evidence: `doctor --json`, fixture `models probe`, fail-closed live-route check, budget failure smoke, all Relay `kujo check` targets, and expanded Loop Engineering gates.
 - Additional audit evidence: stream option forwarding, Watchdog proxy-token header isolation, hardened `kujo run` path policy, tampered-index recovery, bounded output/write budgets, timeout validation, and new store/output-budget smokes.
+- A Kujo Watchdog HTTP adapter with sanitized health/config/correlation verification, plus a real local Watchdog server and stub-provider smoke with token authentication.
 
 ## Enhancements made in this review
 
@@ -46,12 +47,13 @@ The correct posture is: **local-first hardened alpha / ecosystem showcase**. The
 | Machine credential boundary | Watchdog proxy authorization is passed as a bounded header environment value and omitted from the model payload | `src/adapters.kujo`, `src/ai_bridge.kujo` |
 | Run-index resilience | Per-run `state.json` is authoritative; malformed or incomplete index caches rebuild deterministically | `src/store.kujo`, store smoke |
 | Resource bounds | Mission output/write budgets and command timeout bounds fail closed; truncation remains explicit | `src/runtime.kujo`, output-budget smoke |
+| Watchdog evidence | Correlation is propagated through the AI SDK bridge; optional verification checks authenticated health, proxy config, and the matching request row without returning telemetry payloads | `src/watchdog.kujo`, `tests/relay_watchdog_smoke.sh`, `tests/relay_watchdog_real_smoke.sh` |
 
 ## Remaining enterprise gaps
 
 ### P0 — Must close before production claims
 
-1. Live Watchdog proxy correlation and telemetry export proof.
+1. Live Watchdog proxy correlation and telemetry export against external configured providers; the local real-server/stub-provider proof is now complete.
 2. Live Ollama Cloud and at least one other OpenAI-compatible provider smoke test.
 3. Authenticated service/MCP boundary with identity, tenant, role, and approval mapping.
 4. Full workcell isolation, rollback, and crash recovery beyond the now-proven detached Git worktree mode and confirmed cleanup.

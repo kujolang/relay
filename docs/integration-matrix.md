@@ -4,7 +4,7 @@
 |---|---|---|---|---|---|
 | Provider communication | AI SDK | `src/ai_bridge.kujo` | runtime payload adapter; stream option and optional Watchdog proxy header forwarded through the AI SDK; live calls fail closed without Watchdog URL | fixture response, normalized stream JSONL, model probe, blocked-live test; live provider pending | medium |
 | Agent execution | Agents SDK + Chain of Command | registry and compatible event fields | full runner wiring pending | agent validation + role paths | medium |
-| AI telemetry | Watchdog | configured proxy URL | startup/health/correlation adapter pending | route metadata; live Watchdog pending | high |
+| AI telemetry | Watchdog | configured proxy URL plus `src/watchdog.kujo` HTTP adapter | authenticated health/config/correlation verification is opt-in; returned telemetry is sanitized | local contract stub and real Watchdog + stub-provider smoke; external-provider evidence pending | high |
 | Mission packet | PackWrite | fake-response `init`, validate generated pack | revision/digest recorded; canonical whole-pack manifest pending | 13-file validated pack + SHA-256 evidence | medium |
 | Execution evidence | RunLedger | `start`/`finish` subprocess calls | attach all event IDs in notes pending; Relay index is a rebuildable cache | pass receipt with git commit and store recovery smoke | low |
 | Repository changes | ChangeBucket | `--json --repo` | workcell orchestration pending; mission budgets bound action count | added-file change report and budget failure smoke | low |

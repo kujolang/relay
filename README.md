@@ -2,7 +2,7 @@
 
 Kujo Relay is a Kujo-native composition and execution layer for bounded agent missions. The CLI is a thin wrapper over reusable runtime modules. It composes existing AI SDK, Agents SDK, PackWrite, RunLedger, ChangeBucket, Eval, Capsule, and Chain of Command contracts instead of replacing them.
 
-Status: `0.1.0` hardened local alpha. Offline execution, bounded repository work, resumable checkpoints, packet integrity metadata, redacted subprocess evidence, explicit environment isolation, budgets, deterministic evaluation, detached worktree missions, and self-healing run-index rebuilds are verified locally. Relay is not yet enterprise-production-ready or universally useful: live provider/Watchdog proof, authenticated multi-tenant operation, full workcell isolation/recovery, full Agents SDK tool execution, durable concurrent storage, and release gates remain open.
+Status: `0.1.0` hardened local alpha. Offline execution, bounded repository work, resumable checkpoints, packet integrity metadata, redacted subprocess evidence, explicit environment isolation, budgets, deterministic evaluation, detached worktree missions, self-healing run-index rebuilds, and real local Watchdog correlation are verified locally. Relay is not yet enterprise-production-ready or universally useful: external live-provider proof, authenticated multi-tenant operation, full workcell isolation/recovery, full Agents SDK tool execution, durable concurrent storage, and release gates remain open.
 
 ## Enterprise-readiness position
 
@@ -42,11 +42,14 @@ Relay uses the AI SDK provider boundary through `src/ai_bridge.kujo`. Fixture mo
 ```bash
 export RELAY_OFFLINE_FIXTURE=false
 export RELAY_WATCHDOG_URL=http://127.0.0.1:7700/proxy/v1
+export RELAY_WATCHDOG_PROXY_TOKEN=... # when Watchdog proxy auth is enabled
+export RELAY_WATCHDOG_API_TOKEN=... # when Watchdog API auth is enabled
+export RELAY_WATCHDOG_VERIFY=true
 export OPENAI_API_KEY=...
 ./bin/relay chat "hello" --model gpt-4.1-mini --provider openai-compatible --json
 ```
 
-For Ollama Cloud or another compatible service, keep the provider-specific details in the AI SDK-compatible endpoint configuration. Relay does not interpret vendor response formats. `RELAY_WATCHDOG_URL` is mandatory for live calls; Relay fails closed instead of silently bypassing Watchdog. Fixture mode explicitly records `direct_ai_sdk` as a deterministic no-network bypass.
+For Ollama Cloud or another compatible service, keep the provider-specific details in the AI SDK-compatible endpoint configuration. Relay does not interpret vendor response formats. `RELAY_WATCHDOG_URL` is mandatory for live calls; Relay fails closed instead of silently bypassing Watchdog. Set `RELAY_WATCHDOG_VERIFY=true` when authenticated health/config/request correlation is required. Fixture mode explicitly records `direct_ai_sdk` as a deterministic no-network bypass.
 
 ## CLI surface
 
@@ -83,6 +86,8 @@ Mission actions are declarative and policy checked. Write-enabled missions requi
 - `tests/relay_worktree_smoke.sh`: isolated worktree creation, source protection, and confirmed cleanup smoke test
 - `tests/relay_store_smoke.sh`: tampered-index rejection and authoritative run-state rebuild smoke test
 - `tests/relay_output_budget_smoke.sh`: bounded command evidence and explicit truncation smoke test
+- `tests/relay_watchdog_smoke.sh`: configured Watchdog health/config/request-correlation contract smoke test
+- `tests/relay_watchdog_real_smoke.sh`: actual local Watchdog server, token auth, stub upstream, and correlation smoke test
 
 ## Repository layout decision
 
@@ -101,7 +106,9 @@ bash tests/relay_budget_smoke.sh
 bash tests/relay_worktree_smoke.sh
 bash tests/relay_store_smoke.sh
 bash tests/relay_output_budget_smoke.sh
+bash tests/relay_watchdog_smoke.sh
+bash tests/relay_watchdog_real_smoke.sh
 git diff --check
 ```
 
-For the full integration evidence boundary and deferred enterprise work, see [`docs/enterprise-readiness-review-2026-07-11.md`](docs/enterprise-readiness-review-2026-07-11.md), [`docs/command-reference.md`](docs/command-reference.md), and the current [`docs/next-session-enhancement-backlog-2026-07-11-v3.md`](docs/next-session-enhancement-backlog-2026-07-11-v3.md).
+For the full integration evidence boundary and deferred enterprise work, see [`docs/enterprise-readiness-review-2026-07-11.md`](docs/enterprise-readiness-review-2026-07-11.md), [`docs/command-reference.md`](docs/command-reference.md), and the current [`docs/next-session-enhancement-backlog-2026-07-11-v4.md`](docs/next-session-enhancement-backlog-2026-07-11-v4.md).

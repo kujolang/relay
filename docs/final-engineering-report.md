@@ -6,7 +6,7 @@ Kujo already has nearly all important primitives: AI SDK provider normalization,
 
 ## What was reused and newly built
 
-Reused directly: AI SDK normalized responses and fixture behavior, PackWrite CLI/validator, RunLedger CLI/records, ChangeBucket JSON, Eval config/checks, Capsule CLI shape, Chain of Command role locations, and AgentEvent-compatible field names. Newly built: Relay mission/run state, adapter boundary, policy-checked declarative actions, evidence aggregation, report surface, and CLI routing.
+Reused directly: AI SDK normalized responses and fixture behavior, PackWrite CLI/validator, RunLedger CLI/records, ChangeBucket JSON, Eval config/checks, Capsule CLI shape, Chain of Command role locations, Watchdog's HTTP API/proxy contract, and AgentEvent-compatible field names. Newly built: Relay mission/run state, a narrow Watchdog verification adapter, adapter boundary, policy-checked declarative actions, evidence aggregation, report surface, and CLI routing.
 
 Deliberately not built: another provider client, another general workflow engine, another telemetry database, another packet schema, unrestricted shell access, adaptive model router, or a fake claim of live Ollama/Watchdog success.
 
@@ -26,7 +26,7 @@ Passed locally with the pinned Kujo release runtime:
 - six AgentEvent-compatible lifecycle/artifact/tool/evaluation events were persisted
 - pause/resume path persisted a resumable checkpoint and completion report
 
-Not proven in this local session: live Ollama Cloud, live Watchdog proxy telemetry/correlation, multi-model Capsule A/B implementation scoring, Paperclip/Hermes invocation, and container/microVM-grade workcell isolation. Detached Git worktree provisioning and explicit cleanup are proven locally, while rollback-on-failure and crash recovery remain open. These are known limitations, not successful integrations.
+Not proven in this local session: live Ollama Cloud or another external provider, multi-model Capsule A/B implementation scoring, Paperclip/Hermes invocation, and container/microVM-grade workcell isolation. A local real Watchdog process forwarding to a Kujo stub provider is proven, including token-authenticated proxy/API calls, persisted correlation lookup, and secret non-leakage. Detached Git worktree provisioning and explicit cleanup are proven locally, while rollback-on-failure and crash recovery remain open. These are known limitations, not successful external integrations.
 
 ## Ecosystem recommendations
 
@@ -39,7 +39,7 @@ Not proven in this local session: live Ollama Cloud, live Watchdog proxy telemet
 
 ## Known limitations
 
-The current run engine accepts explicit action plans instead of allowing an Agents SDK model to request tools. Agent roles are loaded as a small registry, not dynamically resolved from all Chain of Command definitions. Resume currently supports the explicit post-plan checkpoint only; arbitrary interrupted-step replay and failure-repair flows require follow-up integration work. Live Watchdog/Ollama remains unverified.
+The current run engine accepts explicit action plans instead of allowing an Agents SDK model to request tools. Agent roles are loaded as a small registry, not dynamically resolved from all Chain of Command definitions. Resume currently supports the explicit post-plan checkpoint only; arbitrary interrupted-step replay and failure-repair flows require follow-up integration work. External-provider/Ollama remains unverified; local real-Watchdog correlation is covered by the dedicated smoke.
 
 ## 2026-07-11 enterprise-readiness review
 
@@ -47,11 +47,15 @@ The current posture is local-first hardened alpha/showcase, not universal enterp
 
 ## Second 2026-07-11 review
 
-The follow-up review preserved the alpha boundary and added fail-closed live Watchdog routing, explicit subprocess environment allowlists, provider-key environment validation, atomic mission writes, output-truncation evidence fields, configurable mission budgets, an explicit Agents SDK smoke skip with receipt, detached worktree provisioning with confirmed cleanup, `doctor --json`, `models probe`, budget and worktree regression smokes, a command reference, and versioned next-session backlogs. The root layout was re-audited and remains intentionally conventional: `main.kujo`, `kujo.toml`, and `bin/relay` are necessary entry/package/launcher files; runtime behavior remains under `src/`. See `docs/enterprise-readiness-review-2026-07-11.md`, `docs/command-reference.md`, and `docs/next-session-enhancement-backlog-2026-07-11-v3.md`.
+The follow-up review preserved the alpha boundary and added fail-closed live Watchdog routing, explicit subprocess environment allowlists, provider-key environment validation, atomic mission writes, output-truncation evidence fields, configurable mission budgets, an explicit Agents SDK smoke skip with receipt, detached worktree provisioning with confirmed cleanup, `doctor --json`, `models probe`, budget and worktree regression smokes, a command reference, and versioned next-session backlogs. The root layout was re-audited and remains intentionally conventional: `main.kujo`, `kujo.toml`, and `bin/relay` are necessary entry/package/launcher files; runtime behavior remains under `src/`. See `docs/enterprise-readiness-review-2026-07-11.md`, `docs/command-reference.md`, and `docs/next-session-enhancement-backlog-2026-07-11-v4.md`.
 
 ## Additional 2026-07-11 audit slice
 
-The next audit corrected the stale README claim that worktree provisioning was still absent, forwarded streaming and optional Watchdog proxy authorization through the AI SDK bridge, restricted `kujo run` to approved workspace-local `.kujo` files, made the run index self-healing from authoritative state, and added output/write budgets plus timeout bounds. New store and output-budget smokes pass alongside the prior acceptance set. The implementation is committed as `0e030ed` and pushed. The remaining storage implementation is intentionally described as a rebuildable cache, not durable concurrent transaction storage. The new handoff is `docs/next-session-enhancement-backlog-2026-07-11-v3.md`.
+The next audit corrected the stale README claim that worktree provisioning was still absent, forwarded streaming and optional Watchdog proxy authorization through the AI SDK bridge, restricted `kujo run` to approved workspace-local `.kujo` files, made the run index self-healing from authoritative state, and added output/write budgets plus timeout bounds. New store and output-budget smokes pass alongside the prior acceptance set. The implementation is committed as `0e030ed` and pushed. The remaining storage implementation is intentionally described as a rebuildable cache, not durable concurrent transaction storage. The current handoff is `docs/next-session-enhancement-backlog-2026-07-11-v4.md`.
+
+## Watchdog verification slice — 2026-07-11
+
+Relay now propagates a run correlation ID through the existing AI SDK bridge as observation headers, passes Watchdog proxy authorization only through a bounded environment seam, and can optionally fail closed unless Watchdog health, proxy configuration, and the matching `/api/requests` row are all verified. The adapter exposes sanitized status only; it does not copy prompt/response summaries or raw API bodies into Relay artifacts. `tests/relay_watchdog_smoke.sh` proves the contract against a Kujo HTTP stub. `tests/relay_watchdog_real_smoke.sh` proves the same path through the actual local Watchdog server with token auth and a stub OpenAI-compatible upstream. This is real Watchdog integration evidence, but not external-provider or Ollama Cloud evidence.
 
 ## Repository handoff
 

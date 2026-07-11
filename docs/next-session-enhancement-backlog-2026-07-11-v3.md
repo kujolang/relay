@@ -17,7 +17,8 @@ Implementation baseline: `0e030ed` (`main`, pushed to `origin/main`).
 
 ## P0 — live authority and isolation
 
-- [ ] Add a Watchdog health/proxy adapter that verifies `/healthz`, `/api/proxy-config`, and authenticated correlated `/api/requests` records for a Relay correlation ID.
+- [x] Add a Watchdog health/proxy adapter that can verify `/healthz`, `/api/proxy-config`, and authenticated correlated `/api/requests` records for a Relay correlation ID; live proof remains environment-dependent.
+- [x] Add a deterministic local Watchdog contract smoke with a Kujo HTTP stub, secret non-leakage assertions, and correlated live-route verification.
   - Evidence required: a local Watchdog server plus stub provider, authenticated request headers, matching request row, and failure when correlation is absent.
 - [ ] Add opt-in Ollama Cloud and second-provider live smoke profiles.
   - Evidence required: credentials injected only through bounded environment variables, redacted receipts, usage telemetry, and provider-specific failure classification.

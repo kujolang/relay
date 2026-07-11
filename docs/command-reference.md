@@ -11,6 +11,10 @@ Relay commands return process exit code `0` on success and nonzero on invalid in
 | `RELAY_OFFLINE_FIXTURE` | Select deterministic fixture mode | `true` |
 | `RELAY_WATCHDOG_URL` | Watchdog-compatible OpenAI base URL for live calls | required when live |
 | `RELAY_WATCHDOG_PROXY_TOKEN` | Optional Watchdog proxy-route token forwarded as a bounded request header | unset |
+| `RELAY_WATCHDOG_API_URL` | Optional Watchdog API base URL for health/config/request verification | derived from proxy URL |
+| `RELAY_WATCHDOG_API_TOKEN` | Watchdog API token for authenticated telemetry verification | unset |
+| `RELAY_WATCHDOG_VERIFY` | Require health, proxy-config, and correlated request-row verification after live AI calls | `false` |
+| `RELAY_CORRELATION_ID` | Optional safe correlation ID for standalone chat/probe calls | generated |
 | `RELAY_API_KEY_ENV` | Name of the provider credential environment variable | `OPENAI_API_KEY` |
 | `RELAY_MODEL` / `RELAY_PROVIDER` | Defaults for model listing/probes | `gpt-4.1-mini` / `openai-compatible` |
 | `RELAY_FALLBACK_MODEL` | Visible model fallback after a failed primary call | unset |
@@ -53,6 +57,8 @@ Set `workspace_mode: "worktree"` to have Relay create a detached worktree from t
 `runs list` validates the cached `.relay/index.json` against authoritative per-run `state.json` directories and rebuilds it when it is malformed, unsafe, or incomplete. `runs rebuild` forces that recovery path. The index is a cache, not the source of truth.
 
 `chat --stream` emits normalized JSONL `delta` and `done` events. Relay forwards the stream option through the AI SDK bridge; live Watchdog proxy authorization is supplied through `RELAY_WATCHDOG_PROXY_TOKEN` and is never included in the model payload.
+
+Set `RELAY_WATCHDOG_VERIFY=true` to make live calls fail closed unless Relay can authenticate to Watchdog's API, verify health and proxy configuration, and find a request row matching the correlation ID emitted by the AI SDK request. `doctor --json` performs the health/config portion of this check.
 
 ## Exit-code guidance
 
