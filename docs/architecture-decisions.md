@@ -31,3 +31,15 @@ Context: unrestricted shell/filesystem authority is unsafe. Decision: MVP accept
 ## ADR-008: File artifacts plus JSONL events
 
 Context: RunLedger, PackWrite, ChangeBucket, and Eval already produce inspectable files. Decision: keep run state/report JSON, human Markdown, and AgentEvent-compatible JSONL under one run directory, append JSONL with the Kujo append primitive, and record artifact digests. Rationale: simple resume/export, bounded write cost, and machine-readable integrity evidence without a parallel database.
+
+## ADR-009: Explicit subprocess environment
+
+Context: Kujo's process contract supports `inherit_env`, `env_allow`, `env_deny`, and explicit `env` values, while AI and evidence tools need only a small set of runtime variables. Decision: Relay subprocess adapters disable wholesale environment inheritance, allow baseline runtime variables, and add only explicitly supplied variables; live provider credentials are passed to the AI bridge only when selected by `RELAY_API_KEY_ENV`. Rationale: reduce accidental secret exposure and make process authority auditable. Consequence: a host with unusual tool-specific environment requirements must configure an explicit adapter seam rather than relying on ambient state.
+
+## ADR-010: Fail-closed live routing and bounded execution
+
+Context: Watchdog owns live AI telemetry, and mission state needs explicit stop conditions. Decision: live AI calls require `RELAY_WATCHDOG_URL`; fixture mode is the only direct AI SDK bypass. Mission specs may override non-negative step, repair, and token budgets, and budget exhaustion fails the run with evidence. Rationale: prevent silent telemetry bypass and uncontrolled work. Consequence: `doctor` reports missing live prerequisites and operators must choose `--skip-agent-smoke` explicitly when startup validation is intentionally deferred.
+
+## ADR-011: Operator-facing health and probe commands
+
+Context: a showcase needs a truthful first-run path and machine-callable diagnostics. Decision: add `doctor --json` for dependency/agent/route/credential posture and `models probe` for a minimal fixture or configured-live model call. Rationale: make environment failures actionable without introducing a service layer or placeholder command. Consequence: probes remain bounded checks, not provider certification or benchmark results.

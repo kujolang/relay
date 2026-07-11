@@ -2,6 +2,8 @@
 
 This backlog is the next bounded work list after the 2026-07-11 enterprise-readiness review. Each item must add implementation, tests, documentation, and executable evidence. Do not mark an integration complete from an interface or fixture alone.
 
+The follow-up review created the more specific current list at [`next-session-enhancement-backlog-2026-07-11-v2.md`](next-session-enhancement-backlog-2026-07-11-v2.md); keep this document as the original P0/P1/P2 baseline.
+
 ## P0 — Production proof and authority
 
 - [ ] Add a Watchdog health/proxy adapter that validates `/healthz`, `/api/proxy-config`, and correlated `/api/requests` rows for a Relay run.

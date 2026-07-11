@@ -8,13 +8,14 @@ The correct posture is: **local-first hardened alpha / ecosystem showcase**.
 
 ## Evidence reviewed
 
-- Six local commits on `main`, clean working tree, configured `origin/main`.
+- Existing Relay history on `main`, clean working tree at the start of this review, configured `origin/main`.
 - Kujo release runtime contract test.
 - Fixture chat and stream output through the AI SDK bridge.
 - Real bounded write to `/tmp/relay-fixture-workspace`.
 - PackWrite validation, Agents SDK offline smoke, RunLedger receipt, ChangeBucket report, Eval result, AgentEvent JSONL, packet hash, and pause-after-plan/resume.
 - Capsule adapter failure reproduced: `Symbol 'run_cli' not found in module 'src.cli'`.
 - Existing ecosystem READMEs, source modules, tests, and workflow contracts.
+- Second-review evidence: `doctor --json`, fixture `models probe`, fail-closed live-route check, budget failure smoke, all Relay `kujo check` targets, and expanded Loop Engineering gates.
 
 ## Enhancements made in this review
 
@@ -33,6 +34,12 @@ The correct posture is: **local-first hardened alpha / ecosystem showcase**.
 | State durability | JSON state writes use sibling temp files and rename into place | `src/common.kujo` |
 | Acceptance coverage | Generated Eval config checks each declared file-write output in addition to `git diff --check` | `src/runtime.kujo`, mission smoke |
 | Capsule adapter | Uses the shared process adapter and preserves truthful failure output | `src/adapters.kujo`, `src/cli.kujo` |
+| Live-route safety | Live AI calls fail closed when Watchdog is not configured; provider-key environment names are validated | `src/adapters.kujo`, `src/doctor.kujo`, blocked-live smoke |
+| Process isolation | Adapter subprocesses use explicit bounded environment allowlists instead of wholesale inheritance | `src/common.kujo`, contract tests |
+| Atomic tool writes | Mission file actions and Markdown artifacts use sibling temp files plus rename | `src/common.kujo`, mission smoke |
+| Budget enforcement | Mission specs can override step, repair, and token limits; action loops stop at `max_steps` | `src/runtime.kujo`, budget smoke |
+| Operator onboarding | `doctor --json` and `models probe` expose truthful environment and model checks | `src/doctor.kujo`, CLI smoke |
+| Presentation contract | README, command reference, root-layout explanation, and a versioned follow-up backlog document the evidence boundary | README, `docs/command-reference.md`, backlog v2 |
 
 ## Remaining enterprise gaps
 
@@ -66,6 +73,8 @@ The correct posture is: **local-first hardened alpha / ecosystem showcase**.
 ## Root-layout review
 
 The root files are still justified by established Kujo conventions: `main.kujo` is the executable entrypoint, `kujo.toml` is package metadata, `bin/relay` is a thin launcher, and `README.md` is the package landing page. Runtime logic is correctly under `src/`; no root implementation file should be moved into `src/` without breaking the conventional entrypoint.
+
+The second review found no redundant root implementation files. New behavior remains under `src/`, tests under `tests/`, examples under `examples/`, and operator-facing material under `docs/`.
 
 ## Security posture
 

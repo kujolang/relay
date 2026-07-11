@@ -10,6 +10,18 @@ case "$json" in
   *) echo "agents validation did not pass" >&2; exit 1 ;;
 esac
 
+doctor="$($KUJO run "$ROOT/main.kujo" -- doctor --json)"
+case "$doctor" in
+  *'"ok":true'*'"mode":"fixture"'*) ;;
+  *) echo "fixture doctor contract did not pass" >&2; exit 1 ;;
+esac
+
+probe="$($KUJO run "$ROOT/main.kujo" -- models probe fixture-model --fixture --json)"
+case "$probe" in
+  *'"ok":true'*'"model":"fixture-model"'*) ;;
+  *) echo "model probe contract did not pass" >&2; exit 1 ;;
+esac
+
 chat="$($KUJO run "$ROOT/main.kujo" -- chat smoke --fixture --json)"
 case "$chat" in
   *'"ok":true'*'"relay_telemetry"'*) ;;

@@ -3,6 +3,7 @@ from src.contracts import RELAY_VERSION
 from src.registry import agent_catalog, find_agent, agent_path
 from src.adapters import ai_chat, capsule_run
 from src.runtime import ensure_dir, create_mission, run_mission, pause_run, resume_run, state_root, run_root
+from src.doctor import doctor
 
 func has_flag(flags, name) { return has_key(flags, name) }
 
@@ -19,7 +20,7 @@ func parse_tokens(tokens) {
         token := tokens[i]
         if starts_with(token, "--") {
             key := substring(token, 2, len(token))
-            if key == "json" || key == "stream" || key == "fixture" || key == "offline" || key == "help" {
+            if key == "json" || key == "stream" || key == "fixture" || key == "offline" || key == "help" || key == "skip-agent-smoke" {
                 flags[key] := true
             } else if i + 1 < len(tokens) && starts_with(tokens[i + 1], "--") == false {
                 flags[key] := tokens[i + 1]
@@ -45,12 +46,13 @@ func output(payload, json_mode) {
 
 func help_text() {
     return "Relay " + RELAY_VERSION + " — Kujo-native mission composition runtime\n\n" +
-        "Usage: relay <chat|models|agents|missions|runs|benchmark> ...\n\n" +
+        "Usage: relay <chat|models|agents|missions|runs|benchmark|doctor> ...\n\n" +
         "  chat <prompt> [--model <id>] [--provider <id>] [--fixture] [--stream] [--json]\n" +
-        "  models list|inspect <model>\n" +
+        "  models list|inspect <model>|probe <model> [--fixture]\n" +
         "  agents list|inspect <agent>|validate\n" +
+        "  doctor [--json]\n" +
         "  missions create [spec.json] [--output path]\n" +
-        "  missions run <spec.json> [--fixture] [--pause-after-plan] [--json]\n" +
+        "  missions run <spec.json> [--fixture] [--pause-after-plan] [--skip-agent-smoke] [--json]\n" +
         "  missions inspect <run-id>|pause <run-id>|resume <run-id>|report <run-id>\n" +
         "  runs list|inspect <run-id>|events <run-id>|changes <run-id>|evaluations <run-id>\n" +
         "  benchmark run <repo> [--json] (Capsule discovery slice)"
@@ -81,6 +83,13 @@ func cmd_models(tokens) {
         {"id": env_or("RELAY_MODEL", "gpt-4.1-mini"), "provider": env_or("RELAY_PROVIDER", "openai-compatible"), "capabilities": ["chat", "streaming", "tool_calls"], "offline": false}
     ]
     if sub == "inspect" { for model in models { if model["id"] == positional(parsed["positionals"], 1, "") { return {"ok": true, "model": model} } }; return {"ok": false, "error": "unknown model"} }
+    if sub == "probe" {
+        model := string_or(positional(parsed["positionals"], 1, env_or("RELAY_MODEL", "fixture-model")), "fixture-model")
+        provider := string_or(dict_get_or(parsed["flags"], "provider", env_or("RELAY_PROVIDER", "fixture")), "fixture")
+        offline := has_flag(parsed["flags"], "fixture") || has_flag(parsed["flags"], "offline") || env_or("RELAY_OFFLINE_FIXTURE", "true") == "true"
+        result := ai_chat([{"role": "user", "content": "Reply with exactly: relay-probe-ok"}], model, provider, offline, false)
+        return {"ok": dict_get_or(result, "ok", false), "model": model, "provider": provider, "offline": offline, "result": result}
+    }
     return {"ok": true, "models": models, "routing": "explicit profile selection; fallback is visible in run evidence"}
 }
 
@@ -114,7 +123,7 @@ func cmd_missions(tokens) {
         if path == "" { return {"ok": false, "error": "missions run requires a spec path"} }
         offline := has_flag(parsed["flags"], "fixture")
         if env_or("RELAY_OFFLINE_FIXTURE", "true") == "true" { offline = true }
-        return run_mission(path, {"offline_fixture": offline, "stream": false, "pause_after_plan": has_flag(parsed["flags"], "pause-after-plan")})
+        return run_mission(path, {"offline_fixture": offline, "stream": false, "pause_after_plan": has_flag(parsed["flags"], "pause-after-plan"), "agents_sdk_smoke": has_flag(parsed["flags"], "skip-agent-smoke") == false})
     }
     id := positional(parsed["positionals"], 1, "")
     index := read_json_or(state_root() + "/index.json", {})
@@ -166,6 +175,7 @@ export func main(argv) {
     else if command == "missions" { result = cmd_missions(rest) }
     else if command == "runs" { result = cmd_runs(rest) }
     else if command == "benchmark" { result = cmd_benchmark(rest) }
+    else if command == "doctor" { result = doctor() }
     else { print(help_text()); return 2 }
     output(result, json_mode)
     if type(result) == "dict" && dict_get_or(result, "ok", true) == false { return 1 }

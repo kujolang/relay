@@ -45,6 +45,10 @@ The current run engine accepts explicit action plans instead of allowing an Agen
 
 The current posture is local-first hardened alpha/showcase, not universal enterprise production. This review added realpath workspace checks, shell/Git command deny rules, explicit write approvals, subprocess redaction, packet digest metadata, unique run suffixes, preflight failure handling, ChangeBucket/Eval completion authority, atomic JSON persistence, efficient JSONL append, generated file-existence acceptance checks, shared Capsule process handling, and a real pause-after-plan/resume checkpoint. See `docs/enterprise-readiness-review-2026-07-11.md` and `docs/next-session-enhancement-backlog.md` for the evidence boundary and prioritized remaining work.
 
+## Second 2026-07-11 review
+
+The follow-up review preserved the alpha boundary and added fail-closed live Watchdog routing, explicit subprocess environment allowlists, provider-key environment validation, atomic mission writes, output-truncation evidence fields, configurable mission budgets, an explicit Agents SDK smoke skip with receipt, `doctor --json`, `models probe`, a budget regression smoke, a command reference, and a versioned next-session backlog. The root layout was re-audited and remains intentionally conventional: `main.kujo`, `kujo.toml`, and `bin/relay` are necessary entry/package/launcher files; runtime behavior remains under `src/`. See `docs/enterprise-readiness-review-2026-07-11.md`, `docs/command-reference.md`, and `docs/next-session-enhancement-backlog-2026-07-11-v2.md`.
+
 ## Repository handoff
 
 The review hardening is committed as `b21ef02` (`Loop engineering: Build and verify the Kujo Relay composition runtime vertical slice`) and is pushed to the configured `origin/main`. The working tree is clean. The next session should preserve this evidence boundary rather than widening claims.
