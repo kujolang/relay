@@ -3,6 +3,7 @@ from src.contracts import run_state, event
 from src.registry import find_agent
 from src.policy import tool_decision, classify_failure, path_is_safe, path_is_within_workspace, command_is_allowed
 from src.adapters import ai_chat, agents_sdk_smoke, packwrite_generate, runledger_start, runledger_finish, changebucket, eval_run
+from src.store import rebuild_run_index, load_run_index, persist_run_index
 
 func ensure_dir(path) {
     if path == "" || path == "." || path_is_dir(path) { return }
@@ -41,9 +42,9 @@ func add_event(state, run_dir, kind, step_id, agent_id, payload) {
 }
 
 func register_run(state, run_dir) {
-    index := read_json_or(index_path(), {})
+    index := rebuild_run_index(state_root())
     index[state["run_id"]] := {"run_dir": run_dir, "mission_id": state["mission_id"], "status": state["status"]}
-    write_json(index_path(), index)
+    persist_run_index(state_root(), index)
 }
 
 func load_spec(path) {
@@ -56,10 +57,19 @@ func load_spec(path) {
     if len(actions) > 32 { return {"ok": false, "error": "Mission exceeds the 32-action safety limit"} }
     budgets := dict_get_or(spec, "budgets", {})
     if type(budgets) != "dict" { return {"ok": false, "error": "Mission budgets must be an object"} }
-    for key in ["max_steps", "max_repairs", "max_tokens"] {
+    for key in ["max_steps", "max_repairs", "max_tokens", "max_output_bytes", "max_write_bytes"] {
         if has_key(budgets, key) {
             value := int_or(budgets[key], -1)
             if value < 0 { return {"ok": false, "error": "Mission budget " + key + " must be a non-negative integer"} }
+            if (key == "max_output_bytes" || key == "max_write_bytes") && value == 0 { return {"ok": false, "error": "Mission budget " + key + " must be greater than zero"} }
+            if (key == "max_output_bytes" || key == "max_write_bytes") && value > 8388608 { return {"ok": false, "error": "Mission budget " + key + " exceeds the 8 MiB safety limit"} }
+        }
+    }
+    for action in actions {
+        if type(action) != "dict" { return {"ok": false, "error": "Mission actions must contain objects"} }
+        if dict_get_or(action, "type", "") == "run_command" {
+            timeout_ms := int_or(dict_get_or(action, "timeout_ms", 120000), -1)
+            if timeout_ms <= 0 || timeout_ms > 600000 { return {"ok": false, "error": "run_command timeout_ms must be between 1 and 600000"} }
         }
     }
     workspace_mode := string_or(dict_get_or(spec, "workspace_mode", "provided"), "provided")
@@ -105,15 +115,17 @@ func execute_action(action, spec, state, run_dir) {
         relative := action["path"]
         target := repo + "/" + relative
         if path_is_within_workspace(repo, relative) == false { return {"ok": false, "failure_class": "permission_denial", "error": "unsafe or symlinked path"} }
+        content := to_string(dict_get_or(action, "content", ""))
+        if len(content) > state["budgets"]["max_write_bytes"] { return {"ok": false, "failure_class": "budget_exceeded", "error": "write_file content exceeds max_write_bytes"} }
         try {
-            if write_text_atomic(target, to_string(dict_get_or(action, "content", ""))) == false { return {"ok": false, "failure_class": "repository_failure", "error": "atomic write failed"} }
+            if write_text_atomic(target, content) == false { return {"ok": false, "failure_class": "repository_failure", "error": "atomic write failed"} }
             return {"ok": true, "tool": "write_file", "path": relative}
         } except err { return {"ok": false, "failure_class": "repository_failure", "error": to_string(err)} }
     }
     if kind == "run_command" {
         command := string_or(dict_get_or(action, "command", ""), "")
         if command_is_allowed(command, policy) == false { return {"ok": false, "failure_class": "policy_violation", "error": "command_not_allowlisted"} }
-        result := spawn_process(["/usr/bin/env", "-C", repo, "/bin/sh", "-lc", command], process_options({}, int_or(dict_get_or(action, "timeout_ms", 120000), 120000), 1048576))
+        result := spawn_process(["/usr/bin/env", "-C", repo, "/bin/sh", "-lc", command], process_options({}, int_or(dict_get_or(action, "timeout_ms", 120000), 120000), state["budgets"]["max_output_bytes"]))
         ok := result.success
         output_truncated := result.stdout_truncated
         if result.stderr_truncated { output_truncated = true }
@@ -211,14 +223,19 @@ func run_mission(path, options) {
     state["workspace"] := workspace
     configured_budgets := dict_get_or(spec, "budgets", {})
     budgets := state["budgets"]
-    for key in ["max_steps", "max_repairs", "max_tokens"] {
+    for key in ["max_steps", "max_repairs", "max_tokens", "max_output_bytes", "max_write_bytes"] {
         if has_key(configured_budgets, key) { budgets[key] := int_or(configured_budgets[key], budgets[key]) }
     }
     state["budgets"] := budgets
+    # Persist the workspace reservation before invoking any external adapter.
+    # A process crash after worktree creation can then still be discovered and
+    # explicitly cleaned up from the run index.
+    save_state(state, run_dir)
     ledger := runledger_start(run_dir, string_or(dict_get_or(spec, "model", "fixture-model"), "fixture-model"), string_or(dict_get_or(spec, "provider", "fixture"), "fixture"), to_string(spec["name"]), repo)
     state["runledger"] := ledger
     state["status"] := "running"
     state["current_step"] := "plan"
+    save_state(state, run_dir)
     register_run(state, run_dir)
     state := add_event(state, run_dir, "run_started", "", "relay", {"workflow": state["workflow"], "repository": repo, "source_repository": source_repo, "workspace": workspace})
     prompt := write_prompt(run_dir, spec)
@@ -300,7 +317,7 @@ func run_mission(path, options) {
 }
 
 func pause_run(run_id) {
-    index := read_json_or(index_path(), {})
+    index := load_run_index(state_root())
     record := dict_get_or(index, run_id, null)
     if type(record) != "dict" { return {"ok": false, "error": "unknown run: " + run_id} }
     state := read_json_or(record["run_dir"] + "/state.json", null)
@@ -315,7 +332,7 @@ func pause_run(run_id) {
 
 func cleanup_run(run_id, confirmed) {
     if bool_or(confirmed, false) == false { return {"ok": false, "error": "worktree cleanup requires --confirm"} }
-    index := read_json_or(index_path(), {})
+    index := load_run_index(state_root())
     record := dict_get_or(index, run_id, null)
     if type(record) != "dict" { return {"ok": false, "error": "unknown run: " + run_id} }
     state := read_json_or(record["run_dir"] + "/state.json", null)
@@ -339,7 +356,7 @@ func cleanup_run(run_id, confirmed) {
 }
 
 func resume_run(run_id) {
-    index := read_json_or(index_path(), {})
+    index := load_run_index(state_root())
     record := dict_get_or(index, run_id, null)
     if type(record) != "dict" { return {"ok": false, "error": "unknown run: " + run_id} }
     state := read_json_or(record["run_dir"] + "/state.json", null)

@@ -1,6 +1,7 @@
 from src.contracts import event, run_state, agent_profile, RELAY_VERSION, EVENT_CONTRACT
 from src.policy import classify_failure, path_is_safe, path_is_within_workspace, command_is_allowed, tool_decision
 from src.common import safe_id, redact_text, shell_quote_single, process_options, safe_env_name
+from src.store import safe_run_key
 
 func check(label, condition) {
     if condition { print("PASS " + label); return 0 }
@@ -28,9 +29,13 @@ failed = failed + check("blocked push", command_is_allowed("git push --force", {
 failed = failed + check("blocked shell chain", command_is_allowed("git status; touch escaped", {"allowed_commands": ["git"]}) == false)
 failed = failed + check("blocked env expansion", command_is_allowed("git status $HOME", {"allowed_commands": ["git"]}) == false)
 failed = failed + check("blocked glob expansion", command_is_allowed("git status *", {"allowed_commands": ["git"]}) == false)
+failed = failed + check("safe Kujo test command", command_is_allowed("kujo test", {"allowed_commands": ["kujo"]}))
+failed = failed + check("unsafe Kujo test path denied", command_is_allowed("kujo test /tmp/evil.kujo", {"workspace": ".", "allowed_commands": ["kujo"]}) == false)
+failed = failed + check("unsafe Kujo script path denied", command_is_allowed("kujo run /tmp/evil.kujo", {"workspace": ".", "allowed_commands": ["kujo"]}) == false)
+failed = failed + check("safe Kujo workspace script", command_is_allowed("kujo run scripts/check.kujo", {"workspace": ".", "allowed_commands": ["kujo"]}))
 failed = failed + check("shell quote", contains(shell_quote_single("repo's path"), "'\"'\"'"))
 process := process_options({"RELAY_TEST_ENV": "ok"}, 1000, 4096)
-failed = failed + check("bounded process environment", process["inherit_env"] == false && has_key(process["env"], "RELAY_TEST_ENV"))
+failed = failed + check("bounded process environment", process["inherit_env"] == false && process["max_output_bytes"] == 4096 && has_key(process["env"], "RELAY_TEST_ENV"))
 failed = failed + check("safe API env name", safe_env_name("OLLAMA_API_KEY") && safe_env_name("VENDOR_TOKEN_1"))
 failed = failed + check("reserved API env name denied", safe_env_name("PATH") == false)
 failed = failed + check("invalid API env name denied", safe_env_name("OPENAI-API-KEY") == false)
@@ -40,4 +45,6 @@ failed = failed + check("unknown tool denied", tool_decision("unknown", {}, {})[
 failed = failed + check("safe id", safe_id("feature/name", "fallback") == "feature-name")
 failed = failed + check("redaction", contains(redact_text("Authorization: Bearer secret"), "[REDACTED]"))
 failed = failed + check("expanded redaction", contains(redact_text("ANTHROPIC_API_KEY=secret"), "[REDACTED]"))
+failed = failed + check("safe run key", safe_run_key("relay-run-123"))
+failed = failed + check("unsafe run key denied", safe_run_key("../outside") == false)
 exit(failed)

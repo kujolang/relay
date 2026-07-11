@@ -58,6 +58,8 @@ func call_ai(messages, model, provider, base_url, api_key_env, offline, stream) 
     }
     if stream { payload["stream"] := true }
     env_map := {"RELAY_AI_PAYLOAD": safe_json(payload), "AI_SDK_PATH": ai_sdk_root()}
+    watchdog_token := env_or("RELAY_WATCHDOG_PROXY_TOKEN", "")
+    if watchdog_token != "" { env_map["RELAY_WATCHDOG_PROXY_TOKEN"] := watchdog_token }
     api_key := env(api_key_env)
     if type(api_key) != "null" { env_map[api_key_env] := api_key }
     bridge := env_or("RELAY_AI_BRIDGE", relay_root() + "/src/ai_bridge.kujo")
@@ -69,7 +71,7 @@ func call_ai(messages, model, provider, base_url, api_key_env, offline, stream) 
     }
     route := "direct_ai_sdk"
     if watchdog_url() != "" && offline == false { route = "watchdog_proxy" }
-    parsed["relay_telemetry"] := {"route": route, "watchdog_url": watchdog_url(), "provider": provider, "model": model, "stream_requested": stream}
+    parsed["relay_telemetry"] := {"route": route, "watchdog_url": watchdog_url(), "watchdog_auth_configured": watchdog_token != "", "provider": provider, "model": model, "stream_requested": stream}
     return parsed
 }
 

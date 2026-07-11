@@ -19,5 +19,10 @@ for item in get(payload, "messages", []) {
     if type(item) == "dict" { messages := push(messages, create_message(get(item, "role", "user"), get(item, "content", ""))) }
 }
 client := create_client(provider, null)
-result := chat_completion(client, messages, {"model": model, "max_tokens": get(payload, "max_tokens", 700), "temperature": get(payload, "temperature", 0.2), "max_retries": 1, "offline_fixture": get(payload, "offline_fixture", true)})
+options := {"model": model, "max_tokens": get(payload, "max_tokens", 700), "temperature": get(payload, "temperature", 0.2), "max_retries": 1, "offline_fixture": get(payload, "offline_fixture", true), "stream": get(payload, "stream", false)}
+watchdog_token := env("RELAY_WATCHDOG_PROXY_TOKEN")
+if type(watchdog_token) != "null" && trim(to_string(watchdog_token)) != "" {
+    options["headers"] := {"X-Watchdog-Proxy-Token": watchdog_token}
+}
+result := chat_completion(client, messages, options)
 print(to_json(result))

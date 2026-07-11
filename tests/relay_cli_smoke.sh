@@ -28,6 +28,18 @@ case "$chat" in
   *) echo "fixture chat contract did not pass" >&2; exit 1 ;;
 esac
 
+token_output="$(RELAY_WATCHDOG_PROXY_TOKEN='relay-test-proxy-token' "$KUJO" run "$ROOT/main.kujo" -- chat token-boundary --fixture --json)"
+printf '%s' "$token_output" | grep -q '"watchdog_auth_configured":true'
+if printf '%s' "$token_output" | grep -q 'relay-test-proxy-token'; then
+  echo "Watchdog proxy token leaked into fixture output" >&2
+  exit 1
+fi
+
+stream="$($KUJO run "$ROOT/main.kujo" -- chat stream-boundary --fixture --stream --json)"
+printf '%s' "$stream" | grep -q '"type":"delta"'
+printf '%s' "$stream" | grep -q '"type":"done"'
+test "$(printf '%s' "$stream" | grep -o '"type":"done"' | wc -l | tr -d ' ')" -eq 1
+
 set +e
 invalid="$($KUJO run "$ROOT/main.kujo" -- missions run "$ROOT/examples/invalid-approval-mission.json" --fixture --json 2>&1)"
 status=$?

@@ -3,6 +3,7 @@ from src.contracts import RELAY_VERSION
 from src.registry import agent_catalog, find_agent, agent_path
 from src.adapters import ai_chat, capsule_run
 from src.runtime import ensure_dir, create_mission, run_mission, pause_run, cleanup_run, resume_run, state_root, run_root
+from src.store import load_run_index, rebuild_run_index, persist_run_index
 from src.doctor import doctor
 
 func has_flag(flags, name) { return has_key(flags, name) }
@@ -33,6 +34,10 @@ func parse_tokens(tokens) {
 }
 
 func output(payload, json_mode) {
+    if type(payload) == "dict" && has_key(payload, "_stream_events") {
+        for item in payload["_stream_events"] { print(safe_json(item)) }
+        return
+    }
     if json_mode { print(safe_json(payload)); return }
     if type(payload) == "dict" {
         if has_key(payload, "error") { print("error: " + to_string(payload["error"])); return }
@@ -54,7 +59,7 @@ func help_text() {
         "  missions create [spec.json] [--output path]\n" +
         "  missions run <spec.json> [--fixture] [--pause-after-plan] [--skip-agent-smoke] [--json]\n" +
         "  missions inspect <run-id>|pause <run-id>|resume <run-id>|cleanup <run-id> --confirm|report <run-id>\n" +
-        "  runs list|inspect <run-id>|events <run-id>|changes <run-id>|evaluations <run-id>\n" +
+        "  runs list|rebuild|inspect <run-id>|events <run-id>|changes <run-id>|evaluations <run-id>\n" +
         "  benchmark run <repo> [--json] (Capsule discovery slice)"
 }
 
@@ -67,10 +72,26 @@ func cmd_chat(tokens) {
     offline := has_flag(parsed["flags"], "fixture") || has_flag(parsed["flags"], "offline") || env_or("RELAY_OFFLINE_FIXTURE", "true") == "true"
     result := ai_chat([{"role": "user", "content": prompt}], model, provider, offline, has_flag(parsed["flags"], "stream"))
     if has_flag(parsed["flags"], "stream") {
-        content := dict_get_or(result, "output_text", dict_get_or(result, "content", dict_get_or(result, "response", "")))
-        print(safe_json({"type": "delta", "content": content}))
-        print(safe_json({"type": "done", "ok": dict_get_or(result, "ok", false), "telemetry": dict_get_or(result, "relay_telemetry", {})}))
-        return {"ok": dict_get_or(result, "ok", false), "result": result}
+        events := []
+        raw := dict_get_or(result, "raw", {})
+        stream_events := dict_get_or(raw, "stream_events", [])
+        if type(stream_events) == "array" {
+            for source_event in stream_events {
+                if type(source_event) != "dict" { continue }
+                choices := dict_get_or(source_event, "choices", [])
+                if type(choices) != "array" || len(choices) == 0 { continue }
+                choice := choices[0]
+                delta := dict_get_or(choice, "delta", {})
+                content := dict_get_or(delta, "content", "")
+                if type(content) == "string" && content != "" { events := push(events, {"type": "delta", "content": content, "done": false}) }
+            }
+        }
+        if len(events) == 0 {
+            content := dict_get_or(result, "output_text", dict_get_or(result, "content", dict_get_or(result, "response", "")))
+            if content != "" { events := push(events, {"type": "delta", "content": content, "done": false}) }
+        }
+        events := push(events, {"type": "done", "ok": dict_get_or(result, "ok", false), "usage": dict_get_or(result, "usage", {}), "telemetry": dict_get_or(result, "relay_telemetry", {})})
+        return {"ok": dict_get_or(result, "ok", false), "_stream_events": events, "result": result}
     }
     return result
 }
@@ -126,7 +147,7 @@ func cmd_missions(tokens) {
         return run_mission(path, {"offline_fixture": offline, "stream": false, "pause_after_plan": has_flag(parsed["flags"], "pause-after-plan"), "agents_sdk_smoke": has_flag(parsed["flags"], "skip-agent-smoke") == false})
     }
     id := positional(parsed["positionals"], 1, "")
-    index := read_json_or(state_root() + "/index.json", {})
+    index := load_run_index(state_root())
     if sub == "pause" { return pause_run(id) }
     if sub == "cleanup" { return cleanup_run(id, has_flag(parsed["flags"], "confirm")) }
     if sub == "resume" { return resume_run(id) }
@@ -143,9 +164,10 @@ func cmd_missions(tokens) {
 func cmd_runs(tokens) {
     parsed := parse_tokens(tokens)
     sub := positional(parsed["positionals"], 0, "list")
-    index := read_json_or(state_root() + "/index.json", {})
+    index := load_run_index(state_root())
     id := positional(parsed["positionals"], 1, "")
-    if sub == "list" { return {"ok": true, "runs": index} }
+    if sub == "list" { return {"ok": true, "runs": index, "index_source": "validated_cache_or_rebuild"} }
+    if sub == "rebuild" { rebuilt := rebuild_run_index(state_root()); persist_run_index(state_root(), rebuilt); return {"ok": true, "runs": rebuilt, "index_source": "rebuild"} }
     record := dict_get_or(index, id, null)
     if type(record) != "dict" { return {"ok": false, "error": "unknown run: " + id} }
     if sub == "inspect" { return {"ok": true, "run": read_json_or(record["run_dir"] + "/state.json", {}), "run_dir": record["run_dir"]} }

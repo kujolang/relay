@@ -84,7 +84,18 @@ func command_is_allowed(command, policy) {
     allowed := dict_get_or(policy, "allowed_commands", ["git", "kujo"])
     for prefix in allowed {
         if prefix == "git" && (starts_with(value, "git status") || starts_with(value, "git diff") || starts_with(value, "git rev-parse") || starts_with(value, "git log") || starts_with(value, "git show")) { return true }
-        if prefix == "kujo" && (starts_with(value, "kujo run") || starts_with(value, "kujo test")) { return true }
+        if prefix == "kujo" && value == "kujo test" { return true }
+        if prefix == "kujo" && starts_with(value, "kujo test ") {
+            target := trim(substring(value, 10, len(value)))
+            if ends_with(target, ".kujo") && path_is_safe(dict_get_or(policy, "workspace", "."), target) { return true }
+            return false
+        }
+        if prefix == "kujo" && starts_with(value, "kujo run ") {
+            target := trim(substring(value, 9, len(value)))
+            if target == "" || starts_with(target, "-") || contains(target, " ") { return false }
+            if ends_with(target, ".kujo") && path_is_safe(dict_get_or(policy, "workspace", "."), target) { return true }
+            return false
+        }
         if prefix == "bash" && starts_with(value, "bash scripts/") { return true }
         if prefix == "sh" && starts_with(value, "sh scripts/") { return true }
     }
