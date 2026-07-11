@@ -1,0 +1,18 @@
+{
+  "version": "0.1.0",
+  "id": "relay-worktree-mission",
+  "name": "relay-worktree-mission",
+  "goal": "Make one bounded change in an automatically isolated Git worktree.",
+  "workflow": "verified-feature",
+  "repository": "/tmp/relay-source-workspace",
+  "workspace_mode": "worktree",
+  "model": "fixture-model",
+  "provider": "fixture",
+  "allow_writes": true,
+  "approval": {"approved": true, "actor": "fixture-operator", "reason": "disposable worktree smoke"},
+  "budgets": {"max_steps": 4, "max_repairs": 0, "max_tokens": 4000},
+  "actions": [
+    {"type": "write_file", "path": "WORKTREE_OUTPUT.txt", "content": "Created inside an isolated Relay worktree.\n"},
+    {"type": "run_command", "command": "git status --short"}
+  ]
+}

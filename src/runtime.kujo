@@ -62,6 +62,8 @@ func load_spec(path) {
             if value < 0 { return {"ok": false, "error": "Mission budget " + key + " must be a non-negative integer"} }
         }
     }
+    workspace_mode := string_or(dict_get_or(spec, "workspace_mode", "provided"), "provided")
+    if workspace_mode != "provided" && workspace_mode != "worktree" { return {"ok": false, "error": "workspace_mode must be provided or worktree"} }
     repository := string_or(dict_get_or(spec, "repository", ""), "")
     if repository == "" || path_is_dir(repository) == false { return {"ok": false, "error": "Mission repository must be an existing directory"} }
     if path_exists(repository + "/.git") == false { return {"ok": false, "error": "Mission repository must be a Git workspace"} }
@@ -69,6 +71,17 @@ func load_spec(path) {
         return {"ok": false, "error": "Write-enabled missions require approval.approved=true"}
     }
     return {"ok": true, "spec": spec}
+}
+
+func provision_worktree(source_repo, worktree_path, requested_commit) {
+    commit_query := string_or(requested_commit, "HEAD")
+    resolved := spawn_process(["git", "-C", source_repo, "rev-parse", "--verify", commit_query + "^{commit}"], process_options({}, 30000, 65536))
+    if resolved.success == false { return {"ok": false, "error": "starting commit could not be resolved", "stderr": redact_text(resolved.stderr)} }
+    commit := trim(resolved.stdout)
+    if commit == "" { return {"ok": false, "error": "starting commit resolution returned no commit"} }
+    created := spawn_process(["git", "-C", source_repo, "worktree", "add", "--detach", worktree_path, commit], process_options({}, 60000, 65536))
+    if created.success == false { return {"ok": false, "error": "isolated worktree creation failed", "stderr": redact_text(created.stderr), "commit": commit} }
+    return {"ok": true, "path": worktree_path, "source_repository": source_repo, "starting_commit": commit, "mode": "worktree", "stdout": redact_text(created.stdout)}
 }
 
 func write_prompt(run_dir, spec) {
@@ -184,9 +197,18 @@ func run_mission(path, options) {
     run_key := mission_id + "-" + to_string(current_timestamp()) + "-" + to_string(random_int(1000, 999999))
     run_dir := run_root() + "/" + run_key
     ensure_dir(run_dir)
-    repo := string_or(dict_get_or(spec, "repository", "."), ".")
+    source_repo := string_or(dict_get_or(spec, "repository", "."), ".")
+    repo := source_repo
+    workspace := {"mode": "provided", "source_repository": source_repo, "path": source_repo}
+    if string_or(dict_get_or(spec, "workspace_mode", "provided"), "provided") == "worktree" {
+        worktree := provision_worktree(source_repo, run_dir + "/workspace", dict_get_or(spec, "starting_commit", "HEAD"))
+        if worktree["ok"] == false { return {"ok": false, "error": worktree["error"], "workspace": worktree} }
+        repo = worktree["path"]
+        workspace = worktree
+    }
     state := run_state(mission_id, string_or(dict_get_or(spec, "workflow", "verified-feature"), "verified-feature"), repo, run_key)
     state["mission_spec"] := spec
+    state["workspace"] := workspace
     configured_budgets := dict_get_or(spec, "budgets", {})
     budgets := state["budgets"]
     for key in ["max_steps", "max_repairs", "max_tokens"] {
@@ -198,7 +220,7 @@ func run_mission(path, options) {
     state["status"] := "running"
     state["current_step"] := "plan"
     register_run(state, run_dir)
-    state := add_event(state, run_dir, "run_started", "", "relay", {"workflow": state["workflow"], "repository": repo})
+    state := add_event(state, run_dir, "run_started", "", "relay", {"workflow": state["workflow"], "repository": repo, "source_repository": source_repo, "workspace": workspace})
     prompt := write_prompt(run_dir, spec)
     packet := packwrite_generate(run_dir, "MEGA_PROMPT.md", run_dir + "/agent")
     packet_artifact := {"kind": "packwrite_agent_pack", "path": packet["artifact_dir"], "ok": packet["ok"], "revision": 1}
@@ -291,6 +313,31 @@ func pause_run(run_id) {
     return {"ok": true, "run": state}
 }
 
+func cleanup_run(run_id, confirmed) {
+    if bool_or(confirmed, false) == false { return {"ok": false, "error": "worktree cleanup requires --confirm"} }
+    index := read_json_or(index_path(), {})
+    record := dict_get_or(index, run_id, null)
+    if type(record) != "dict" { return {"ok": false, "error": "unknown run: " + run_id} }
+    state := read_json_or(record["run_dir"] + "/state.json", null)
+    if type(state) != "dict" { return {"ok": false, "error": "run state missing"} }
+    workspace := dict_get_or(state, "workspace", {})
+    if type(workspace) != "dict" || dict_get_or(workspace, "mode", "provided") != "worktree" { return {"ok": false, "error": "run does not own an isolated worktree"} }
+    if state["status"] == "running" { return {"ok": false, "error": "running worktrees cannot be cleaned"} }
+    source_repo := string_or(dict_get_or(workspace, "source_repository", ""), "")
+    worktree_path := string_or(dict_get_or(workspace, "path", ""), "")
+    if source_repo == "" || worktree_path == "" { return {"ok": false, "error": "worktree metadata is incomplete"} }
+    if path_exists(worktree_path) == false { return {"ok": true, "cleaned": true, "already_missing": true, "run": state} }
+    removed := spawn_process(["git", "-C", source_repo, "worktree", "remove", "--force", worktree_path], process_options({}, 60000, 65536))
+    if removed.success == false { return {"ok": false, "error": "worktree cleanup failed", "stderr": redact_text(removed.stderr)} }
+    workspace["cleaned"] := true
+    workspace["cleanup_at"] := now_iso()
+    state["workspace"] := workspace
+    save_state(state, record["run_dir"])
+    report(state, record["run_dir"])
+    register_run(state, record["run_dir"])
+    return {"ok": true, "cleaned": true, "run": state}
+}
+
 func resume_run(run_id) {
     index := read_json_or(index_path(), {})
     record := dict_get_or(index, run_id, null)
@@ -346,6 +393,7 @@ export load_spec := load_spec
 export create_mission := create_mission
 export run_mission := run_mission
 export pause_run := pause_run
+export cleanup_run := cleanup_run
 export resume_run := resume_run
 export state_root := state_root
 export run_root := run_root

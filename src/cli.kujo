@@ -2,7 +2,7 @@ from src.common import dict_get_or, env_or, string_or, bool_or, read_json_or, sa
 from src.contracts import RELAY_VERSION
 from src.registry import agent_catalog, find_agent, agent_path
 from src.adapters import ai_chat, capsule_run
-from src.runtime import ensure_dir, create_mission, run_mission, pause_run, resume_run, state_root, run_root
+from src.runtime import ensure_dir, create_mission, run_mission, pause_run, cleanup_run, resume_run, state_root, run_root
 from src.doctor import doctor
 
 func has_flag(flags, name) { return has_key(flags, name) }
@@ -20,7 +20,7 @@ func parse_tokens(tokens) {
         token := tokens[i]
         if starts_with(token, "--") {
             key := substring(token, 2, len(token))
-            if key == "json" || key == "stream" || key == "fixture" || key == "offline" || key == "help" || key == "skip-agent-smoke" {
+            if key == "json" || key == "stream" || key == "fixture" || key == "offline" || key == "help" || key == "skip-agent-smoke" || key == "confirm" {
                 flags[key] := true
             } else if i + 1 < len(tokens) && starts_with(tokens[i + 1], "--") == false {
                 flags[key] := tokens[i + 1]
@@ -53,7 +53,7 @@ func help_text() {
         "  doctor [--json]\n" +
         "  missions create [spec.json] [--output path]\n" +
         "  missions run <spec.json> [--fixture] [--pause-after-plan] [--skip-agent-smoke] [--json]\n" +
-        "  missions inspect <run-id>|pause <run-id>|resume <run-id>|report <run-id>\n" +
+        "  missions inspect <run-id>|pause <run-id>|resume <run-id>|cleanup <run-id> --confirm|report <run-id>\n" +
         "  runs list|inspect <run-id>|events <run-id>|changes <run-id>|evaluations <run-id>\n" +
         "  benchmark run <repo> [--json] (Capsule discovery slice)"
 }
@@ -128,6 +128,7 @@ func cmd_missions(tokens) {
     id := positional(parsed["positionals"], 1, "")
     index := read_json_or(state_root() + "/index.json", {})
     if sub == "pause" { return pause_run(id) }
+    if sub == "cleanup" { return cleanup_run(id, has_flag(parsed["flags"], "confirm")) }
     if sub == "resume" { return resume_run(id) }
     if sub == "inspect" || sub == "report" {
         record := dict_get_or(index, id, null)
