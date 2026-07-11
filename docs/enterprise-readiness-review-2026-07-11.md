@@ -40,6 +40,7 @@ The correct posture is: **local-first hardened alpha / ecosystem showcase**. The
 | Budget enforcement | Mission specs can override step, repair, and token limits; action loops stop at `max_steps` | `src/runtime.kujo`, budget smoke |
 | Operator onboarding | `doctor --json` and `models probe` expose truthful environment and model checks | `src/doctor.kujo`, CLI smoke |
 | Presentation contract | README, command reference, root-layout explanation, and a versioned follow-up backlog document the evidence boundary | README, `docs/command-reference.md`, backlog v2 |
+| Workspace isolation | `workspace_mode: worktree` provisions a detached worktree from an immutable commit; cleanup is explicit and confirmed | `src/runtime.kujo`, worktree smoke |
 
 ## Remaining enterprise gaps
 
@@ -48,7 +49,7 @@ The correct posture is: **local-first hardened alpha / ecosystem showcase**. The
 1. Live Watchdog proxy correlation and telemetry export proof.
 2. Live Ollama Cloud and at least one other OpenAI-compatible provider smoke test.
 3. Authenticated service/MCP boundary with identity, tenant, role, and approval mapping.
-4. Automated isolated worktree/workcell creation, cleanup, and rollback.
+4. Full workcell isolation, rollback, and crash recovery beyond the now-proven detached Git worktree mode and confirmed cleanup.
 5. Full Agents SDK Tool Registry and approval-provider execution instead of explicit action lists.
 6. Durable run store with locking/concurrent-run behavior, retention, recovery, and tamper-evident export.
 
@@ -78,8 +79,8 @@ The second review found no redundant root implementation files. New behavior rem
 
 ## Security posture
 
-The local runtime now fails closed for the highest-risk MVP paths, but it is not a complete security boundary. The process adapter inherits the host environment, external commands remain local process authority, and there is no identity-aware remote service. Never expose the CLI or future MCP adapter to untrusted callers until auth, tenancy, secret policy, network egress, and workcell isolation are implemented and tested.
+The local runtime now fails closed for the highest-risk MVP paths, but it is not a complete security boundary. External commands remain local process authority, the new worktree mode is repository-local rather than a container/microVM boundary, and there is no identity-aware remote service. Never expose the CLI or future MCP adapter to untrusted callers until auth, tenancy, secret policy, network egress, and stronger workcell isolation are implemented and tested.
 
 ## Release recommendation
 
-Publish Relay only as a local-first alpha/showcase until all P0 items have executable evidence. The review hardening is committed as `b21ef02` and pushed to `origin/main`; keep the README's enterprise-readiness disclaimer and require a release report that distinguishes fixture, configured-live, and production-environment evidence.
+Publish Relay only as a local-first alpha/showcase until all P0 items have executable evidence. The review hardening is committed as `7dd7cea`, `b0d1712`, and `f2c414e`, pushed to `origin/main`; keep the README's enterprise-readiness disclaimer and require a release report that distinguishes fixture, configured-live, and production-environment evidence.

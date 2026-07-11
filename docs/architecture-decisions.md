@@ -43,3 +43,7 @@ Context: Watchdog owns live AI telemetry, and mission state needs explicit stop 
 ## ADR-011: Operator-facing health and probe commands
 
 Context: a showcase needs a truthful first-run path and machine-callable diagnostics. Decision: add `doctor --json` for dependency/agent/route/credential posture and `models probe` for a minimal fixture or configured-live model call. Rationale: make environment failures actionable without introducing a service layer or placeholder command. Consequence: probes remain bounded checks, not provider certification or benchmark results.
+
+## ADR-012: Explicit detached worktree mode
+
+Context: repository-writing missions must not mutate a caller's source checkout by default, while some local workflows need a real Git workspace. Decision: `workspace_mode: "provided"` preserves the explicit existing behavior; `workspace_mode: "worktree"` resolves an immutable starting commit, creates a detached worktree for the run, records source/worktree/commit metadata, and retains the result until an operator runs `missions cleanup <run-id> --confirm`. Rationale: provide a real isolation primitive without pretending it is a container or identity boundary. Consequence: full workcell isolation, rollback-on-failure, and crash recovery remain follow-up work; cleanup is destructive and therefore explicit.

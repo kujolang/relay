@@ -26,7 +26,7 @@ Passed locally with the pinned Kujo release runtime:
 - six AgentEvent-compatible lifecycle/artifact/tool/evaluation events were persisted
 - pause/resume path persisted a resumable checkpoint and completion report
 
-Not proven in this local session: live Ollama Cloud, live Watchdog proxy telemetry, multi-model Capsule A/B implementation scoring, Paperclip/Hermes invocation, and automated worktree provisioning. These are known limitations, not successful integrations.
+Not proven in this local session: live Ollama Cloud, live Watchdog proxy telemetry, multi-model Capsule A/B implementation scoring, Paperclip/Hermes invocation, and container/microVM-grade workcell isolation. Detached Git worktree provisioning and explicit cleanup are now proven locally, but rollback-on-failure and crash recovery remain open. These are known limitations, not successful integrations.
 
 ## Ecosystem recommendations
 
@@ -47,7 +47,7 @@ The current posture is local-first hardened alpha/showcase, not universal enterp
 
 ## Second 2026-07-11 review
 
-The follow-up review preserved the alpha boundary and added fail-closed live Watchdog routing, explicit subprocess environment allowlists, provider-key environment validation, atomic mission writes, output-truncation evidence fields, configurable mission budgets, an explicit Agents SDK smoke skip with receipt, `doctor --json`, `models probe`, a budget regression smoke, a command reference, and a versioned next-session backlog. The root layout was re-audited and remains intentionally conventional: `main.kujo`, `kujo.toml`, and `bin/relay` are necessary entry/package/launcher files; runtime behavior remains under `src/`. This review is committed as `7dd7cea` and `b0d1712`, both pushed to `origin/main`. See `docs/enterprise-readiness-review-2026-07-11.md`, `docs/command-reference.md`, and `docs/next-session-enhancement-backlog-2026-07-11-v2.md`.
+The follow-up review preserved the alpha boundary and added fail-closed live Watchdog routing, explicit subprocess environment allowlists, provider-key environment validation, atomic mission writes, output-truncation evidence fields, configurable mission budgets, an explicit Agents SDK smoke skip with receipt, detached worktree provisioning with confirmed cleanup, `doctor --json`, `models probe`, budget and worktree regression smokes, a command reference, and a versioned next-session backlog. The root layout was re-audited and remains intentionally conventional: `main.kujo`, `kujo.toml`, and `bin/relay` are necessary entry/package/launcher files; runtime behavior remains under `src/`. This review is committed as `7dd7cea`, `b0d1712`, and `f2c414e`, pushed to `origin/main`. See `docs/enterprise-readiness-review-2026-07-11.md`, `docs/command-reference.md`, and `docs/next-session-enhancement-backlog-2026-07-11-v2.md`.
 
 ## Repository handoff
 

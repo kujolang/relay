@@ -27,7 +27,7 @@ relay models probe <model> [--fixture] [--json]
 relay agents list|inspect <agent>|validate [--json]
 relay missions create [spec.json] [--output <path>] [--json]
 relay missions run <spec.json> [--fixture] [--pause-after-plan] [--skip-agent-smoke] [--json]
-relay missions inspect|pause|resume|report <run-id> [--json]
+relay missions inspect|pause|resume|cleanup|report <run-id> [--json]
 relay runs list|inspect|events|changes|evaluations <run-id> [--json]
 relay benchmark run <repository> [--json]
 ```
@@ -46,6 +46,8 @@ Budget fields are non-negative integers: `max_steps`, `max_repairs`, and `max_to
 A successful mission JSON result contains `run_id`, `status`, `current_step`, `budgets`, `events`, `artifacts`, `action_results`, `changes`, `evaluations`, `runledger`, and `runledger_finish`. Run artifacts live under `.relay/runs/<run-id>/` and include `state.json`, `events.jsonl`, `agent/`, `eval.json`, `changes.json`, `evaluations.json`, `report.json`, and `report.md` when the corresponding phase ran.
 
 `--pause-after-plan` creates a supported checkpoint at `implementation`. `missions resume` executes the stored pending actions and reruns ChangeBucket and Eval. Arbitrary crash replay is not yet supported.
+
+Set `workspace_mode: "worktree"` to have Relay create a detached worktree from the immutable starting commit under the run directory. The source repository remains unchanged. The worktree is retained for inspection until an operator explicitly runs `missions cleanup <run-id> --confirm`; cleanup is refused while a run is active and is never implicit.
 
 ## Exit-code guidance
 

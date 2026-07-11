@@ -55,7 +55,7 @@ Implemented and truthful in this slice:
 - `models list|inspect|probe`
 - `agents list|inspect|validate`
 - `doctor`, including dependency, agent-registry, live-route, and credential posture checks
-- `missions create|run|inspect|pause|resume|report`
+- `missions create|run|inspect|pause|resume|cleanup|report`
 - `runs list|inspect|events|changes|evaluations`
 - `benchmark run` for the Capsule discovery slice
 
@@ -78,6 +78,7 @@ Mission actions are declarative and policy checked. Write-enabled missions requi
 - `tests/relay_cli_smoke.sh`: CLI, doctor, probe, and approval-boundary smoke test
 - `tests/relay_mission_smoke.sh`: real write, pause/resume, ChangeBucket, Eval, and RunLedger smoke test
 - `tests/relay_budget_smoke.sh`: bounded step-budget failure smoke test
+- `tests/relay_worktree_smoke.sh`: isolated worktree creation, source protection, and confirmed cleanup smoke test
 
 ## Repository layout decision
 
@@ -93,7 +94,8 @@ export KUJO_BIN=/Users/robertdevore/2026/Kujolang/kujo-repos/kujo/target/release
 bash tests/relay_cli_smoke.sh
 bash tests/relay_mission_smoke.sh
 bash tests/relay_budget_smoke.sh
+bash tests/relay_worktree_smoke.sh
 git diff --check
 ```
 
-For the full integration evidence boundary and deferred enterprise work, see [`docs/enterprise-readiness-review-2026-07-11.md`](docs/enterprise-readiness-review-2026-07-11.md), [`docs/command-reference.md`](docs/command-reference.md), and [`docs/next-session-enhancement-backlog.md`](docs/next-session-enhancement-backlog.md).
+For the full integration evidence boundary and deferred enterprise work, see [`docs/enterprise-readiness-review-2026-07-11.md`](docs/enterprise-readiness-review-2026-07-11.md), [`docs/command-reference.md`](docs/command-reference.md), and [`docs/next-session-enhancement-backlog-2026-07-11-v2.md`](docs/next-session-enhancement-backlog-2026-07-11-v2.md).

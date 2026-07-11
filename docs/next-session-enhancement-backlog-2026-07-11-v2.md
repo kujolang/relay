@@ -12,13 +12,14 @@ This is the follow-on list from the second enterprise-readiness review. It recor
 - [x] Enforce mission `max_steps`, `max_repairs`, and `max_tokens` budget fields.
 - [x] Add `doctor --json`, `models probe`, explicit `--skip-agent-smoke`, and budget smoke coverage.
 - [x] Document the intentional Kujo root layout and stable command/JSON surface.
+- [x] Add detached worktree provisioning from an immutable commit with explicit confirmed cleanup.
 
 ## P0 — authority, isolation, and live proof
 
 - [ ] Add a Watchdog health/proxy adapter that validates `/healthz`, `/api/proxy-config`, and correlated `/api/requests` rows for a Relay run; fail live preflight when telemetry correlation is absent.
 - [ ] Add opt-in live smoke profiles for Ollama Cloud and one other OpenAI-compatible provider, with credentials supplied only through the bounded process environment and redacted receipts.
 - [ ] Replace declarative action execution with Agents SDK Tool Registry contracts, approval providers, guardrails, cancellation, and tool-result artifacts while preserving the current policy boundary during migration.
-- [ ] Provision an isolated Git worktree/workcell from an immutable starting commit, record ownership and cleanup, and roll back safely on policy/evaluation failure.
+- [ ] Extend worktree mode into a full workcell with rollback-on-failure, stronger isolation, and cleanup/recovery after crashes.
 - [ ] Add authenticated machine mode through the existing guarded MCP boundary with identity, tenant, role, approval, and audit mappings.
 - [ ] Add a locked or database-backed run store with concurrent-run tests, crash recovery, retention, tamper-evident export, and deterministic index rebuild.
 

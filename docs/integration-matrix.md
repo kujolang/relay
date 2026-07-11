@@ -19,4 +19,4 @@
 | Agent definitions | Kujo Agents | role registry paths | dynamic discovery pending | validate/list/inspect | low |
 | Workflow definitions | Spec + Dispatch + Loop Engineering | JSON mission slice | declarative loader pending | verified-feature spec | medium |
 | Tools | Agents SDK registry/MCP patterns | policy-checked `write_file`, `run_command` | SDK Tool contract bridge pending | action evidence | high |
-| Workspace isolation | Git worktree/workcell conventions | user-provided isolated repo | automated worktree creation pending; realpath parent checks and bounded subprocess environment added | `/tmp` Git fixture + symlink/traversal policy tests | high |
+| Workspace isolation | Git worktree/workcell conventions | `workspace_mode: worktree` provisions a detached worktree from an immutable commit; provided mode remains available | full workcell/container isolation, rollback-on-failure, and crash recovery pending | worktree smoke protects source HEAD and requires confirmed cleanup | high |
