@@ -1,0 +1,38 @@
+from src.common import dict_get_or
+
+func header_value(headers, wanted) {
+    for name in keys(headers) { if to_lower(name) == to_lower(wanted) { return to_string(headers[name]) } }
+    return ""
+}
+
+port := parse_int(env("RELAY_TEST_PORT"))
+correlation := env("RELAY_TEST_CORRELATION")
+server := http_server(port)
+
+server := server.route("GET", "/healthz", func(req) {
+    return http_response(200, "{\"ok\":true,\"data\":{\"status\":\"ok\",\"service\":\"watchdog-stub\"}}")
+})
+
+server := server.route("GET", "/api/proxy-config", func(req) {
+    headers := dict_get_or(req, "headers", {})
+    if header_value(headers, "X-Watchdog-Token") != "relay-api-token" { return http_response(401, "{\"ok\":false,\"error\":\"api auth required\"}") }
+    return http_response(200, "{\"ok\":true,\"data\":{\"upstream_base_url\":\"http://stub.invalid/v1\",\"api_auth_enabled\":true,\"proxy_auth_enabled\":true}}")
+})
+
+server := server.route("GET", "/api/requests", func(req) {
+    headers := dict_get_or(req, "headers", {})
+    if header_value(headers, "X-Watchdog-Token") != "relay-api-token" { return http_response(401, "{\"ok\":false,\"error\":\"api auth required\"}") }
+    return http_response(200, "{\"ok\":true,\"data\":[{\"correlation_id\":\"" + correlation + "\",\"status\":\"success\"}]}")
+})
+
+server := server.route("POST", "/proxy/v1/chat/completions", func(req) {
+    headers := dict_get_or(req, "headers", {})
+    if header_value(headers, "X-Watchdog-Proxy-Token") != "relay-proxy-token" { return http_response(401, "{\"error\":{\"message\":\"proxy auth required\"}}") }
+    return http_response(200, "{\"id\":\"stub-request\",\"model\":\"stub-model\",\"choices\":[{\"message\":{\"content\":\"relay-watchdog-stub-ok\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":2,\"completion_tokens\":3,\"total_tokens\":5}}")
+})
+
+server := server.route("POST", "/v1/chat/completions", func(req) {
+    return http_response(200, "{\"id\":\"stub-upstream-request\",\"model\":\"stub-model\",\"choices\":[{\"message\":{\"content\":\"relay-watchdog-upstream-ok\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":2,\"completion_tokens\":3,\"total_tokens\":5}}")
+})
+
+server.listen()

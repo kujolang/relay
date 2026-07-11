@@ -1,0 +1,110 @@
+from src.common import dict_get_or, env_or, string_or, safe_id, redact_text
+
+# Watchdog owns live AI proxying and telemetry storage. Relay only consumes the
+# narrow HTTP health/correlation contract needed to prove that a request was
+# observed; it never reads Watchdog's SQLite database directly.
+
+func api_base() {
+    explicit := env_or("RELAY_WATCHDOG_API_URL", "")
+    if explicit != "" { return explicit }
+    proxy := env_or("RELAY_WATCHDOG_URL", "")
+    marker := index_of(proxy, "/proxy/v1")
+    if marker >= 0 { return substring(proxy, 0, marker) }
+    return proxy
+}
+
+func safe_base(value) {
+    base := string_or(value, "")
+    if base == "" || contains(base, " ") || contains(base, "@") { return false }
+    return starts_with(base, "http://") || starts_with(base, "https://")
+}
+
+func endpoint(path) {
+    base := api_base()
+    if safe_base(base) == false { return "" }
+    if ends_with(base, "/") { return substring(base, 0, len(base) - 1) + path }
+    return base + path
+}
+
+func get_json(path) {
+    url := endpoint(path)
+    if url == "" { return {"ok": false, "status": 0, "error": "RELAY_WATCHDOG_URL or RELAY_WATCHDOG_API_URL must be an http(s) URL"} }
+    headers := {"Accept": "application/json"}
+    api_token := env_or("RELAY_WATCHDOG_API_TOKEN", "")
+    if api_token != "" { headers["X-Watchdog-Token"] := api_token }
+    try {
+        result := http_request(url, {"method": "GET", "timeout": 10, "_headers": headers})
+        match result {
+            case Ok(response): {
+                status := dict_get_or(response, "_status", dict_get_or(response, "status", 0))
+                body := string_or(dict_get_or(response, "_body", dict_get_or(response, "body", "")), "")
+                parsed := null
+                try { parsed = parse_json(body) } except err { parsed = null }
+                if type(parsed) != "dict" { return {"ok": false, "status": status, "error": "Watchdog returned invalid JSON", "endpoint": path} }
+                request_ok := status >= 200 && status < 300
+                return {"ok": request_ok, "status": status, "body": parsed, "endpoint": path}
+            }
+            case Err(error): { return {"ok": false, "status": 0, "error": redact_text(to_string(error)), "endpoint": path} }
+        }
+    } except err { return {"ok": false, "status": 0, "error": redact_text(to_string(err)), "endpoint": path} }
+}
+
+func health_check() {
+    raw := get_json("/healthz")
+    result := {"ok": raw["ok"], "status": raw["status"], "endpoint": raw["endpoint"]}
+    body := dict_get_or(raw, "body", {})
+    data := dict_get_or(body, "data", {})
+    healthy := raw["ok"] && dict_get_or(body, "ok", false) && string_or(dict_get_or(data, "status", ""), "") == "ok"
+    result["healthy"] := healthy
+    if healthy == false {
+        result["error"] := string_or(dict_get_or(raw, "error", ""), "Watchdog health check failed")
+    }
+    return result
+}
+
+func proxy_config_check() {
+    raw := get_json("/api/proxy-config")
+    result := {"ok": raw["ok"], "status": raw["status"], "endpoint": raw["endpoint"]}
+    body := dict_get_or(raw, "body", {})
+    configured := raw["ok"] && dict_get_or(body, "ok", false) && type(dict_get_or(body, "data", null)) == "dict"
+    result["configured"] := configured
+    if configured == false { result["error"] := string_or(dict_get_or(raw, "error", ""), "Watchdog proxy configuration check failed") }
+    return result
+}
+
+func correlation_check(correlation_id) {
+    correlation := safe_id(correlation_id, "")
+    if correlation == "" { return {"ok": false, "error": "A safe correlation ID is required"} }
+    raw := get_json("/api/requests?correlation_id=" + correlation + "&page_size=20")
+    result := {"ok": raw["ok"], "status": raw["status"], "endpoint": raw["endpoint"]}
+    body := dict_get_or(raw, "body", {})
+    rows := dict_get_or(body, "data", [])
+    found := false
+    if type(rows) == "array" {
+        for row in rows {
+            row_matches := type(row) == "dict" && string_or(dict_get_or(row, "correlation_id", ""), "") == correlation
+            if row_matches { found = true }
+        }
+    }
+    result["correlation_id"] := correlation
+    result["matched"] := found
+    result["ok"] := raw["ok"] && found
+    if result["ok"] == false { result["error"] := string_or(dict_get_or(raw, "error", ""), "No Watchdog request row matched the Relay correlation ID") }
+    return result
+}
+
+func verify(correlation_id) {
+    health := health_check()
+    config := proxy_config_check()
+    correlation := correlation_check(correlation_id)
+    verified := health["healthy"] && config["configured"] && correlation["ok"]
+    return {"ok": verified, "health": health, "proxy_config": config, "correlation": correlation}
+}
+
+export api_base := api_base
+export safe_base := safe_base
+export health_check := health_check
+export proxy_config_check := proxy_config_check
+export correlation_check := correlation_check
+export verify := verify
+export watchdog_verify := verify

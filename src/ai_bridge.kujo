@@ -24,5 +24,13 @@ watchdog_token := env("RELAY_WATCHDOG_PROXY_TOKEN")
 if type(watchdog_token) != "null" && trim(to_string(watchdog_token)) != "" {
     options["headers"] := {"X-Watchdog-Proxy-Token": watchdog_token}
 }
+correlation_id := get(payload, "correlation_id", "")
+if type(correlation_id) == "string" && trim(correlation_id) != "" {
+    headers := get(options, "headers", {})
+    if type(headers) != "dict" { headers = {} }
+    headers["X-Observe-Correlation-Id"] := correlation_id
+    headers["X-Observe-Session-Id"] := correlation_id
+    options["headers"] := headers
+}
 result := chat_completion(client, messages, options)
 print(to_json(result))

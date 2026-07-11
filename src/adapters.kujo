@@ -1,4 +1,5 @@
 from src.common import dict_get_or, env_or, string_or, safe_json, read_json_or, redact_text, process_options, safe_env_name
+from src.watchdog import watchdog_verify
 
 func relay_root() { return env_or("RELAY_ROOT", env_or("PWD", ".")) }
 func kujo_bin() { return env_or("KUJO_BIN", relay_root() + "/../kujo/target/release/kujo") }
@@ -38,13 +39,14 @@ func run_process(command, cwd, extra_env, timeout_ms) {
     }
 }
 
-func call_ai(messages, model, provider, base_url, api_key_env, offline, stream) {
+func call_ai(messages, model, provider, base_url, api_key_env, offline, stream, correlation_id) {
     if offline == false && watchdog_url() == "" {
         return {"ok": false, "error": {"code": "watchdog_route_required", "message": "Live AI calls require RELAY_WATCHDOG_URL"}, "relay_telemetry": {"route": "blocked_no_watchdog", "provider": provider, "model": model}}
     }
     if safe_env_name(api_key_env) == false {
         return {"ok": false, "error": {"code": "invalid_api_key_env", "message": "RELAY_API_KEY_ENV must be a safe non-reserved environment variable name"}, "relay_telemetry": {"route": "blocked_invalid_env", "provider": provider, "model": model}}
     }
+    correlation := string_or(correlation_id, env_or("RELAY_CORRELATION_ID", "relay-ai-" + to_string(current_timestamp()) + "-" + to_string(random_int(1000, 999999))))
     payload := {
         "provider_id": "custom",
         "model": model,
@@ -54,12 +56,15 @@ func call_ai(messages, model, provider, base_url, api_key_env, offline, stream) 
         "temperature": 0.2,
         "max_tokens": 700,
         "max_retries": 1,
-        "offline_fixture": offline
+        "offline_fixture": offline,
+        "correlation_id": correlation
     }
     if stream { payload["stream"] := true }
     env_map := {"RELAY_AI_PAYLOAD": safe_json(payload), "AI_SDK_PATH": ai_sdk_root()}
     watchdog_token := env_or("RELAY_WATCHDOG_PROXY_TOKEN", "")
     if watchdog_token != "" { env_map["RELAY_WATCHDOG_PROXY_TOKEN"] := watchdog_token }
+    allow_insecure_localhost := env_or("KUJO_AI_SDK_ALLOW_INSECURE_LOCALHOST", "")
+    if allow_insecure_localhost != "" { env_map["KUJO_AI_SDK_ALLOW_INSECURE_LOCALHOST"] := allow_insecure_localhost }
     api_key := env(api_key_env)
     if type(api_key) != "null" { env_map[api_key_env] := api_key }
     bridge := env_or("RELAY_AI_BRIDGE", relay_root() + "/src/ai_bridge.kujo")
@@ -71,18 +76,30 @@ func call_ai(messages, model, provider, base_url, api_key_env, offline, stream) 
     }
     route := "direct_ai_sdk"
     if watchdog_url() != "" && offline == false { route = "watchdog_proxy" }
-    parsed["relay_telemetry"] := {"route": route, "watchdog_url": watchdog_url(), "watchdog_auth_configured": watchdog_token != "", "provider": provider, "model": model, "stream_requested": stream}
+    parsed["relay_telemetry"] := {"route": route, "watchdog_url": watchdog_url(), "watchdog_auth_configured": watchdog_token != "", "provider": provider, "model": model, "stream_requested": stream, "correlation_id": correlation}
+    if offline == false && env_or("RELAY_WATCHDOG_VERIFY", "false") == "true" {
+        verification := watchdog_verify(correlation)
+        parsed["relay_watchdog_verification"] := verification
+        if verification["ok"] == false {
+            parsed["ok"] := false
+            parsed["error"] := {"code": "watchdog_telemetry_unverified", "message": "Watchdog health, proxy configuration, or request correlation verification failed"}
+        }
+    }
     return parsed
 }
 
 func ai_chat(messages, model, provider, offline, stream) {
+    return ai_chat_correlated(messages, model, provider, offline, stream, "")
+}
+
+func ai_chat_correlated(messages, model, provider, offline, stream, correlation_id) {
     base := watchdog_url()
     if base == "" { base = "https://api.openai.com/v1" }
     api_key_env := env_or("RELAY_API_KEY_ENV", "OPENAI_API_KEY")
-    primary := call_ai(messages, model, provider, base, api_key_env, offline, stream)
+    primary := call_ai(messages, model, provider, base, api_key_env, offline, stream, correlation_id)
     fallback_model := env_or("RELAY_FALLBACK_MODEL", "")
     if dict_get_or(primary, "ok", false) == false && fallback_model != "" && fallback_model != model {
-        fallback := call_ai(messages, fallback_model, provider, base, api_key_env, offline, stream)
+        fallback := call_ai(messages, fallback_model, provider, base, api_key_env, offline, stream, correlation_id)
         telemetry := dict_get_or(fallback, "relay_telemetry", {})
         telemetry["fallback_from"] := model
         telemetry["fallback_reason"] := dict_get_or(dict_get_or(primary, "error", {}), "code", "primary_failed")
@@ -149,6 +166,7 @@ export run_process := run_process
 export repo_root := repo_root
 export watchdog_url := watchdog_url
 export ai_chat := ai_chat
+export ai_chat_correlated := ai_chat_correlated
 export agents_sdk_smoke := agents_sdk_smoke
 export packwrite_generate := packwrite_generate
 export runledger_start := runledger_start

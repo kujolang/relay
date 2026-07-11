@@ -1,5 +1,6 @@
 from src.common import dict_get_or, env_or, safe_env_name
 from src.adapters import kujo_bin, ai_sdk_root, agents_sdk_root, watchdog_url
+from src.watchdog import health_check, proxy_config_check
 from src.registry import agent_catalog, agent_path
 
 func path_check(label, path, directory, required) {
@@ -32,6 +33,13 @@ func doctor() {
     watchdog_ok := watchdog_configured
     if live == false { watchdog_ok = true }
     checks := push(checks, {"name": "Watchdog route", "ok": watchdog_ok, "required": live, "configured": watchdog_configured, "url": watchdog_url()})
+    watchdog_verify_required := live && env_or("RELAY_WATCHDOG_VERIFY", "false") == "true"
+    if watchdog_verify_required {
+        watchdog_health := health_check()
+        watchdog_config := proxy_config_check()
+        watchdog_api_ok := watchdog_health["healthy"] && watchdog_config["configured"]
+        checks := push(checks, {"name": "Watchdog API health and proxy configuration", "ok": watchdog_api_ok, "required": true, "health": watchdog_health, "proxy_config": watchdog_config})
+    }
     api_key_env := env_or("RELAY_API_KEY_ENV", "OPENAI_API_KEY")
     credential_name_ok := safe_env_name(api_key_env)
     credential_configured := credential_name_ok && env_or(api_key_env, "") != ""
