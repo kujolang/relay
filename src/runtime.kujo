@@ -28,17 +28,37 @@ func state_root() { return relay_root() + "/.relay" }
 func run_root() { return state_root() + "/runs" }
 func index_path() { return state_root() + "/index.json" }
 
+func mark_evidence_failure(state, message) {
+    failure := {"class": "evidence_failure", "message": string_or(message, "run evidence could not be persisted")}
+    state["evidence_failure"] := failure
+    state["status"] := "failed"
+    state["failure"] := failure
+    return state
+}
+
 func save_state(state, run_dir) {
+    evidence_failure := dict_get_or(state, "evidence_failure", null)
+    if type(evidence_failure) == "dict" {
+        state["status"] := "failed"
+        state["failure"] := evidence_failure
+    }
     state["updated_at"] := now_iso()
-    write_json(run_dir + "/state.json", state)
+    if write_json(run_dir + "/state.json", state) == false { state = mark_evidence_failure(state, "run state could not be persisted") }
     return state
 }
 
 func record_receipt(state, run_dir, kind, step_id, agent_id, artifact_ref, status, payload) {
     item := receipt(kind, state["mission_id"], state["run_id"], step_id, agent_id, artifact_ref, status, payload)
     receipts := push(dict_get_or(state, "receipts", []), item)
-    write_json(run_dir + "/receipts.json", receipts)
+    if write_json(run_dir + "/receipts.json", receipts) == false { return {"receipt": item, "receipts": receipts, "evidence_failure": {"class": "evidence_failure", "message": "run receipt index could not be persisted"}} }
     return {"receipt": item, "receipts": receipts}
+}
+
+func apply_receipt_result(state, result) {
+    state["receipts"] := dict_get_or(result, "receipts", dict_get_or(state, "receipts", []))
+    failure := dict_get_or(result, "evidence_failure", null)
+    if type(failure) == "dict" { state = mark_evidence_failure(state, string_or(dict_get_or(failure, "message", "run receipt index could not be persisted"), "run receipt index could not be persisted")) }
+    return state
 }
 
 func evidence_status(ok) {
@@ -59,7 +79,7 @@ func add_event(state, run_dir, kind, step_id, agent_id, payload) {
     item["metadata"] := metadata
     item["integrity_sha256"] := sha256(event_integrity_input(item))
     state["events"] := push(state["events"], item)
-    append_jsonl(run_dir + "/events.jsonl", item)
+    if append_jsonl(run_dir + "/events.jsonl", item) == false { state = mark_evidence_failure(state, "run event log could not be persisted") }
     return state
 }
 
@@ -415,15 +435,15 @@ func run_mission(path, options) {
     # Persist the workspace reservation before invoking any external adapter.
     # A process crash after worktree creation can then still be discovered and
     # explicitly cleaned up from the run index.
-    save_state(state, run_dir)
+    state = save_state(state, run_dir)
     ledger := runledger_start(run_dir, string_or(dict_get_or(spec, "model", "fixture-model"), "fixture-model"), string_or(dict_get_or(spec, "provider", "fixture"), "fixture"), to_string(spec["name"]), repo)
     state["runledger"] := ledger
     ledger_receipt_result := record_receipt(state, run_dir, "runledger", "plan", "relay", ledger["ledger"], evidence_status(ledger["ok"]), {"runledger_id": dict_get_or(ledger, "run_id", ""), "ok": ledger["ok"]})
-    state["receipts"] := ledger_receipt_result["receipts"]
+    state = apply_receipt_result(state, ledger_receipt_result)
     ledger_receipt := ledger_receipt_result["receipt"]
     state["status"] := "running"
     state["current_step"] := "plan"
-    save_state(state, run_dir)
+    state = save_state(state, run_dir)
     register_run(state, run_dir)
     state := add_event(state, run_dir, "run_started", "", "relay", {"workflow": state["workflow"], "repository": repo, "source_repository": source_repo, "workspace": workspace, "receipt_id": ledger_receipt["receipt_id"]})
     prompt := write_prompt(run_dir, spec)
@@ -433,7 +453,7 @@ func run_mission(path, options) {
     state["artifacts"] := push(state["artifacts"], packet_artifact)
     state["packet_revision"] := 1
     packet_receipt_result := record_receipt(state, run_dir, "artifact", "packet", "planner", run_dir + "/agent", evidence_status(packet["ok"]), packet_artifact)
-    state["receipts"] := packet_receipt_result["receipts"]
+    state = apply_receipt_result(state, packet_receipt_result)
     packet_receipt := packet_receipt_result["receipt"]
     packet_artifact["receipt_id"] := packet_receipt["receipt_id"]
     state := add_event(state, run_dir, "artifact_created", "packet", "planner", packet_artifact)
@@ -441,7 +461,7 @@ func run_mission(path, options) {
     if bool_or(dict_get_or(options, "agents_sdk_smoke", true), true) { agent_sdk = agents_sdk_smoke() }
     state["agent_sdk"] := agent_sdk
     agent_sdk_receipt_result := record_receipt(state, run_dir, "artifact", "agent-sdk", "planner", "agent_sdk", evidence_status(agent_sdk["ok"]), {"kind": "agents_sdk_offline_smoke", "ok": agent_sdk["ok"]})
-    state["receipts"] := agent_sdk_receipt_result["receipts"]
+    state = apply_receipt_result(state, agent_sdk_receipt_result)
     agent_sdk_receipt := agent_sdk_receipt_result["receipt"]
     state := add_event(state, run_dir, "artifact_created", "agent-sdk", "planner", {"kind": "agents_sdk_offline_smoke", "ok": agent_sdk["ok"], "receipt_id": agent_sdk_receipt["receipt_id"]})
     agent_sdk_tools := {"ok": true, "skipped": true, "reason": "no mission agent_tools configured"}
@@ -451,7 +471,7 @@ func run_mission(path, options) {
     }
     state["agent_sdk_tools"] := agent_sdk_tools
     tool_receipt_result := record_receipt(state, run_dir, "tool", "agent-sdk-tools", "core-developer", "agent_sdk_tools", evidence_status(agent_sdk_tools["ok"]), {"kind": "agents_sdk_tool_registry", "ok": agent_sdk_tools["ok"], "skipped": dict_get_or(agent_sdk_tools, "skipped", false)})
-    state["receipts"] := tool_receipt_result["receipts"]
+    state = apply_receipt_result(state, tool_receipt_result)
     tool_receipt := tool_receipt_result["receipt"]
     state := add_event(state, run_dir, "tool_call_completed", "agent-sdk-tools", "core-developer", {"kind": "agents_sdk_tool_registry", "ok": agent_sdk_tools["ok"], "skipped": dict_get_or(agent_sdk_tools, "skipped", false), "data": dict_get_or(agent_sdk_tools, "data", {}), "receipt_id": tool_receipt["receipt_id"]})
     planner := find_agent("planner")
@@ -463,7 +483,7 @@ func run_mission(path, options) {
     budgets["used_tokens"] := used_tokens
     state["budgets"] := budgets
     model_receipt_result := record_receipt(state, run_dir, "model", "plan", "planner", string_or(dict_get_or(state, "model", ""), ""), evidence_status(dict_get_or(model_result, "ok", false)), {"ok": dict_get_or(model_result, "ok", false), "telemetry": state["telemetry"], "usage": usage})
-    state["receipts"] := model_receipt_result["receipts"]
+    state = apply_receipt_result(state, model_receipt_result)
     model_receipt := model_receipt_result["receipt"]
     state := add_event(state, run_dir, "model_request_completed", "plan", "planner", {"ok": dict_get_or(model_result, "ok", false), "telemetry": state["telemetry"], "receipt_id": model_receipt["receipt_id"]})
     preflight_ok := ledger["ok"] && packet["ok"] && agent_sdk["ok"] && agent_sdk_tools["ok"] && dict_get_or(model_result, "ok", false) && used_tokens <= state["budgets"]["max_tokens"]
@@ -472,7 +492,7 @@ func run_mission(path, options) {
         state["current_step"] := "implementation"
         state["checkpoint"] := {"step": "implementation", "reason": "pause_after_plan", "created_at": now_iso()}
         state := add_event(state, run_dir, "run_paused", "implementation", "relay", {"reason": "checkpoint_requested", "resumable": true})
-        save_state(state, run_dir)
+        state = save_state(state, run_dir)
         report(state, run_dir)
         register_run(state, run_dir)
         return {"ok": true, "run": state, "run_dir": run_dir}
@@ -504,14 +524,14 @@ func run_mission(path, options) {
         state["changes"] := dict_get_or(changes, "data", {"ok": changes["ok"]})
         write_json(run_dir + "/changes.json", state["changes"])
         changes_receipt_result := record_receipt(state, run_dir, "changes", "verify", "release-verifier", run_dir + "/changes.json", evidence_status(changes["ok"]), {"ok": changes["ok"]})
-        state["receipts"] := changes_receipt_result["receipts"]
+        state = apply_receipt_result(state, changes_receipt_result)
         changes_receipt := changes_receipt_result["receipt"]
         eval_path := write_eval_config(run_dir, state)
         evaluation := eval_run(run_dir, "eval.json")
         state["evaluations"] := push(state["evaluations"], dict_get_or(evaluation, "data", {"ok": evaluation["ok"]}))
         write_json(run_dir + "/evaluations.json", state["evaluations"])
         evaluation_receipt_result := record_receipt(state, run_dir, "evaluation", "verify", "release-verifier", run_dir + "/evaluations.json", evidence_status(evaluation["ok"]), {"ok": evaluation["ok"], "config": eval_path})
-        state["receipts"] := evaluation_receipt_result["receipts"]
+        state = apply_receipt_result(state, evaluation_receipt_result)
         evaluation_receipt := evaluation_receipt_result["receipt"]
         if evaluation["ok"] == false || changes["ok"] == false {
             state["status"] := "failed"
@@ -525,7 +545,7 @@ func run_mission(path, options) {
             state := add_event(state, run_dir, "run_completed", "verify", "release-verifier", {"evaluation_ok": true, "changes_ok": true, "changes_receipt_id": changes_receipt["receipt_id"], "evaluation_receipt_id": evaluation_receipt["receipt_id"]})
         }
     }
-    save_state(state, run_dir)
+    state = save_state(state, run_dir)
     verdict := "Relay run " + state["status"]
     ledger_status := "fail"
     if state["status"] == "completed" { ledger_status = "pass" }
@@ -533,8 +553,8 @@ func run_mission(path, options) {
     finished := runledger_finish(run_dir, ledger_run_id, ledger_status, verdict, "Evidence in " + run_dir)
     state["runledger_finish"] := finished
     finish_receipt_result := record_receipt(state, run_dir, "runledger", "finish", "relay", run_dir + "/ledger", ledger_status, {"runledger_id": ledger_run_id, "ok": finished["ok"]})
-    state["receipts"] := finish_receipt_result["receipts"]
-    save_state(state, run_dir)
+    state = apply_receipt_result(state, finish_receipt_result)
+    state = save_state(state, run_dir)
     report(state, run_dir)
     register_run(state, run_dir)
     return {"ok": state["status"] == "completed", "run": state, "run_dir": run_dir}
@@ -551,7 +571,7 @@ func pause_run(run_id) {
     if integrity["ok"] == false { return {"ok": false, "failure_class": "state_integrity_failure", "error": integrity["error"]} }
     state["status"] := "paused"
     state := add_event(state, record["run_dir"], "run_paused", "pause", "relay", {"reason": "operator_pause", "resumable": true})
-    save_state(state, record["run_dir"])
+    state = save_state(state, record["run_dir"])
     register_run(state, record["run_dir"])
     return {"ok": true, "run": state}
 }
@@ -576,8 +596,8 @@ func cancel_run(run_id) {
         ledger_id := string_or(dict_get_or(dict_get_or(state, "runledger", {}), "run_id", ""), run_id)
         state["runledger_finish"] := runledger_finish(run_dir, ledger_id, "fail", "Relay run cancelled", "Evidence in " + run_dir)
         finish_receipt_result := record_receipt(state, run_dir, "runledger", "cancel", "relay", run_dir + "/ledger", "fail", {"runledger_id": ledger_id, "ok": state["runledger_finish"]["ok"], "cancelled": true})
-        state["receipts"] := finish_receipt_result["receipts"]
-        save_state(state, run_dir)
+        state = apply_receipt_result(state, finish_receipt_result)
+        state = save_state(state, run_dir)
         report(state, run_dir)
         register_run(state, run_dir)
         return {"ok": true, "run": state, "status": "cancelled"}
@@ -621,7 +641,7 @@ func cleanup_run(run_id, confirmed) {
     workspace["cleaned"] := true
     workspace["cleanup_at"] := now_iso()
     state["workspace"] := workspace
-    save_state(state, record["run_dir"])
+    state = save_state(state, record["run_dir"])
     report(state, record["run_dir"])
     register_run(state, record["run_dir"])
     return {"ok": true, "cleaned": true, "run": state}
@@ -655,14 +675,14 @@ func resume_run(run_id) {
         state["changes"] := dict_get_or(changes, "data", {"ok": changes["ok"]})
         write_json(record["run_dir"] + "/changes.json", state["changes"])
         changes_receipt_result := record_receipt(state, record["run_dir"], "changes", "resume", "release-verifier", record["run_dir"] + "/changes.json", evidence_status(changes["ok"]), {"ok": changes["ok"]})
-        state["receipts"] := changes_receipt_result["receipts"]
+        state = apply_receipt_result(state, changes_receipt_result)
         changes_receipt := changes_receipt_result["receipt"]
         write_eval_config(record["run_dir"], state)
         evaluation := eval_run(record["run_dir"], "eval.json")
         state["evaluations"] := push(state["evaluations"], dict_get_or(evaluation, "data", {"ok": evaluation["ok"]}))
         write_json(record["run_dir"] + "/evaluations.json", state["evaluations"])
         evaluation_receipt_result := record_receipt(state, record["run_dir"], "evaluation", "resume", "release-verifier", record["run_dir"] + "/evaluations.json", evidence_status(evaluation["ok"]), {"ok": evaluation["ok"]})
-        state["receipts"] := evaluation_receipt_result["receipts"]
+        state = apply_receipt_result(state, evaluation_receipt_result)
         evaluation_receipt := evaluation_receipt_result["receipt"]
         if changes["ok"] && evaluation["ok"] {
             state["status"] := "completed"
@@ -674,20 +694,22 @@ func resume_run(run_id) {
             state := add_event(state, record["run_dir"], "run_failed", "resume", "release-verifier", state["failure"])
         }
     }
-    save_state(state, record["run_dir"])
+    state = save_state(state, record["run_dir"])
     ledger_id := string_or(dict_get_or(dict_get_or(state, "runledger", {}), "run_id", ""), run_id)
     ledger_status := "fail"
     if state["status"] == "completed" { ledger_status = "pass" }
     state["runledger_finish"] := runledger_finish(record["run_dir"], ledger_id, ledger_status, "Relay resumed run " + state["status"], "Evidence in " + record["run_dir"])
     finish_receipt_result := record_receipt(state, record["run_dir"], "runledger", "finish", "relay", record["run_dir"] + "/ledger", ledger_status, {"runledger_id": ledger_id, "ok": state["runledger_finish"]["ok"], "resumed": true})
-    state["receipts"] := finish_receipt_result["receipts"]
-    save_state(state, record["run_dir"])
+    state = apply_receipt_result(state, finish_receipt_result)
+    state = save_state(state, record["run_dir"])
     report(state, record["run_dir"])
     register_run(state, record["run_dir"])
     return {"ok": state["status"] == "completed", "run": state, "run_dir": record["run_dir"]}
 }
 
 export ensure_dir := ensure_dir
+export save_state := save_state
+export mark_evidence_failure := mark_evidence_failure
 export load_spec := load_spec
 export create_mission := create_mission
 export run_mission := run_mission

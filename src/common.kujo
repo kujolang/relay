@@ -92,13 +92,16 @@ func safe_env_name(value) {
 }
 
 func write_text_atomic(path, content) {
+    tmp := path + ".tmp-" + to_string(current_timestamp()) + "-" + to_string(random_int(1000, 999999))
     try {
-        tmp := path + ".tmp-" + to_string(current_timestamp()) + "-" + to_string(random_int(1000, 999999))
         if file_exists(tmp) { delete_file(tmp) }
         write_file(tmp, to_string(content))
         rename_file(tmp, path)
         return true
-    } except err { return false }
+    } except err {
+        if file_exists(tmp) { delete_file(tmp) }
+        return false
+    }
 }
 
 func safe_process_path() {

@@ -1,6 +1,6 @@
 from src.contracts import event, event_integrity_valid, event_chain_integrity_valid, event_sequence_matches_state, receipt, receipt_integrity_valid, receipt_sequence_valid, receipt_sequence_matches_state, run_state, agent_profile, RELAY_VERSION, EVENT_CONTRACT, RECEIPT_CONTRACT
 from src.policy import classify_failure, path_is_safe, path_is_within_workspace, command_is_allowed, tool_decision
-from src.runtime import resume_state_safe, cleanup_state_safe, control_state_safe
+from src.runtime import resume_state_safe, cleanup_state_safe, control_state_safe, save_state, mark_evidence_failure
 from src.common import safe_id, redact_text, shell_quote_single, command_args, process_options, safe_env_name, read_json_limited, dict_get_or, safe_json
 from src.adapters import fallback_allowed, watchdog_route_allowed
 from src.store import safe_run_key, acquire_index_lock, acquire_index_lock_retry, release_index_lock
@@ -131,4 +131,14 @@ failed = failed + check("resume state integrity rejects workspace substitution",
 cleanup_state := {"run_id": "cleanup-contract", "mission_spec": {"repository": ".", "workspace_mode": "worktree"}, "mission_spec_integrity_sha256": sha256(safe_json({"repository": ".", "workspace_mode": "worktree"})), "events": [], "receipts": [], "repository": "/tmp/relay-contract-run/workspace", "workspace": {"mode": "worktree", "source_repository": ".", "path": "/tmp/other-workspace", "cleaned": true}}
 failed = failed + check("cleanup state integrity rejects mismatched worktree", cleanup_state_safe(cleanup_state, "cleanup-contract", "/tmp/relay-contract-run")["ok"] == false)
 failed = failed + check("control state integrity delegates to checkpoint policy", control_state_safe(resume_state, "resume-contract", "/tmp/relay-contract-run")["ok"] == false)
+evidence_state := {"status": "completed"}
+evidence_state = mark_evidence_failure(evidence_state, "contract evidence failure")
+failed = failed + check("evidence failure marks state failed", evidence_state["status"] == "failed" && dict_get_or(evidence_state, "evidence_failure", {})["class"] == "evidence_failure")
+evidence_root := "/tmp/relay-contract-evidence-" + to_string(current_timestamp())
+create_dir(evidence_root)
+create_dir(evidence_root + "/state.json")
+persist_failure := save_state({"status": "completed"}, evidence_root)
+failed = failed + check("state persistence failure fails closed", persist_failure["status"] == "failed" && dict_get_or(persist_failure, "evidence_failure", {})["class"] == "evidence_failure")
+os_rmdir(evidence_root + "/state.json")
+os_rmdir(evidence_root)
 exit(failed)
