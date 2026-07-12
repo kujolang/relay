@@ -54,6 +54,7 @@ The correct posture is: **local-first hardened alpha / ecosystem showcase**. The
 | Performance evidence | Bounded AI bridge, tool, and evidence adapter calls expose non-negative duration measurements | `src/adapters.kujo`, `src/runtime.kujo`, `tests/relay_metrics_smoke.sh` |
 | Artifact size evidence | Read-only `runs sizes` inventories persisted run artifacts, excludes workspace, and rejects symlinks/oversized entry sets | `src/cli.kujo`, `tests/relay_sizes_smoke.sh` |
 | Mission cancellation | Cooperative `missions cancel` request checks around actions, terminal event, and RunLedger finish evidence | `src/runtime.kujo`, `src/cli.kujo`, `tests/relay_cancel_smoke.sh` |
+| Evidence path safety | JSON reads/appends and event inspection reject symbolic-linked or non-regular evidence files | `src/common.kujo`, `src/cli.kujo`, `tests/relay_store_smoke.sh` |
 | Event integrity | AgentEvent-compatible JSONL records carry deterministic SHA-256 integrity fields and tamper validation | `src/contracts.kujo`, contract smoke |
 | Worktree cleanup authority | Cleanup rejects tampered paths and requires the run-owned workspace target | `src/runtime.kujo`, `tests/relay_worktree_smoke.sh` |
 | Agents SDK tools | A Kujo bridge registers `relay.write_file` and `relay.run_command`, applies Agents SDK approval providers, and delegates to Relay's capability-bound policy worker | `src/agent_bridge.kujo`, `src/runtime.kujo`, `tests/relay_agents_tool_smoke.sh` |
@@ -194,6 +195,16 @@ proves cancellation during a slow repository action and rejects a false
 completion event. This is cooperative local cancellation only; process-group
 termination, rollback, distributed identity/authorization, and workcell
 recovery remain open.
+
+## Sixteenth review slice — symlink-safe evidence access
+
+Relay now rejects symbolic-linked or non-regular JSON/JSONL evidence files at
+the common read/append boundary and at `runs watch`/`runs events`/`runs export`
+inspection boundaries. The store smoke replaces `events.jsonl` with a symlink
+to `/etc/passwd` and verifies that inspection fails closed before restoring the
+real artifact. This reduces local evidence redirection risk; kernel-level
+no-follow primitives, multi-user ownership, and durable storage isolation
+remain open.
 
 ## Eighth review slice — complete evidence verification
 

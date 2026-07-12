@@ -98,7 +98,9 @@ IDs against authoritative run state before returning it. Event inspection and
 export are bounded to an 8 MiB JSONL log to keep machine callers memory-safe.
 `runs export` emits a versioned JSON bundle containing run state, verified
 events, receipts, changes, evaluations, and the final report; it refuses to
-export tampered, inconsistent, or malformed event/receipt evidence.
+export tampered, inconsistent, malformed, symbolic-linked, or non-regular
+event/receipt evidence. Run JSON reads and event appends also reject symbolic
+links rather than following them into another filesystem location.
 
 `runs watch <run-id> --poll-ms <n> --timeout-ms <n>` emits each complete event
 as a JSONL record while the run is active. Polling is bounded to 1–1000 ms and

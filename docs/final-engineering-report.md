@@ -189,3 +189,12 @@ into a sealed `run_cancelled` event plus a failed RunLedger finish. The focused
 smoke cancels a slow repository action and verifies the run cannot report
 completion. Forced process termination, rollback, distributed cancellation,
 and identity-aware remote authorization remain deferred.
+
+## Sixteenth 2026-07-11 review
+
+This review hardens the evidence boundary against symbolic-link redirection.
+Generic JSON reads and JSONL appends now reject symbolic-linked or non-regular
+files, and event watch/inspection/export refuse such `events.jsonl` artifacts.
+The store smoke proves a symlink to `/etc/passwd` fails closed. Kernel-level
+no-follow primitives, multi-user ownership, and durable storage isolation are
+still deferred.
