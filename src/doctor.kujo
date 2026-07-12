@@ -7,7 +7,11 @@ from src.store import store_root_safe
 func path_check(label, path, directory, required) {
     exists := false
     if directory { exists = path_is_dir(path) } else { exists = path_exists(path) }
-    return {"name": label, "ok": exists, "required": required, "path": path}
+    symlink := exists && path_is_symlink(path)
+    expected_type := false
+    if directory { expected_type = exists } else { expected_type = exists && path_is_file(path) }
+    safe := expected_type && symlink == false
+    return {"name": label, "ok": safe, "required": required, "path": path, "exists": exists, "expected_type": expected_type, "symlink": symlink, "safe": safe}
 }
 
 func doctor() {
@@ -17,7 +21,7 @@ func doctor() {
     checks := push(checks, path_check("Relay entrypoint", root + "/main.kujo", false, true))
     checks := push(checks, path_check("Relay source tree", root + "/src", true, true))
     store_safe := store_root_safe(root + "/.relay")
-    checks := push(checks, {"name": "Relay evidence store", "ok": store_safe, "required": true, "path": root + "/.relay", "reason": "state root and runs directory must not be symbolic links"})
+    checks := push(checks, {"name": "Relay evidence store", "ok": store_safe, "required": true, "path": root + "/.relay", "safe": store_safe, "reason": "state root and runs directory must not be symbolic links"})
     checks := push(checks, path_check("Relay launcher", root + "/bin/relay", false, false))
     checks := push(checks, path_check("AI SDK checkout", ai_sdk_root(), true, true))
     checks := push(checks, path_check("Agents SDK checkout", agents_sdk_root(), true, true))
@@ -30,7 +34,8 @@ func doctor() {
     for agent in agent_catalog() {
         if path_is_dir(agent_path(agent["id"])) == false { agent_errors := push(agent_errors, agent["id"]) }
     }
-    checks := push(checks, {"name": "Chain of Command registry", "ok": len(agent_errors) == 0, "required": true, "missing": agent_errors})
+    registry_safe := len(agent_errors) == 0
+    checks := push(checks, {"name": "Chain of Command registry", "ok": registry_safe, "required": true, "safe": registry_safe, "missing": agent_errors})
     live := env_or("RELAY_OFFLINE_FIXTURE", "true") != "true"
     mode := "fixture"
     if live { mode = "live" }
@@ -38,20 +43,20 @@ func doctor() {
     watchdog_configured := dict_get_or(watchdog_route, "configured", false)
     watchdog_ok := dict_get_or(watchdog_route, "valid", false)
     if live == false { watchdog_ok = true }
-    checks := push(checks, {"name": "Watchdog route", "ok": watchdog_ok, "required": live, "configured": watchdog_configured, "valid": dict_get_or(watchdog_route, "valid", false), "scheme": dict_get_or(watchdog_route, "scheme", ""), "reason": dict_get_or(watchdog_route, "reason", "")})
+    checks := push(checks, {"name": "Watchdog route", "ok": watchdog_ok, "required": live, "safe": watchdog_ok, "configured": watchdog_configured, "valid": dict_get_or(watchdog_route, "valid", false), "scheme": dict_get_or(watchdog_route, "scheme", ""), "reason": dict_get_or(watchdog_route, "reason", "")})
     watchdog_verify_required := live && env_or("RELAY_WATCHDOG_VERIFY", "false") == "true"
     if watchdog_verify_required {
         watchdog_health := health_check()
         watchdog_config := proxy_config_check()
         watchdog_api_ok := watchdog_health["healthy"] && watchdog_config["configured"]
-        checks := push(checks, {"name": "Watchdog API health and proxy configuration", "ok": watchdog_api_ok, "required": true, "health": watchdog_health, "proxy_config": watchdog_config})
+        checks := push(checks, {"name": "Watchdog API health and proxy configuration", "ok": watchdog_api_ok, "required": true, "safe": watchdog_api_ok, "health": watchdog_health, "proxy_config": watchdog_config})
     }
     api_key_env := env_or("RELAY_API_KEY_ENV", "OPENAI_API_KEY")
     credential_name_ok := safe_env_name(api_key_env)
     credential_configured := credential_name_ok && env_or(api_key_env, "") != ""
     credential_ok := credential_configured
     if live == false { credential_ok = true }
-    checks := push(checks, {"name": "live provider credential", "ok": credential_ok, "required": live, "environment": api_key_env, "name_valid": credential_name_ok, "configured": credential_configured})
+    checks := push(checks, {"name": "live provider credential", "ok": credential_ok, "required": live, "safe": credential_name_ok, "environment": api_key_env, "name_valid": credential_name_ok, "configured": credential_configured})
     required_failures := 0
     for check in checks { if dict_get_or(check, "required", false) && dict_get_or(check, "ok", false) == false { required_failures = required_failures + 1 } }
     return {"ok": required_failures == 0, "mode": mode, "required_failures": required_failures, "checks": checks}

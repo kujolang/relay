@@ -16,6 +16,19 @@ case "$doctor" in
   *) echo "fixture doctor contract did not pass" >&2; exit 1 ;;
 esac
 printf '%s' "$doctor" | grep -q 'Relay source tree'
+printf '%s' "$doctor" | jq -e 'all(.checks[] | select(has("path") and .required == true); .safe == true)' >/dev/null
+
+doctor_link_root="/tmp/relay-doctor-link-$$"
+rm -rf "$doctor_link_root"
+mkdir -p "$doctor_link_root"
+ln -s "$KUJO" "$doctor_link_root/kujo"
+set +e
+unsafe_dependency_doctor="$(KUJO_BIN="$doctor_link_root/kujo" "$KUJO" run "$ROOT/main.kujo" -- doctor --json 2>&1)"
+unsafe_dependency_status=$?
+set -e
+test "$unsafe_dependency_status" -ne 0
+printf '%s' "$unsafe_dependency_doctor" | jq -e '.ok == false and (.checks | map(select(.name == "kujo runtime"))[0].safe == false) and (.checks | map(select(.name == "kujo runtime"))[0].symlink == true)' >/dev/null
+rm -rf "$doctor_link_root"
 
 probe="$($KUJO run "$ROOT/main.kujo" -- models probe fixture-model --fixture --json)"
 case "$probe" in
