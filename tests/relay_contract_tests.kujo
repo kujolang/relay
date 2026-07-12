@@ -1,7 +1,7 @@
 from src.contracts import event, event_integrity_valid, event_chain_integrity_valid, event_sequence_matches_state, receipt, receipt_integrity_valid, receipt_sequence_valid, receipt_sequence_matches_state, run_state, agent_profile, RELAY_VERSION, EVENT_CONTRACT, RECEIPT_CONTRACT
 from src.policy import classify_failure, path_is_safe, path_is_within_workspace, command_is_allowed, tool_decision
 from src.common import safe_id, redact_text, shell_quote_single, command_args, process_options, safe_env_name, read_json_limited, dict_get_or
-from src.adapters import fallback_allowed
+from src.adapters import fallback_allowed, watchdog_route_allowed
 from src.store import safe_run_key, acquire_index_lock, acquire_index_lock_retry, release_index_lock
 from src.watchdog import safe_base
 
@@ -93,6 +93,9 @@ failed = failed + check("fallback allows rate limit", fallback_allowed({"error":
 failed = failed + check("fallback allows unavailable provider", fallback_allowed({"error": {"code": "provider_unavailable"}}))
 failed = failed + check("fallback rejects authentication", fallback_allowed({"error": {"code": "authentication_failure"}}) == false)
 failed = failed + check("fallback rejects policy failure", fallback_allowed({"error": {"code": "policy_violation"}}) == false)
+failed = failed + check("safe Watchdog route", watchdog_route_allowed("http://127.0.0.1:7700/proxy/v1"))
+failed = failed + check("Watchdog route rejects credentials", watchdog_route_allowed("http://user:secret@127.0.0.1:7700") == false)
+failed = failed + check("Watchdog route rejects unsupported scheme", watchdog_route_allowed("file:///tmp/watchdog") == false)
 failed = failed + check("safe run key", safe_run_key("relay-run-123"))
 failed = failed + check("unsafe run key denied", safe_run_key("../outside") == false)
 lock_root := "/tmp/relay-contract-index-lock-" + to_string(current_timestamp())

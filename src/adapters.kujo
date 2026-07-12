@@ -1,5 +1,5 @@
 from src.common import dict_get_or, env_or, string_or, bool_or, int_or, safe_json, read_json_or, redact_text, process_options, safe_env_name, contains_any
-from src.watchdog import watchdog_verify
+from src.watchdog import watchdog_verify, safe_base
 
 func relay_root() { return env_or("RELAY_ROOT", env_or("PWD", ".")) }
 func kujo_bin() { return env_or("KUJO_BIN", relay_root() + "/../kujo/target/release/kujo") }
@@ -7,6 +7,7 @@ func repo_root() { return env_or("RELAY_REPO_ROOT", relay_root() + "/..") }
 func ai_sdk_root() { return env_or("RELAY_AI_SDK_PATH", relay_root() + "/../ai-sdk") }
 func agents_sdk_root() { return env_or("RELAY_AGENTS_SDK_PATH", relay_root() + "/../agents-sdk") }
 func watchdog_url() { return env_or("RELAY_WATCHDOG_URL", "") }
+func watchdog_route_allowed(value) { return safe_base(value) }
 
 func last_json(raw) {
     text := trim(to_string(raw))
@@ -43,6 +44,9 @@ func run_process(command, cwd, extra_env, timeout_ms) {
 func call_ai(messages, model, provider, base_url, api_key_env, offline, stream, correlation_id) {
     if offline == false && watchdog_url() == "" {
         return {"ok": false, "error": {"code": "watchdog_route_required", "message": "Live AI calls require RELAY_WATCHDOG_URL"}, "relay_telemetry": {"route": "blocked_no_watchdog", "provider": provider, "model": model}}
+    }
+    if offline == false && watchdog_route_allowed(watchdog_url()) == false {
+        return {"ok": false, "error": {"code": "invalid_watchdog_route", "message": "RELAY_WATCHDOG_URL must be an http(s) URL without embedded credentials"}, "relay_telemetry": {"route": "blocked_invalid_watchdog_url", "provider": provider, "model": model}}
     }
     if safe_env_name(api_key_env) == false {
         return {"ok": false, "error": {"code": "invalid_api_key_env", "message": "RELAY_API_KEY_ENV must be a safe non-reserved environment variable name"}, "relay_telemetry": {"route": "blocked_invalid_env", "provider": provider, "model": model}}
@@ -207,6 +211,7 @@ export agents_sdk_root := agents_sdk_root
 export run_process := run_process
 export repo_root := repo_root
 export watchdog_url := watchdog_url
+export watchdog_route_allowed := watchdog_route_allowed
 export ai_chat := ai_chat
 export ai_chat_correlated := ai_chat_correlated
 export fallback_allowed := fallback_allowed

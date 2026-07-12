@@ -36,6 +36,13 @@ if printf '%s' "$token_output" | grep -q 'relay-test-proxy-token'; then
   exit 1
 fi
 
+set +e
+invalid_watchdog="$(RELAY_OFFLINE_FIXTURE=false RELAY_WATCHDOG_URL='file:///tmp/watchdog' "$KUJO" run "$ROOT/main.kujo" -- chat invalid-route --json 2>&1)"
+watchdog_status=$?
+set -e
+test "$watchdog_status" -ne 0
+printf '%s' "$invalid_watchdog" | grep -q 'invalid_watchdog_route'
+
 stream="$($KUJO run "$ROOT/main.kujo" -- chat stream-boundary --fixture --stream --json)"
 printf '%s' "$stream" | grep -q '"type":"delta"'
 printf '%s' "$stream" | grep -q '"type":"done"'
