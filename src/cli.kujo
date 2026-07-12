@@ -1,4 +1,4 @@
-from src.common import dict_get_or, env_or, string_or, bool_or, read_json_or, safe_json, write_json
+from src.common import dict_get_or, env_or, string_or, bool_or, int_or, read_json_or, safe_json, write_json
 from src.contracts import RELAY_VERSION, event_chain_integrity_valid, event_sequence_matches_state, receipt_sequence_valid, receipt_sequence_matches_state
 from src.registry import agent_catalog, find_agent, agent_path
 from src.adapters import ai_chat, capsule_run
@@ -34,6 +34,7 @@ func parse_tokens(tokens) {
 }
 
 func output(payload, json_mode) {
+    if type(payload) == "dict" && has_key(payload, "_streamed") { return }
     if type(payload) == "dict" && has_key(payload, "_stream_events") {
         for item in payload["_stream_events"] { print(safe_json(item)) }
         return
@@ -59,7 +60,7 @@ func help_text() {
         "  missions create [spec.json] [--output path]\n" +
         "  missions run <spec.json> [--fixture] [--pause-after-plan] [--skip-agent-smoke] [--json]\n" +
         "  missions inspect <run-id>|pause <run-id>|resume <run-id>|cleanup <run-id> --confirm|report <run-id>\n" +
-        "  runs list|rebuild|inspect <run-id>|events <run-id>|changes <run-id>|evaluations <run-id>|export <run-id> [--output path]\n" +
+        "  runs list|rebuild|inspect <run-id>|events <run-id>|watch <run-id>|changes <run-id>|evaluations <run-id>|export <run-id> [--output path]\n" +
         "  tools execute --json (bounded Agents SDK worker callback)\n" +
         "  benchmark run <repo> [--json] (Capsule discovery slice)"
 }
@@ -162,6 +163,74 @@ func cmd_missions(tokens) {
     return {"ok": false, "error": "unknown missions command"}
 }
 
+func watch_run_events(record, flags) {
+    run_dir := string_or(dict_get_or(record, "run_dir", ""), "")
+    timeout_ms := int_or(dict_get_or(flags, "timeout-ms", 120000), 120000)
+    poll_ms := int_or(dict_get_or(flags, "poll-ms", 50), 50)
+    if timeout_ms <= 0 || timeout_ms > 600000 { return {"ok": false, "error": "watch timeout-ms must be between 1 and 600000"} }
+    if poll_ms <= 0 || poll_ms > 1000 { return {"ok": false, "error": "watch poll-ms must be between 1 and 1000"} }
+    events_path := run_dir + "/events.jsonl"
+    started_ms := current_timestamp()
+    mut emitted := 0
+    mut terminal_status := ""
+    while current_timestamp() - started_ms <= timeout_ms {
+        if path_exists(events_path) && file_size(events_path) > 8388608 {
+            print(safe_json({"type": "relay_watch_error", "error": "run event log exceeds the 8 MiB inspection limit"}))
+            return {"ok": false, "_streamed": true}
+        }
+        events := []
+        if path_exists(events_path) {
+            raw := read_file(events_path)
+            lines := split(raw, "\n")
+            complete_count := len(lines)
+            if ends_with(raw, "\n") == false { complete_count = complete_count - 1 }
+            mut i := 0
+            while i < complete_count {
+                line := trim(lines[i])
+                if line != "" {
+                    try { events = push(events, parse_json(line)) } except err {
+                        print(safe_json({"type": "relay_watch_error", "error": "run event log contains invalid JSON"}))
+                        return {"ok": false, "_streamed": true}
+                    }
+                }
+                i = i + 1
+            }
+        }
+        if event_chain_integrity_valid(events) == false {
+            print(safe_json({"type": "relay_watch_error", "error": "run event chain integrity verification failed"}))
+            return {"ok": false, "_streamed": true}
+        }
+        while emitted < len(events) {
+            print(safe_json(events[emitted]))
+            emitted = emitted + 1
+        }
+        state := read_json_or(run_dir + "/state.json", {})
+        terminal_status = string_or(dict_get_or(state, "status", ""), "")
+        if (terminal_status == "completed" || terminal_status == "failed" || terminal_status == "cancelled") && emitted == len(events) {
+            state_events := dict_get_or(state, "events", [])
+            # Runtime state and the append-only file can cross the watcher
+            # between the final state transition and the final JSONL append.
+            # Wait for the authoritative sequence to catch up instead of
+            # misclassifying this short handoff window as corruption.
+            if type(state_events) == "array" && len(state_events) != len(events) {
+                sleep(poll_ms)
+                continue
+            }
+            state_consistent := event_sequence_matches_state(state_events, events)
+            receipts := read_json_or(run_dir + "/receipts.json", dict_get_or(state, "receipts", []))
+            receipts_valid := receipt_sequence_valid(receipts) && receipt_sequence_matches_state(dict_get_or(state, "receipts", []), receipts)
+            if state_consistent == false || receipts_valid == false {
+                print(safe_json({"type": "relay_watch_error", "error": "terminal run evidence is inconsistent", "state_consistent": state_consistent, "receipts_valid": receipts_valid}))
+                return {"ok": false, "_streamed": true}
+            }
+            return {"ok": terminal_status == "completed", "_streamed": true, "events": emitted, "status": terminal_status}
+        }
+        sleep(poll_ms)
+    }
+    print(safe_json({"type": "relay_watch_error", "error": "run watch timed out", "timeout_ms": timeout_ms, "events": emitted}))
+    return {"ok": false, "_streamed": true}
+}
+
 func cmd_runs(tokens) {
     parsed := parse_tokens(tokens)
     sub := positional(parsed["positionals"], 0, "list")
@@ -171,6 +240,7 @@ func cmd_runs(tokens) {
     if sub == "rebuild" { rebuilt := rebuild_run_index(state_root()); persist_run_index(state_root(), rebuilt); return {"ok": true, "runs": rebuilt, "index_source": "rebuild"} }
     record := dict_get_or(index, id, null)
     if type(record) != "dict" { return {"ok": false, "error": "unknown run: " + id} }
+    if sub == "watch" { return watch_run_events(record, parsed["flags"]) }
     if sub == "inspect" { return {"ok": true, "run": read_json_or(record["run_dir"] + "/state.json", {}), "run_dir": record["run_dir"]} }
     if sub == "events" || sub == "export" {
         events_path := record["run_dir"] + "/events.jsonl"
