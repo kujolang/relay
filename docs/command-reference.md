@@ -32,7 +32,7 @@ relay models probe <model> [--fixture] [--json]
 relay agents list|inspect <agent>|validate [--json]
 relay missions create [spec.json] [--output <path>] [--json]
 relay missions run <spec.json> [--fixture] [--pause-after-plan] [--skip-agent-smoke] [--json]
-relay missions inspect|pause|resume|cleanup|report <run-id> [--json]
+relay missions inspect|pause|resume|cancel|cleanup|report <run-id> [--json]
 relay runs list|rebuild|inspect|events|watch|sizes|changes|evaluations <run-id> [--json]
 relay runs export <run-id> [--output <path>] [--json]
 relay tools execute --json (internal capability-bound worker callback)
@@ -78,6 +78,14 @@ subprocess boundary, not provider billing, queue-time, or globally comparable
 latency guarantees.
 
 `--pause-after-plan` creates a supported checkpoint at `implementation`. `missions resume` executes the stored pending actions and reruns ChangeBucket and Eval. Arbitrary crash replay is not yet supported.
+
+`missions cancel <run-id>` records a bounded cancellation request for a running
+mission. The active runtime checks the request before and after each declared
+action, stops before the next action, emits a `run_cancelled` event, finishes
+the RunLedger record with failure status, and preserves the request as
+`cancel.request.json`. A paused run can be cancelled immediately. Cancellation
+does not kill an already-running external process or claim rollback; callers
+must wait for terminal state and inspect the evidence before cleanup.
 
 Set `workspace_mode: "worktree"` to have Relay create a detached worktree from the immutable starting commit under the run directory. The source repository remains unchanged. The worktree is retained for inspection until an operator explicitly runs `missions cleanup <run-id> --confirm`; cleanup is refused while a run is active and is never implicit.
 

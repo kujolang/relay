@@ -180,3 +180,12 @@ workspace exclusion, and fail-closed symlink/entry-limit handling. The focused
 size smoke passes and the feature remains intentionally below retention,
 compaction, transfer-cost, and durable multi-host storage semantics. The next
 handoff is `docs/next-session-enhancement-backlog-2026-07-11-v14.md`.
+
+## Fifteenth 2026-07-11 review
+
+This review adds cooperative `missions cancel <run-id>` support. A request is
+persisted as run evidence, checked around each declared action, and converted
+into a sealed `run_cancelled` event plus a failed RunLedger finish. The focused
+smoke cancels a slow repository action and verifies the run cannot report
+completion. Forced process termination, rollback, distributed cancellation,
+and identity-aware remote authorization remain deferred.

@@ -2,7 +2,7 @@
 
 Kujo Relay is a Kujo-native composition and execution layer for bounded agent missions. The CLI is a thin wrapper over reusable runtime modules. It composes existing AI SDK, Agents SDK, PackWrite, RunLedger, ChangeBucket, Eval, Capsule, and Chain of Command contracts instead of replacing them.
 
-Status: `0.1.0` hardened local alpha. Offline execution, bounded repository work, resumable checkpoints, packet integrity metadata, sealed typed evidence receipts, live bounded `runs watch` event observation, bounded adapter duration metrics, read-only run artifact size inventory, redacted subprocess evidence, explicit environment isolation, fixed executable search paths, shell-free command execution with exact read-only Git argv profiles, bounded lock backoff with contention evidence, budgets, deterministic evaluation, detached worktree missions, locked/self-healing run-index rebuilds, complete event-sequence verification, integrity-verified event export, real local Watchdog correlation, and one isolated fixture mission using the Agents SDK Tool Registry are verified locally. Relay is not yet enterprise-production-ready or universally useful: external live-provider proof, authenticated multi-tenant operation, full workcell isolation/recovery, provider-driven tool execution, durable concurrent storage, and release gates remain open.
+Status: `0.1.0` hardened local alpha. Offline execution, bounded repository work, resumable checkpoints, cooperative mission cancellation, packet integrity metadata, sealed typed evidence receipts, live bounded `runs watch` event observation, bounded adapter duration metrics, read-only run artifact size inventory, redacted subprocess evidence, explicit environment isolation, fixed executable search paths, shell-free command execution with exact read-only Git argv profiles, bounded lock backoff with contention evidence, budgets, deterministic evaluation, detached worktree missions, locked/self-healing run-index rebuilds, complete event-sequence verification, integrity-verified event export, real local Watchdog correlation, and one isolated fixture mission using the Agents SDK Tool Registry are verified locally. Relay is not yet enterprise-production-ready or universally useful: external live-provider proof, authenticated multi-tenant operation, full workcell isolation/recovery, provider-driven tool execution, durable concurrent storage, and release gates remain open.
 
 ## Enterprise-readiness position
 
@@ -59,8 +59,8 @@ Implemented and truthful in this slice:
 - `models list|inspect|probe`
 - `agents list|inspect|validate`
 - `doctor`, including dependency, agent-registry, live-route, and credential posture checks
-- `missions create|run|inspect|pause|resume|cleanup|report`; mission specs may opt into the bounded `agent_tools` bridge
-- `runs list|rebuild|inspect|events|changes|evaluations|export`; event reads and exports verify the integrity chain and typed receipt index
+- `missions create|run|inspect|pause|resume|cancel|cleanup|report`; cancellation is cooperative and recorded as run evidence
+- `runs list|rebuild|inspect|events|watch|sizes|changes|evaluations|export`; event reads and exports verify the integrity chain and typed receipt index
 - `benchmark run` for the Capsule discovery slice
 
 `missions run` accepts explicit step, repair, token, output, and write budgets. A mission can set `agent_tools` to bounded `relay.write_file` or `relay.run_command` calls; the Agents SDK registry and approval provider execute them through Relay's policy worker, and the run records the result. The default Agents SDK aggregate smoke can be skipped for a deliberately configured run with `--skip-agent-smoke`; the run records that it was skipped. Not yet implemented: provider-driven model tool planning, adaptive routing, full multi-step Dispatch workflow loading, interactive approval UI, live Ollama Cloud proof, authenticated service mode, full workcell recovery, durable concurrent storage, and the complete Capsule A/B benchmark rubric. Those remain explicit follow-up work rather than placeholder commands.
@@ -90,6 +90,7 @@ Mission actions are declarative and policy checked. Write-enabled missions requi
 - `tests/relay_watch_smoke.sh`: bounded live event observation with terminal evidence verification
 - `tests/relay_metrics_smoke.sh`: bounded AI/adapter duration telemetry evidence
 - `tests/relay_sizes_smoke.sh`: bounded artifact size inventory and symlink rejection
+- `tests/relay_cancel_smoke.sh`: cooperative running-mission cancellation and terminal evidence
 - `tests/relay_output_budget_smoke.sh`: bounded command evidence and explicit truncation smoke test
 - `tests/relay_watchdog_smoke.sh`: configured Watchdog health/config/request-correlation contract smoke test
 - `tests/relay_watchdog_real_smoke.sh`: actual local Watchdog server, token auth, stub upstream, and correlation smoke test
@@ -114,6 +115,7 @@ bash tests/relay_store_smoke.sh
 bash tests/relay_lock_stress_smoke.sh
 bash tests/relay_watch_smoke.sh
 bash tests/relay_metrics_smoke.sh
+bash tests/relay_cancel_smoke.sh
 bash tests/relay_output_budget_smoke.sh
 bash tests/relay_watchdog_smoke.sh
 bash tests/relay_watchdog_real_smoke.sh
@@ -121,4 +123,4 @@ bash tests/relay_agents_tool_smoke.sh
 git diff --check
 ```
 
-For the full integration evidence boundary and deferred enterprise work, see [`docs/enterprise-readiness-review-2026-07-11.md`](docs/enterprise-readiness-review-2026-07-11.md), [`docs/command-reference.md`](docs/command-reference.md), and the current [`docs/next-session-enhancement-backlog-2026-07-11-v14.md`](docs/next-session-enhancement-backlog-2026-07-11-v14.md).
+For the full integration evidence boundary and deferred enterprise work, see [`docs/enterprise-readiness-review-2026-07-11.md`](docs/enterprise-readiness-review-2026-07-11.md), [`docs/command-reference.md`](docs/command-reference.md), and the current [`docs/next-session-enhancement-backlog-2026-07-11-v15.md`](docs/next-session-enhancement-backlog-2026-07-11-v15.md).

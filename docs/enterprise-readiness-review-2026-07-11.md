@@ -53,6 +53,7 @@ The correct posture is: **local-first hardened alpha / ecosystem showcase**. The
 | Live observation | Bounded `runs watch` emits verified event records while a run is active and reconciles terminal state with the event file | `src/cli.kujo`, `tests/relay_watch_smoke.sh` |
 | Performance evidence | Bounded AI bridge, tool, and evidence adapter calls expose non-negative duration measurements | `src/adapters.kujo`, `src/runtime.kujo`, `tests/relay_metrics_smoke.sh` |
 | Artifact size evidence | Read-only `runs sizes` inventories persisted run artifacts, excludes workspace, and rejects symlinks/oversized entry sets | `src/cli.kujo`, `tests/relay_sizes_smoke.sh` |
+| Mission cancellation | Cooperative `missions cancel` request checks around actions, terminal event, and RunLedger finish evidence | `src/runtime.kujo`, `src/cli.kujo`, `tests/relay_cancel_smoke.sh` |
 | Event integrity | AgentEvent-compatible JSONL records carry deterministic SHA-256 integrity fields and tamper validation | `src/contracts.kujo`, contract smoke |
 | Worktree cleanup authority | Cleanup rejects tampered paths and requires the run-owned workspace target | `src/runtime.kujo`, `tests/relay_worktree_smoke.sh` |
 | Agents SDK tools | A Kujo bridge registers `relay.write_file` and `relay.run_command`, applies Agents SDK approval providers, and delegates to Relay's capability-bound policy worker | `src/agent_bridge.kujo`, `src/runtime.kujo`, `tests/relay_agents_tool_smoke.sh` |
@@ -76,7 +77,7 @@ The correct posture is: **local-first hardened alpha / ecosystem showcase**. The
 2. CaseFile and Redact failure evidence integration.
 3. Watchdog rate limits, budget accounting, and correlation IDs attached to every event.
 4. Capsule A/B benchmark execution and comparable Eval reports.
-5. Bounded cancellation, retry classes, provider fallback, and repair receipts; basic timeouts and output/write bounds are now local proof only.
+5. Process-group cancellation, retry classes, provider fallback, and repair receipts; cooperative action-boundary cancellation, basic timeouts, and output/write bounds are now local proof only.
 6. CI gates using Fence, Concord, ShipCheck, and deterministic release manifests.
 
 ### P2 — Performance and product maturity
@@ -182,6 +183,17 @@ paths, and caps inventory traversal at 4096 files. The focused size smoke proves
 both a normal inventory and fail-closed symlink handling. This is local disk
 evidence only; retention, compaction, transfer cost, and durable multi-host
 artifact storage remain open.
+
+## Fifteenth review slice — cooperative mission cancellation
+
+Relay now exposes `missions cancel <run-id>`. It records a cancellation request
+as run evidence, checks it before and after each declared action, transitions
+the run to `cancelled`, emits a sealed `run_cancelled` event, and finishes the
+RunLedger record. Paused runs can be cancelled immediately. The focused smoke
+proves cancellation during a slow repository action and rejects a false
+completion event. This is cooperative local cancellation only; process-group
+termination, rollback, distributed identity/authorization, and workcell
+recovery remain open.
 
 ## Eighth review slice — complete evidence verification
 
