@@ -361,3 +361,18 @@ retain a direct-child fallback; rollback, workcell ownership, and distributed
 cancellation remain deferred. Rejected: Relay-managed shell kill commands,
 process-name scans, or claiming cooperative cancellation was sufficient without
 an executable descendant test.
+
+## ADR-050: Redact structured credentials before evidence persistence
+
+Context: Relay already redacted bearer headers and environment-style secret
+assignments, but tool output and adapter diagnostics can contain JSON fields or
+provider-native token formats. Decision: extend the shared redaction boundary
+to API/access/auth tokens, client secrets, passwords, generic secret fields,
+common OpenAI/AWS/GitHub/Slack token forms, and private-key markers before
+subprocess or adapter evidence is persisted. Rationale: evidence is copied into
+run state, receipts, reports, and machine exports, so relying only on a future
+Redact integration would leave a local disclosure path. Consequence: values
+matching these patterns are intentionally replaced and full prompt/packet
+redaction, secret custody, and tenant-aware policy remain deferred. Rejected:
+redacting only `KEY=` assignments, trusting downstream readers to sanitize, or
+persisting raw tool output for debugging convenience.

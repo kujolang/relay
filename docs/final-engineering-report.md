@@ -341,3 +341,11 @@ endpoint information but no longer returns raw constructed URLs or transport
 exception text. The unreachable-route redaction smoke and full Relay gates
 pass. External provider proof, authenticated route discovery, TLS policy,
 certificate validation, and mTLS remain deferred.
+
+## Thirty-second 2026-07-12 review
+
+Relay's shared evidence redactor now covers structured credential fields and
+common provider token/private-key markers in addition to bearer and
+environment-style secrets. This is a local disclosure reduction with focused
+contract evidence; it does not replace the deferred Redact integration,
+tenant-aware secret custody, or prompt/packet/handoff policy.

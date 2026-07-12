@@ -330,3 +330,14 @@ Relay smoke runs a 30-second descendant task and proves terminal cancellation
 within eight seconds, with no orphaned slow process observed. Non-Unix
 direct-child behavior, rollback-aware workcells, and distributed cancellation
 remain deferred.
+
+## Thirty-second 2026-07-12 review
+
+This review closed a local evidence-redaction gap. Relay previously handled
+bearer headers and environment-style assignments but could preserve structured
+JSON credentials or common provider token formats in subprocess and adapter
+evidence. The shared redactor now covers API/access/auth tokens, client
+secrets, passwords, generic secret fields, OpenAI/AWS/GitHub/Slack token
+patterns, and private-key markers. Contract tests prove the new cases. Full
+Redact integration across prompts, packets, handoffs, tenant-aware custody,
+and external-provider evidence remains deferred.
