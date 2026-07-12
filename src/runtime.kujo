@@ -130,6 +130,10 @@ func cleanup_state_safe(state, run_id, run_dir) {
     return {"ok": true}
 }
 
+func control_state_safe(state, run_id, run_dir) {
+    return resume_state_safe(state, run_id, run_dir)
+}
+
 func load_spec(path) {
     if type(path) != "string" || trim(path) == "" || path_exists(path) == false { return {"ok": false, "error": "Mission file is missing or invalid JSON: " + to_string(path)} }
     if path_is_symlink(path) { return {"ok": false, "error": "Mission file must not be a symbolic link"} }
@@ -543,6 +547,8 @@ func pause_run(run_id) {
     state := read_json_limited(record["run_dir"] + "/state.json", null, 67108864)
     if type(state) != "dict" { return {"ok": false, "error": "run state missing"} }
     if state["status"] != "running" { return {"ok": false, "error": "only running runs can be paused; use --pause-after-plan for a resumable checkpoint"} }
+    integrity := control_state_safe(state, run_id, record["run_dir"])
+    if integrity["ok"] == false { return {"ok": false, "failure_class": "state_integrity_failure", "error": integrity["error"]} }
     state["status"] := "paused"
     state := add_event(state, record["run_dir"], "run_paused", "pause", "relay", {"reason": "operator_pause", "resumable": true})
     save_state(state, record["run_dir"])
@@ -560,6 +566,8 @@ func cancel_run(run_id) {
     if type(state) != "dict" { return {"ok": false, "error": "run state missing"} }
     status := string_or(dict_get_or(state, "status", ""), "")
     if status == "completed" || status == "failed" || status == "cancelled" { return {"ok": false, "error": "run is already terminal", "run": state} }
+    integrity := control_state_safe(state, run_id, run_dir)
+    if integrity["ok"] == false { return {"ok": false, "failure_class": "state_integrity_failure", "error": integrity["error"]} }
     if status == "paused" {
         state["status"] := "cancelled"
         state["current_step"] := ""
@@ -692,3 +700,4 @@ export state_root := state_root
 export run_root := run_root
 export resume_state_safe := resume_state_safe
 export cleanup_state_safe := cleanup_state_safe
+export control_state_safe := control_state_safe

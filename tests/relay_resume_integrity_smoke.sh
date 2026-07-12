@@ -18,6 +18,8 @@ ruby -rjson -e 'spec=JSON.parse(File.read(ARGV.fetch(0))); spec["repository"]=AR
 
 export RELAY_ROOT="$ROOT"
 paused="$($KUJO run "$ROOT/main.kujo" -- missions run "$SPEC" --fixture --pause-after-plan --json)"
+printf '%s' "$paused" | grep -q '"ok":true'
+printf '%s' "$paused" | grep -q '"status":"paused"'
 run_id="$(printf '%s' "$paused" | ruby -rjson -e 'print JSON.parse(STDIN.read)["run"]["run_id"]')"
 run_dir="$ROOT/.relay/runs/$run_id"
 test -n "$run_id"
@@ -41,6 +43,12 @@ policy_rc=$?
 set -e
 test "$policy_rc" -ne 0
 printf '%s' "$policy_tamper" | grep -q 'state_integrity_failure'
+test ! -e "$WORK/RESUME_INTEGRITY_OUTPUT.txt"
+
+cp "$run_dir/state.clean.json" "$run_dir/state.json"
+cancelled="$($KUJO run "$ROOT/main.kujo" -- missions cancel "$run_id" --json)"
+printf '%s' "$cancelled" | grep -q '"ok":true'
+printf '%s' "$cancelled" | grep -q '"status":"cancelled"'
 test ! -e "$WORK/RESUME_INTEGRITY_OUTPUT.txt"
 
 echo "PASS relay resume integrity smoke"
