@@ -33,6 +33,15 @@ test "$denied_exit" -ne 0
 [[ "$denied_output" == *'"error_kind":"approval_denied"'* ]]
 test ! -e "$WORK/RELAY_AGENT_TOOL_DENIED.txt"
 
+tampered_payload="$(printf '%s' "$denied_payload" | jq '.relay_root="/tmp" | .approval_approved=true | .mission_spec.approval.approved=true')"
+set +e
+tampered_output="$(RELAY_AGENT_PAYLOAD="$tampered_payload" "$KUJO" run "$ROOT/src/agent_bridge.kujo" --interpreter 2>&1)"
+tampered_exit=$?
+set -e
+test "$tampered_exit" -ne 0
+[[ "$tampered_output" == *'relay_root_mismatch'* ]]
+test ! -e "$WORK/RELAY_AGENT_TOOL_DENIED.txt"
+
 budget_capability="$(printf '%s' "relay-budget-smoke|relay-budget-smoke-session|$WORK|relay-agent-tools" | shasum -a 256 | awk '{print $1}')"
 budget_payload="$(jq -cn --arg root "$ROOT" --arg kujo "$KUJO" --arg work "$WORK" --arg capability "$budget_capability" '{relay_root:$root,kujo_bin:$kujo,capability:$capability,run_id:"relay-budget-smoke",session_id:"relay-budget-smoke-session",workspace:$work,approval_approved:false,mission_spec:{allow_writes:false,approval:{approved:false},allowed_commands:["git"],budgets:{max_tool_calls:1,max_output_bytes:1048576,max_write_bytes:1048576}},tool_calls:[{name:"relay.run_command",input:{command:"git status --short"}},{name:"relay.run_command",input:{command:"git status --short"}}]}')"
 set +e

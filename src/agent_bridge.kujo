@@ -55,8 +55,17 @@ func process_options(extra_env, timeout_ms) {
 }
 
 func call_relay_worker(tool_name, input_payload, context, payload) {
-    relay_root := to_string(get(payload, "relay_root", env("RELAY_ROOT")))
-    kujo_bin := to_string(get(payload, "kujo_bin", env("KUJO_BIN")))
+    configured_relay_root := to_string(env("RELAY_ROOT"))
+    if configured_relay_root == "" { configured_relay_root = "." }
+    configured_kujo_bin := to_string(env("KUJO_BIN"))
+    if configured_kujo_bin == "" { configured_kujo_bin = configured_relay_root + "/../kujo/target/release/kujo" }
+    requested_relay_root := to_string(get(payload, "relay_root", configured_relay_root))
+    requested_kujo_bin := to_string(get(payload, "kujo_bin", configured_kujo_bin))
+    if requested_relay_root != configured_relay_root { return {"ok": false, "error": {"code": "relay_root_mismatch", "message": "Agents SDK worker root must match trusted RELAY_ROOT"}} }
+    if requested_kujo_bin != configured_kujo_bin { return {"ok": false, "error": {"code": "kujo_bin_mismatch", "message": "Agents SDK worker binary must match trusted KUJO_BIN"}} }
+    if path_is_dir(configured_relay_root) == false || path_is_symlink(configured_relay_root) || path_exists(configured_relay_root + "/main.kujo") == false || path_is_symlink(configured_relay_root + "/main.kujo") { return {"ok": false, "error": {"code": "relay_root_invalid", "message": "Trusted Relay worker root is missing or unsafe"}} }
+    relay_root := configured_relay_root
+    kujo_bin := configured_kujo_bin
     capability := to_string(get(payload, "capability", ""))
     clean_input := {}
     if tool_name == "relay.write_file" { clean_input = {"path": to_string(get(input_payload, "path", "")), "content": to_string(get(input_payload, "content", ""))} }
