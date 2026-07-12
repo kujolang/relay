@@ -1,4 +1,4 @@
-from src.common import dict_get_or, env_or, string_or, bool_or, int_or, now_iso, safe_id, read_json_or, read_json_limited, write_json, append_jsonl, safe_json, shell_quote_single, command_args, write_text_atomic, process_options, redact_text
+from src.common import dict_get_or, env_or, string_or, bool_or, int_or, now_iso, safe_id, read_json_or, read_json_limited, write_json, append_jsonl, safe_json, shell_quote_single, command_args, write_text_atomic, process_options, process_options_with_cancel, redact_text
 from src.contracts import run_state, event, event_integrity_input, receipt, event_chain_integrity_valid, receipt_sequence_valid
 from src.registry import find_agent
 from src.policy import tool_decision, classify_failure, path_is_safe, path_is_within_workspace, command_is_allowed
@@ -269,12 +269,14 @@ func execute_action(action, spec, state, run_dir) {
         direct_command := ["/usr/bin/env", "-C", repo]
         for argument in argv { direct_command := push(direct_command, argument) }
         started_ms := current_timestamp()
-        result := spawn_process(direct_command, process_options({}, int_or(dict_get_or(action, "timeout_ms", 120000), 120000), state["budgets"]["max_output_bytes"]))
+        cancel_file := ""
+        if path_exists(run_dir + "/state.json") { cancel_file = run_dir + "/cancel.request.json" }
+        result := spawn_process(direct_command, process_options_with_cancel({}, int_or(dict_get_or(action, "timeout_ms", 120000), 120000), state["budgets"]["max_output_bytes"], cancel_file))
         duration_ms := current_timestamp() - started_ms
         ok := result.success
         output_truncated := result.stdout_truncated
         if result.stderr_truncated { output_truncated = true }
-        return {"ok": ok, "tool": "run_command", "command": redact_text(command), "stdout": redact_text(result.stdout), "stderr": redact_text(result.stderr), "timed_out": result.timed_out, "stdout_truncated": result.stdout_truncated, "stderr_truncated": result.stderr_truncated, "output_truncated": output_truncated, "duration_ms": duration_ms, "failure_class": "tool_failure"}
+        return {"ok": ok, "tool": "run_command", "command": redact_text(command), "stdout": redact_text(result.stdout), "stderr": redact_text(result.stderr), "timed_out": result.timed_out, "cancelled": result.cancelled, "stdout_truncated": result.stdout_truncated, "stderr_truncated": result.stderr_truncated, "output_truncated": output_truncated, "duration_ms": duration_ms, "failure_class": "tool_failure"}
     }
     return {"ok": false, "failure_class": "policy_violation", "error": "unknown_action_type"}
 }

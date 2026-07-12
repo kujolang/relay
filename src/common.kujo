@@ -140,6 +140,13 @@ func process_options(extra_env, timeout_ms, max_output_bytes) {
     return {"inherit_env": false, "timeout_ms": timeout_ms, "max_output_bytes": max_output_bytes, "env": env_map, "env_allow": allowed}
 }
 
+func process_options_with_cancel(extra_env, timeout_ms, max_output_bytes, cancel_file) {
+    options := process_options(extra_env, timeout_ms, max_output_bytes)
+    path := trim(to_string(cancel_file))
+    if path != "" { options["cancel_file"] := path }
+    return options
+}
+
 func read_json_or(path, fallback) {
     if path_exists(path) == false { return fallback }
     if path_is_symlink_safe(path) || path_is_file(path) == false { return fallback }
@@ -211,6 +218,7 @@ export path_is_symlink_safe := path_is_symlink_safe
 export write_text_atomic := write_text_atomic
 export safe_process_path := safe_process_path
 export process_options := process_options
+export process_options_with_cancel := process_options_with_cancel
 export read_json_or := read_json_or
 export read_json_limited := read_json_limited
 export write_json := write_json

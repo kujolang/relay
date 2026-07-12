@@ -12,7 +12,7 @@ mkdir -p "$WORK/scripts"
 git init -q "$WORK"
 git -C "$WORK" config user.email relay@example.invalid
 git -C "$WORK" config user.name Relay
-printf '#!/usr/bin/env bash\nsleep 2\n' > "$WORK/scripts/slow.sh"
+printf '#!/usr/bin/env bash\nsleep 30\n' > "$WORK/scripts/slow.sh"
 chmod +x "$WORK/scripts/slow.sh"
 touch "$WORK/README.md"
 git -C "$WORK" add README.md scripts/slow.sh
@@ -42,7 +42,10 @@ done
 sleep 0.1
 request="$($KUJO run "$ROOT/main.kujo" -- missions cancel "$run_id" --json)"
 printf '%s' "$request" | jq -e '.ok == true and .status == "cancellation_requested" and .run.status == "running"' >/dev/null
+started_wait="$(date +%s)"
 wait "$mission_pid" || true
+elapsed_wait=$(( $(date +%s) - started_wait ))
+test "$elapsed_wait" -lt 8
 
 state="$($KUJO run "$ROOT/main.kujo" -- missions inspect "$run_id" --json)"
 printf '%s' "$state" | jq -e '.ok == true and .run.status == "cancelled" and (.run.events | map(.kind) | index("run_cancelled")) != null and (.run.events | map(.kind) | index("run_completed")) == null' >/dev/null

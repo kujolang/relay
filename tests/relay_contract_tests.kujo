@@ -1,7 +1,7 @@
 from src.contracts import event, event_integrity_valid, event_chain_integrity_valid, event_sequence_matches_state, receipt, receipt_integrity_valid, receipt_sequence_valid, receipt_sequence_matches_state, run_state, agent_profile, RELAY_VERSION, EVENT_CONTRACT, RECEIPT_CONTRACT
 from src.policy import classify_failure, path_is_safe, path_is_within_workspace, command_is_allowed, tool_decision
 from src.runtime import resume_state_safe, cleanup_state_safe, control_state_safe, save_state, mark_evidence_failure
-from src.common import safe_id, redact_text, shell_quote_single, command_args, process_options, safe_env_name, path_is_symlink_safe, read_json_limited, dict_get_or, safe_json
+from src.common import safe_id, redact_text, shell_quote_single, command_args, process_options, process_options_with_cancel, safe_env_name, path_is_symlink_safe, read_json_limited, dict_get_or, safe_json
 from src.adapters import fallback_allowed, watchdog_route_allowed
 from src.store import safe_run_key, store_root_safe, acquire_index_lock, acquire_index_lock_retry, release_index_lock
 from src.watchdog import safe_base, safe_correlation_id, route_policy
@@ -71,6 +71,8 @@ failed = failed + check("direct command argv", len(argv) == 3 && argv[0] == "git
 failed = failed + check("tabbed command denied", command_is_allowed("git status\t--short", {"allowed_commands": ["git"]}) == false)
 process := process_options({"RELAY_TEST_ENV": "ok"}, 1000, 4096)
 failed = failed + check("bounded process environment", process["inherit_env"] == false && process["max_output_bytes"] == 4096 && has_key(process["env"], "RELAY_TEST_ENV"))
+cancel_options := process_options_with_cancel({}, 1000, 4096, "/tmp/relay-cancel-contract.request")
+failed = failed + check("process cancellation hook", cancel_options["cancel_file"] == "/tmp/relay-cancel-contract.request")
 failed = failed + check("fixed process PATH", process["env"]["PATH"] == "/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin")
 failed = failed + check("safe API env name", safe_env_name("OLLAMA_API_KEY") && safe_env_name("VENDOR_TOKEN_1"))
 failed = failed + check("reserved API env name denied", safe_env_name("PATH") == false)
