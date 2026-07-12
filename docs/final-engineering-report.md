@@ -149,3 +149,15 @@ alpha; this does not establish durable multi-host storage, stronger workcells,
 or production identity/tenancy.
 The next handoff is
 `docs/next-session-enhancement-backlog-2026-07-11-v11.md`.
+
+## Twelfth 2026-07-11 review
+
+This review adds bounded live mission observation through `runs watch`. The
+watcher streams complete AgentEvent-compatible records from the existing
+JSONL evidence file, verifies the chain on each poll, uses explicit poll and
+timeout limits, and handles the final state/file persistence race without
+misclassifying a valid run. A concurrent mission smoke passes through
+`run_completed`. Relay remains a local-first alpha; remote subscriptions,
+durable event fan-out, external-provider proof, and enterprise identity remain
+open. The next handoff is
+`docs/next-session-enhancement-backlog-2026-07-11-v12.md`.

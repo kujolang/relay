@@ -50,6 +50,7 @@ The correct posture is: **local-first hardened alpha / ecosystem showcase**. The
 | Watchdog evidence | Correlation is propagated through the AI SDK bridge; optional verification checks authenticated health, proxy config, and the matching request row without returning telemetry payloads | `src/watchdog.kujo`, `tests/relay_watchdog_smoke.sh`, `tests/relay_watchdog_real_smoke.sh` |
 | Shell boundary | Allowlisted mission commands execute as direct argv without a shell; tabs, shell syntax, Git pathspecs, unknown options, and script arguments are rejected | `src/common.kujo`, `src/policy.kujo`, `src/runtime.kujo`, contract and mission smokes |
 | Index concurrency | Atomic lock directory, bounded four-attempt backoff, stale-lock recovery, cache-size/symlink checks, and state/status freshness validation protect the rebuildable index | `src/store.kujo`, contract, store, and lock-stress smokes |
+| Live observation | Bounded `runs watch` emits verified event records while a run is active and reconciles terminal state with the event file | `src/cli.kujo`, `tests/relay_watch_smoke.sh` |
 | Event integrity | AgentEvent-compatible JSONL records carry deterministic SHA-256 integrity fields and tamper validation | `src/contracts.kujo`, contract smoke |
 | Worktree cleanup authority | Cleanup rejects tampered paths and requires the run-owned workspace target | `src/runtime.kujo`, `tests/relay_worktree_smoke.sh` |
 | Agents SDK tools | A Kujo bridge registers `relay.write_file` and `relay.run_command`, applies Agents SDK approval providers, and delegates to Relay's capability-bound policy worker | `src/agent_bridge.kujo`, `src/runtime.kujo`, `tests/relay_agents_tool_smoke.sh` |
@@ -149,6 +150,17 @@ linear lock backoff, and `tests/relay_lock_stress_smoke.sh` exercises twelve
 concurrent `runs rebuild` callers without corrupting the cache. These are local
 security/performance improvements, not proof of durable multi-host storage or
 an identity-aware security boundary.
+
+## Twelfth review slice — bounded live event observation
+
+Relay now exposes `runs watch <run-id>` as a machine-readable JSONL watcher over
+the existing AgentEvent-compatible file stream. It emits each complete event
+once, verifies the chain on every poll, bounds polling and total wait time, and
+waits through the final state/file persistence race before validating terminal
+receipts and state consistency. `tests/relay_watch_smoke.sh` proves a watcher
+can observe a concurrently executing fixture mission through `run_completed`.
+This is a local CLI observation surface, not a remote subscription service or a
+durable multi-host event bus.
 
 ## Eighth review slice — complete evidence verification
 
