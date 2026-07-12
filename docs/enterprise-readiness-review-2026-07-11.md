@@ -118,6 +118,15 @@ and export refuses tampered logs. These are local hardening improvements, not
 proof of external-provider availability, signed exports, durable multi-host
 storage, or universal enterprise readiness.
 
+## Ninth review slice — execution-context correlation
+
+Every newly emitted event now carries workflow, model, provider, packet
+revision, and RunLedger run ID metadata before its integrity hash is sealed.
+This reduces downstream reconstruction work for CI, Paperclip, and future
+machine adapters. Typed tool, artifact, evaluation, retry, repair, and
+cancellation IDs remain open, so this is correlation hardening rather than a
+claim of complete enterprise evidence.
+
 ## Eighth review slice — complete evidence verification
 
 The machine evidence boundary now rejects not only mutated or reordered event

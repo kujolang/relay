@@ -114,4 +114,4 @@ bash tests/relay_agents_tool_smoke.sh
 git diff --check
 ```
 
-For the full integration evidence boundary and deferred enterprise work, see [`docs/enterprise-readiness-review-2026-07-11.md`](docs/enterprise-readiness-review-2026-07-11.md), [`docs/command-reference.md`](docs/command-reference.md), and the current [`docs/next-session-enhancement-backlog-2026-07-11-v8.md`](docs/next-session-enhancement-backlog-2026-07-11-v8.md).
+For the full integration evidence boundary and deferred enterprise work, see [`docs/enterprise-readiness-review-2026-07-11.md`](docs/enterprise-readiness-review-2026-07-11.md), [`docs/command-reference.md`](docs/command-reference.md), and the current [`docs/next-session-enhancement-backlog-2026-07-11-v9.md`](docs/next-session-enhancement-backlog-2026-07-11-v9.md).

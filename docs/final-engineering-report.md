@@ -106,10 +106,19 @@ The store smoke now proves both sequence truncation and payload tampering are
 rejected. The next handoff is
 `docs/next-session-enhancement-backlog-2026-07-11-v8.md`.
 
+## Ninth 2026-07-11 review
+
+This review attaches workflow, model, provider, packet revision, and RunLedger
+IDs to every newly emitted AgentEvent-compatible record before integrity
+sealing. The mission smoke proves the context is visible in resumable run
+state. Typed tool, artifact, evaluation, retry, and repair receipts remain
+follow-up work. The next handoff is
+`docs/next-session-enhancement-backlog-2026-07-11-v9.md`.
+
 ## Repository handoff
 
-The current Relay implementation includes complete event-evidence verification
-in `51f1cd4`, with the review documentation in the follow-up commit.
+The current Relay implementation includes execution-context event correlation
+in `df38e81`, with the review documentation in the follow-up commit.
 Both are intended to be pushed to `origin/main`, and the tree should remain
 clean. The next session should preserve this evidence boundary rather than
 widening claims.
