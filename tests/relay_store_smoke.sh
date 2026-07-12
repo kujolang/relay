@@ -41,6 +41,18 @@ printf '%s' "$exported" | grep -q '"integrity_valid":true'
 test -f "$export_path"
 jq -e --arg run_id "$run_id" '.format == "relay-run-export-v1" and .run_id == $run_id and .integrity_valid == true and .receipts_valid == true and .receipts_consistent == true and (.events | length) > 0 and (.receipts | length) >= 7 and (.receipts | map(.receipt_id) as $ids | (($ids | unique | length) == ($ids | length)))' "$export_path" >/dev/null
 
+events_path="$ROOT/.relay/runs/$run_id/events.jsonl"
+mv "$events_path" "$events_path.regular"
+ln -s /etc/passwd "$events_path"
+set +e
+symlink_events="$($KUJO run "$ROOT/main.kujo" -- runs events "$run_id" --json 2>&1)"
+symlink_rc=$?
+set -e
+test "$symlink_rc" -ne 0
+printf '%s' "$symlink_events" | grep -q 'symbolic-linked'
+rm "$events_path"
+mv "$events_path.regular" "$events_path"
+
 receipts_path="$ROOT/.relay/runs/$run_id/receipts.json"
 cp "$receipts_path" "$receipts_path.backup"
 ruby -rjson -e 'path=ARGV.fetch(0); receipts=JSON.parse(File.read(path)); receipts[0]["status"]="tampered"; File.write(path, JSON.generate(receipts))' "$receipts_path"
@@ -52,7 +64,6 @@ test "$receipts_rc" -ne 0
 printf '%s' "$tampered_receipts" | grep -q '"receipts_valid":false'
 mv "$receipts_path.backup" "$receipts_path"
 
-events_path="$ROOT/.relay/runs/$run_id/events.jsonl"
 cp "$events_path" "$events_path.backup"
 # A truncated log must fail closed even when the remaining prefix is internally
 # hash-valid, because authoritative state records the expected event sequence.

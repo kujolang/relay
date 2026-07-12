@@ -135,6 +135,7 @@ func process_options(extra_env, timeout_ms, max_output_bytes) {
 
 func read_json_or(path, fallback) {
     if path_exists(path) == false { return fallback }
+    if path_is_symlink(path) || path_is_file(path) == false { return fallback }
     try { return parse_json(read_file(path)) } except err { return fallback }
 }
 
@@ -145,7 +146,10 @@ func write_json(path, value) {
 func append_jsonl(path, value) {
     try {
         line := safe_json(value) + "\n"
-        if path_exists(path) { append_file(path, line) } else { write_file(path, line) }
+        if path_exists(path) {
+            if path_is_symlink(path) || path_is_file(path) == false { return false }
+            append_file(path, line)
+        } else { write_file(path, line) }
         return true
     } except err { return false }
 }
