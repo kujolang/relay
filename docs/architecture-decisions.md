@@ -236,6 +236,18 @@ run; signed state, multi-user ownership, and durable crash recovery remain
 deferred. Rejected: trusting state because the run index points to the correct
 directory, or validating only the workspace path after resuming.
 
+## ADR-042: Share checkpoint integrity across operator controls
+
+Context: resume and cleanup had explicit state validation, but pause and cancel
+could still mutate a non-terminal run after its persisted policy, workspace, or
+evidence state had been edited. Decision: route pause and cancel through the
+same checkpoint integrity validator before mutation. Rationale: operator
+controls are state transitions with authority consequences, even when they do
+not write repository files. Consequence: malformed or legacy state fails closed
+for local controls; distributed identity, signed state, and authenticated
+control channels remain deferred. Rejected: validating only destructive cleanup
+and treating pause/cancel as harmless metadata changes.
+
 ## ADR-041: Revalidate state before destructive worktree cleanup
 
 Context: confirmed cleanup invoked `git worktree remove --force` using terminal

@@ -237,6 +237,16 @@ across all three machine-callable paths. This is a bounded local transport
 contract; authenticated file/socket transport and larger prompt semantics
 remain deferred.
 
+## Twenty-sixth 2026-07-12 review
+
+This review reused checkpoint integrity for operator pause and cancel controls.
+Non-terminal control mutations now verify the mission policy, workspace, event,
+receipt, and budget state before changing persisted run state. The PackWrite
+integration was also restored after its existing atomic-write migration lacked
+the referenced helper; PackWrite verification passed 144 unit and 47 CLI
+assertions, and Relay’s 19-gate suite passed. Distributed identity, signed
+state, and authenticated control channels remain deferred.
+
 ## Twenty-first 2026-07-11 review
 
 Live AI invocation now validates the configured Watchdog URL before starting

@@ -168,6 +168,10 @@ worktree, source-repository, Git-metadata, event, and receipt checks before
 calling Git worktree removal. A tampered terminal state cannot redirect cleanup
 to another repository.
 
+Operator `missions pause` and `missions cancel` controls also verify the same
+checkpoint state before mutating a non-terminal run. This keeps all local
+control-plane mutations behind one integrity boundary.
+
 ## Exit-code guidance
 
 - `0`: command or mission succeeded and required evidence passed.

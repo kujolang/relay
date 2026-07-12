@@ -64,6 +64,7 @@ The correct posture is: **local-first hardened alpha / ecosystem showcase**. The
 | Secret-safe route diagnostics | `doctor --json` reuses route policy, fails live readiness for unsafe routes, and never echoes raw Watchdog URLs | `src/watchdog.kujo`, `src/doctor.kujo`, contract and CLI smokes |
 | Resume checkpoint authority | Paused runs verify policy digest, workspace/Git identity, budgets, event chain, and receipts before resumed execution | `src/runtime.kujo`, `tests/relay_resume_integrity_smoke.sh`, contract tests |
 | Cleanup state authority | Confirmed worktree cleanup revalidates policy, source/worktree identity, Git metadata, events, and receipts before destructive Git removal | `src/runtime.kujo`, `tests/relay_worktree_smoke.sh`, contract tests |
+| Control-plane state authority | Operator pause and cancel revalidate checkpoint integrity before mutating non-terminal state | `src/runtime.kujo`, `tests/relay_contract_tests.kujo`, cancellation/resume smokes |
 | Event integrity | AgentEvent-compatible JSONL records carry deterministic SHA-256 integrity fields and tamper validation | `src/contracts.kujo`, contract smoke |
 | Worktree cleanup authority | Cleanup rejects tampered paths and requires the run-owned workspace target | `src/runtime.kujo`, `tests/relay_worktree_smoke.sh` |
 | Agents SDK tools | A Kujo bridge registers `relay.write_file` and `relay.run_command`, applies Agents SDK approval providers, and delegates to Relay's capability-bound policy worker | `src/agent_bridge.kujo`, `src/runtime.kujo`, `tests/relay_agents_tool_smoke.sh` |
