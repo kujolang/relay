@@ -136,3 +136,16 @@ This is correlation and integrity hardening, not a replacement for upstream
 stores or proof of external-provider, durable multi-host, or signed export
 support. The next handoff is
 `docs/next-session-enhancement-backlog-2026-07-11-v10.md`.
+
+## Eleventh 2026-07-11 review
+
+This review tightened the security and concurrency edges left after the typed
+receipt work. Mission commands now use exact read-only Git argv profiles and
+reject pathspecs, unknown options, arbitrary subcommands, and script arguments.
+The rebuildable index now retries lock acquisition with a bounded linear
+backoff, and twelve concurrent rebuild callers pass a deterministic stress
+smoke without corrupting the authoritative cache. Relay remains a local-first
+alpha; this does not establish durable multi-host storage, stronger workcells,
+or production identity/tenancy.
+The next handoff is
+`docs/next-session-enhancement-backlog-2026-07-11-v11.md`.

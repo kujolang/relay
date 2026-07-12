@@ -46,6 +46,12 @@ Mission specs are JSON objects with `name`, `goal`, a Git `repository`, `actions
 - `write_file`: relative path, only with `allow_writes: true` and `approval.approved: true`.
 - `run_command`: read-oriented `git`, `kujo`, `bash scripts/`, or `sh scripts/` commands that pass policy. Commands are tokenized and executed as direct argv; shell pipelines, substitutions, globbing, tabs, and quoting expressions are rejected.
 
+The approved Git profile is intentionally narrow: `status`, `diff`,
+`rev-parse`, `log`, and `show` with enumerated read-only options. Positional
+pathspecs, unknown options, arbitrary Git subcommands, and script arguments are
+rejected so a read-only-looking request cannot escape the workspace or widen
+its authority through Git's option surface.
+
 `agent_tools` is an opt-in list of `{name,input}` calls currently limited to
 `relay.write_file` and `relay.run_command`. The Agents SDK Tool Registry and
 approval provider run in `src/agent_bridge.kujo`; a capability-bound worker then
@@ -70,7 +76,7 @@ complete those artifacts; upstream tools remain the canonical artifact owners.
 
 Set `workspace_mode: "worktree"` to have Relay create a detached worktree from the immutable starting commit under the run directory. The source repository remains unchanged. The worktree is retained for inspection until an operator explicitly runs `missions cleanup <run-id> --confirm`; cleanup is refused while a run is active and is never implicit.
 
-`runs list` validates the cached `.relay/index.json` against authoritative per-run `state.json` directories and rebuilds it when it is malformed, unsafe, stale, oversized, symlinked, or incomplete. Index refreshes use an atomic lock directory; `runs rebuild` forces that recovery path. The index is a cache, not the source of truth.
+`runs list` validates the cached `.relay/index.json` against authoritative per-run `state.json` directories and rebuilds it when it is malformed, unsafe, stale, oversized, symlinked, or incomplete. Index refreshes use an atomic lock directory with a bounded four-attempt backoff; `runs rebuild` forces that recovery path. The index is a cache, not the source of truth.
 
 Each AgentEvent-compatible JSONL record includes a deterministic `integrity_sha256` field covering its identity, parent, payload, and metadata. The hash detects accidental or unauthorized record mutation; signed export and durable retention remain future work.
 

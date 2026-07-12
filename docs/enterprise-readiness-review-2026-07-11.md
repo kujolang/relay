@@ -48,8 +48,8 @@ The correct posture is: **local-first hardened alpha / ecosystem showcase**. The
 | Run-index resilience | Per-run `state.json` is authoritative; malformed or incomplete index caches rebuild deterministically | `src/store.kujo`, store smoke |
 | Resource bounds | Mission output/write budgets and command timeout bounds fail closed; truncation remains explicit | `src/runtime.kujo`, output-budget smoke |
 | Watchdog evidence | Correlation is propagated through the AI SDK bridge; optional verification checks authenticated health, proxy config, and the matching request row without returning telemetry payloads | `src/watchdog.kujo`, `tests/relay_watchdog_smoke.sh`, `tests/relay_watchdog_real_smoke.sh` |
-| Shell boundary | Allowlisted mission commands execute as direct argv without a shell; tabs and shell syntax are rejected | `src/common.kujo`, `src/policy.kujo`, `src/runtime.kujo`, contract and mission smokes |
-| Index concurrency | Atomic lock directory, stale-lock recovery, cache-size/symlink checks, and state/status freshness validation protect the rebuildable index | `src/store.kujo`, contract and store smokes |
+| Shell boundary | Allowlisted mission commands execute as direct argv without a shell; tabs, shell syntax, Git pathspecs, unknown options, and script arguments are rejected | `src/common.kujo`, `src/policy.kujo`, `src/runtime.kujo`, contract and mission smokes |
+| Index concurrency | Atomic lock directory, bounded four-attempt backoff, stale-lock recovery, cache-size/symlink checks, and state/status freshness validation protect the rebuildable index | `src/store.kujo`, contract, store, and lock-stress smokes |
 | Event integrity | AgentEvent-compatible JSONL records carry deterministic SHA-256 integrity fields and tamper validation | `src/contracts.kujo`, contract smoke |
 | Worktree cleanup authority | Cleanup rejects tampered paths and requires the run-owned workspace target | `src/runtime.kujo`, `tests/relay_worktree_smoke.sh` |
 | Agents SDK tools | A Kujo bridge registers `relay.write_file` and `relay.run_command`, applies Agents SDK approval providers, and delegates to Relay's capability-bound policy worker | `src/agent_bridge.kujo`, `src/runtime.kujo`, `tests/relay_agents_tool_smoke.sh` |
@@ -138,6 +138,18 @@ receipt integrity and exact agreement with authoritative state. The store smoke
 proves a tampered receipt fails closed. Upstream tools remain canonical; this
 index is a Relay correlation layer, not a second artifact store.
 
+## Eleventh review slice — argv least privilege and lock contention
+
+Mission command policy now validates tokenized argv profiles instead of relying
+on broad Git string prefixes. Only explicit read-only Git subcommands and
+options are accepted; positional pathspecs, unknown options, arbitrary
+subcommands, and script arguments fail closed. The contract suite proves these
+rejections. The rebuildable index now uses a bounded four-attempt, 20 ms
+linear lock backoff, and `tests/relay_lock_stress_smoke.sh` exercises twelve
+concurrent `runs rebuild` callers without corrupting the cache. These are local
+security/performance improvements, not proof of durable multi-host storage or
+an identity-aware security boundary.
+
 ## Eighth review slice — complete evidence verification
 
 The machine evidence boundary now rejects not only mutated or reordered event
@@ -149,4 +161,4 @@ durable append-only storage, signed exports, and crash recovery are still open.
 
 ## Release recommendation
 
-Publish Relay only as a local-first alpha/showcase until all P0 items have executable evidence. The review hardening, including `0e030ed`, is pushed to `origin/main`; keep the README's enterprise-readiness disclaimer and require a release report that distinguishes fixture, configured-live, and production-environment evidence.
+Publish Relay only as a local-first alpha/showcase until all P0 items have executable evidence. The review hardening is pushed to `origin/main`; keep the README's enterprise-readiness disclaimer and require a release report that distinguishes fixture, configured-live, and production-environment evidence.

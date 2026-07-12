@@ -2,7 +2,7 @@
 
 This backlog is the next bounded work list after the 2026-07-11 enterprise-readiness review. Each item must add implementation, tests, documentation, and executable evidence. Do not mark an integration complete from an interface or fixture alone.
 
-The follow-up reviews created the more specific current list at [`next-session-enhancement-backlog-2026-07-11-v10.md`](next-session-enhancement-backlog-2026-07-11-v10.md); keep this document as the original P0/P1/P2 baseline.
+The follow-up reviews created the more specific current list at [`next-session-enhancement-backlog-2026-07-11-v11.md`](next-session-enhancement-backlog-2026-07-11-v11.md); keep this document as the original P0/P1/P2 baseline.
 
 ## P0 — Production proof and authority
 
