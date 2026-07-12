@@ -139,6 +139,13 @@ func read_json_or(path, fallback) {
     try { return parse_json(read_file(path)) } except err { return fallback }
 }
 
+func read_json_limited(path, fallback, max_bytes) {
+    limit := int_or(max_bytes, 1048576)
+    if limit <= 0 || path_exists(path) == false { return fallback }
+    if path_is_symlink(path) || path_is_file(path) == false || file_size(path) > limit { return fallback }
+    return read_json_or(path, fallback)
+}
+
 func write_json(path, value) {
     return write_text_atomic(path, safe_json(value))
 }
@@ -197,6 +204,7 @@ export write_text_atomic := write_text_atomic
 export safe_process_path := safe_process_path
 export process_options := process_options
 export read_json_or := read_json_or
+export read_json_limited := read_json_limited
 export write_json := write_json
 export append_jsonl := append_jsonl
 export contains_any := contains_any

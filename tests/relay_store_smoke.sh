@@ -30,6 +30,16 @@ if printf '%s' "$listed" | grep -q 'attacker'; then
   exit 1
 fi
 
+# The cache must be size-bounded before JSON parsing, not only after a large
+# attacker-controlled document has already been loaded.
+ruby -e 'path=ARGV.fetch(0); File.write(path, "{\"oversized\":\"" + ("x" * 8388609) + "\"}")' "$ROOT/.relay/index.json"
+oversized_listed="$($KUJO run "$ROOT/main.kujo" -- runs list --json)"
+printf '%s' "$oversized_listed" | grep -q "\"$run_id\""
+if printf '%s' "$oversized_listed" | grep -q 'oversized'; then
+  echo "oversized index entry was trusted" >&2
+  exit 1
+fi
+
 rebuilt="$($KUJO run "$ROOT/main.kujo" -- runs rebuild --json)"
 printf '%s' "$rebuilt" | grep -q '"index_source":"rebuild"'
 printf '%s' "$rebuilt" | grep -q "\"$run_id\""

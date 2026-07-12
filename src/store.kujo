@@ -1,4 +1,4 @@
-from src.common import dict_get_or, int_or, read_json_or, write_json, string_or
+from src.common import dict_get_or, int_or, read_json_limited, write_json, string_or
 
 # The index is a rebuildable cache. Per-run state.json remains authoritative;
 # this keeps inspection correct after a torn write, copied workspace, or a
@@ -44,7 +44,7 @@ func acquire_index_lock(state_root) {
         return {"ok": false, "error": "Run index lock path must not be a symbolic link"}
     }
     if path_is_dir(lock_path) {
-        owner := read_json_or(index_lock_owner_path(state_root), {})
+        owner := read_json_limited(index_lock_owner_path(state_root), {}, 65536)
         acquired_at := dict_get_or(owner, "acquired_at_ms", 0)
         if type(acquired_at) == "int" && acquired_at > 0 && current_timestamp() - acquired_at > 60000 {
             if file_exists(index_lock_owner_path(state_root)) { delete_file(index_lock_owner_path(state_root)) }
@@ -88,7 +88,7 @@ func acquire_index_lock_retry(state_root, max_attempts, delay_ms) {
 func release_index_lock(state_root, token) {
     lock_path := index_lock_path(state_root)
     if path_is_dir(lock_path) == false { return {"ok": true, "released": false} }
-    owner := read_json_or(index_lock_owner_path(state_root), {})
+    owner := read_json_limited(index_lock_owner_path(state_root), {}, 65536)
     if string_or(dict_get_or(owner, "token", ""), "") != string_or(token, "") {
         return {"ok": false, "error": "Run index lock token mismatch"}
     }
@@ -105,7 +105,7 @@ func rebuild_run_index(state_root) {
         if safe_run_key(name) == false { continue }
         run_dir := expected_run_dir(state_root, name)
         if path_is_dir(run_dir) == false || path_is_symlink(run_dir) { continue }
-        state := read_json_or(run_state_path(state_root, name), null)
+        state := read_json_limited(run_state_path(state_root, name), null, 67108864)
         if type(state) != "dict" || string_or(dict_get_or(state, "run_id", ""), "") != name { continue }
         index[name] := index_record(state_root, name, state)
     }
@@ -136,7 +136,7 @@ func run_directories_match_index(state_root, index) {
         if safe_run_key(name) && path_is_dir(run_dir) && path_is_symlink(run_dir) == false {
             count = count + 1
             if has_key(index, name) == 0 { return false }
-            state := read_json_or(run_state_path(state_root, name), null)
+            state := read_json_limited(run_state_path(state_root, name), null, 67108864)
             expected := index_record(state_root, name, state)
             record := index[name]
             if string_or(dict_get_or(record, "mission_id", ""), "") != expected["mission_id"] || string_or(dict_get_or(record, "status", ""), "") != expected["status"] || string_or(dict_get_or(record, "updated_at", ""), "") != expected["updated_at"] { return false }
@@ -146,7 +146,7 @@ func run_directories_match_index(state_root, index) {
 }
 
 func load_run_index(state_root) {
-    cached := read_json_or(state_root + "/index.json", null)
+    cached := read_json_limited(state_root + "/index.json", null, 8388608)
     if cached_index_is_safe(state_root, cached) && run_directories_match_index(state_root, cached) {
         return cached
     }

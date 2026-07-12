@@ -1,4 +1,4 @@
-from src.common import dict_get_or, env_or, string_or, bool_or, int_or, now_iso, safe_id, read_json_or, write_json, append_jsonl, safe_json, shell_quote_single, command_args, write_text_atomic, process_options, redact_text
+from src.common import dict_get_or, env_or, string_or, bool_or, int_or, now_iso, safe_id, read_json_or, read_json_limited, write_json, append_jsonl, safe_json, shell_quote_single, command_args, write_text_atomic, process_options, redact_text
 from src.contracts import run_state, event, event_integrity_input, receipt
 from src.registry import find_agent
 from src.policy import tool_decision, classify_failure, path_is_safe, path_is_within_workspace, command_is_allowed
@@ -223,7 +223,7 @@ func cancellation_request(run_dir) {
     path := run_dir + "/cancel.request.json"
     if path_exists(path) == false { return {"ok": true, "requested": false} }
     if path_is_symlink(path) { return {"ok": false, "error": "cancellation request is a symbolic link"} }
-    request := read_json_or(path, null)
+    request := read_json_limited(path, null, 65536)
     if type(request) != "dict" { return {"ok": false, "error": "cancellation request is invalid"} }
     return {"ok": true, "requested": true, "request": request}
 }
@@ -478,7 +478,7 @@ func pause_run(run_id) {
     index := load_run_index(state_root())
     record := dict_get_or(index, run_id, null)
     if type(record) != "dict" { return {"ok": false, "error": "unknown run: " + run_id} }
-    state := read_json_or(record["run_dir"] + "/state.json", null)
+    state := read_json_limited(record["run_dir"] + "/state.json", null, 67108864)
     if type(state) != "dict" { return {"ok": false, "error": "run state missing"} }
     if state["status"] != "running" { return {"ok": false, "error": "only running runs can be paused; use --pause-after-plan for a resumable checkpoint"} }
     state["status"] := "paused"
@@ -494,7 +494,7 @@ func cancel_run(run_id) {
     if type(record) != "dict" { return {"ok": false, "error": "unknown run: " + run_id} }
     run_dir := string_or(dict_get_or(record, "run_dir", ""), "")
     if run_dir == "" || path_is_dir(run_dir) == false || path_is_symlink(run_dir) { return {"ok": false, "error": "run directory is missing or unsafe"} }
-    state := read_json_or(run_dir + "/state.json", null)
+    state := read_json_limited(run_dir + "/state.json", null, 67108864)
     if type(state) != "dict" { return {"ok": false, "error": "run state missing"} }
     status := string_or(dict_get_or(state, "status", ""), "")
     if status == "completed" || status == "failed" || status == "cancelled" { return {"ok": false, "error": "run is already terminal", "run": state} }
@@ -516,7 +516,7 @@ func cancel_run(run_id) {
     if path_exists(request_path) && path_is_symlink(request_path) { return {"ok": false, "error": "cancellation request is a symbolic link"} }
     request := {"requested_at": now_iso(), "requested_by": "operator", "reason": "operator_cancel"}
     if write_json(request_path, request) == false { return {"ok": false, "error": "cancellation request could not be recorded"} }
-    latest := read_json_or(run_dir + "/state.json", state)
+    latest := read_json_limited(run_dir + "/state.json", state, 67108864)
     latest_status := string_or(dict_get_or(latest, "status", status), status)
     if latest_status == "completed" || latest_status == "failed" || latest_status == "cancelled" {
         if path_exists(request_path) && path_is_symlink(request_path) == false { delete_file(request_path) }
@@ -530,7 +530,7 @@ func cleanup_run(run_id, confirmed) {
     index := load_run_index(state_root())
     record := dict_get_or(index, run_id, null)
     if type(record) != "dict" { return {"ok": false, "error": "unknown run: " + run_id} }
-    state := read_json_or(record["run_dir"] + "/state.json", null)
+    state := read_json_limited(record["run_dir"] + "/state.json", null, 67108864)
     if type(state) != "dict" { return {"ok": false, "error": "run state missing"} }
     workspace := dict_get_or(state, "workspace", {})
     if type(workspace) != "dict" || dict_get_or(workspace, "mode", "provided") != "worktree" { return {"ok": false, "error": "run does not own an isolated worktree"} }
@@ -559,7 +559,7 @@ func resume_run(run_id) {
     index := load_run_index(state_root())
     record := dict_get_or(index, run_id, null)
     if type(record) != "dict" { return {"ok": false, "error": "unknown run: " + run_id} }
-    state := read_json_or(record["run_dir"] + "/state.json", null)
+    state := read_json_limited(record["run_dir"] + "/state.json", null, 67108864)
     if type(state) != "dict" { return {"ok": false, "error": "run state missing"} }
     if state["status"] != "paused" { return {"ok": false, "error": "run is not paused"} }
     checkpoint := dict_get_or(state, "checkpoint", null)
