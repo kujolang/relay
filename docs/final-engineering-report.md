@@ -298,3 +298,12 @@ persistence failures now propagate as `evidence_failure`, force a failed status
 before terminal success reporting, and clean temporary files after failed
 atomic writes. Contract failure injection and the full Relay suite pass. Fsync,
 append-only durability, retention, and crash recovery remain deferred.
+
+## Twenty-eighth 2026-07-12 review
+
+Relay now validates the state-store authority boundary before using `.relay` or
+`.relay/runs`. Symbolic-linked roots fail closed as `state_store_failure` for
+mission, index, inspection, and operator-control paths; `doctor --json` exposes
+the required posture without following the link. Contract and redirection
+smoke evidence pass. Durable no-follow storage, authenticated ownership, and
+full workcell isolation remain deferred.

@@ -27,6 +27,11 @@ socket transport rather than an unbounded environment variable.
 
 Run `relay doctor --json` before a live or CI invocation. Fixture mode does not require Watchdog or credentials; live mode fails closed when either is absent.
 
+Relay also fails closed when `.relay` or `.relay/runs` is a symbolic link. This
+prevents mission, index, and operator-control paths from redirecting evidence
+outside the configured Relay root; the failure is reported as
+`state_store_failure`.
+
 ## Commands
 
 ```text

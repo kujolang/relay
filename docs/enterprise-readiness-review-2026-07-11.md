@@ -282,6 +282,16 @@ cannot redirect the worker or create the requested file. This is local launch
 integrity hardening, not authenticated service identity, signed binary
 verification, or full workcell isolation.
 
+## Twenty-eighth 2026-07-12 review
+
+This review closed a state-store redirection gap. Relay now rejects symbolic
+links at both `.relay` and `.relay/runs` before mission creation, execution,
+index access, or operator control; unsafe access returns `state_store_failure`.
+`doctor --json` reports the required store posture, and the focused smoke proves
+that neither symlink shape can redirect evidence into an external target. This
+is local path hardening, not kernel-level no-follow durability, authenticated
+ownership, or full workcell isolation.
+
 ## Release recommendation
 
 Publish Relay only as a local-first alpha/showcase until all P0 items have executable evidence. The review hardening is pushed to `origin/main`; keep the README's enterprise-readiness disclaimer and require a release report that distinguishes fixture, configured-live, and production-environment evidence.

@@ -235,6 +235,21 @@ fail missions rather than silently degrading evidence; fsync, append-only
 durability, retention, and crash recovery remain deferred. Rejected: logging a
 warning and returning success or treating the event file as optional.
 
+## ADR-044: Reject symbolic-linked Relay state roots
+
+Context: evidence-file checks rejected symbolic links below a run, but the
+`.relay` root and its `runs` directory could still redirect state and index
+writes outside the configured Relay root. Decision: validate both state-store
+directories before mission creation, execution, CLI inspection/control, and
+doctor readiness; return `state_store_failure` without following either link.
+Rationale: the state root is an authority boundary, not merely a cache path.
+The existing local filesystem model remains compatible while closing the
+redirection gap. Consequence: operators must provision real directories or a
+future no-follow durable store; authenticated ownership, kernel-level no-follow
+writes, and workcell isolation remain deferred. Rejected: relying on per-file
+symlink checks or allowing the index rebuild to treat a redirected directory as
+empty.
+
 ## ADR-040: Bind resumed actions to checkpoint integrity
 
 Context: a paused run persisted its mission and workspace state, but resume
