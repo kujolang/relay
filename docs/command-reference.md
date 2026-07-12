@@ -96,6 +96,12 @@ Set `workspace_mode: "worktree"` to have Relay create a detached worktree from t
 
 `runs list` validates the cached `.relay/index.json` against authoritative per-run `state.json` directories and rebuilds it when it is malformed, unsafe, stale, oversized, symlinked, or incomplete. Index refreshes use an atomic lock directory with a bounded four-attempt backoff; `runs rebuild` forces that recovery path. The index is a cache, not the source of truth.
 
+Relay bounds JSON parsing at the store boundary as well as at the mission
+boundary: the run index is rejected before parsing when it exceeds 8 MiB, lock
+owner files are capped at 64 KiB, and authoritative run-state reads are capped
+at 64 MiB. Oversized cache/evidence documents fail closed and trigger the
+authoritative rebuild or an explicit missing-state error.
+
 Each AgentEvent-compatible JSONL record includes a deterministic `integrity_sha256` field covering its identity, parent, payload, and metadata. The hash detects accidental or unauthorized record mutation; signed export and durable retention remain future work.
 
 `runs events` parses and verifies the complete event chain and checks its event
@@ -123,6 +129,13 @@ or retain artifacts, and its byte counts are local filesystem sizes rather than
 storage-billing or transfer metrics.
 
 `chat --stream` emits normalized JSONL `delta` and `done` events. Relay forwards the stream option through the AI SDK bridge; live Watchdog proxy authorization is supplied through `RELAY_WATCHDOG_PROXY_TOKEN` and is never included in the model payload.
+
+`RELAY_FALLBACK_MODEL` is attempted only for bounded transient or capability
+failures such as timeouts, rate limits, provider unavailability, connection
+failures, overload, or a missing primary model. Authentication, policy,
+Watchdog-route, malformed-bridge, and other non-retryable failures do not
+trigger a second provider call; the skipped reason remains visible in
+`relay_telemetry`.
 
 Set `RELAY_WATCHDOG_VERIFY=true` to make live calls fail closed unless Relay can authenticate to Watchdog's API, verify health and proxy configuration, and find a request row matching the correlation ID emitted by the AI SDK request. `doctor --json` performs the health/config portion of this check.
 

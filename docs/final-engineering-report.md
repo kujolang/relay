@@ -206,3 +206,14 @@ symbolic-linked, non-regular, or larger-than-1 MiB files. The focused
 spec-safety smoke proves oversized and symlinked mission documents fail closed.
 Authenticated input identity, schema negotiation, and larger durable workflow
 packets remain deferred.
+
+## Eighteenth 2026-07-11 review
+
+This review added `read_json_limited` and applied it before parsing persisted
+index, lock-owner, run-state, receipt, and export-side JSON. An oversized
+8 MiB-plus index now fails closed and is rebuilt from authoritative run state;
+the contract and store smokes pass. It also restricted `RELAY_FALLBACK_MODEL`
+to explicit transient or model-capability failures and records skipped reasons
+for authentication, policy, route, and malformed-bridge failures. These are
+local resource and cost-control improvements, not durable multi-host storage,
+provider taxonomy, or adaptive-routing proof.

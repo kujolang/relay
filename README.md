@@ -2,7 +2,7 @@
 
 Kujo Relay is a Kujo-native composition and execution layer for bounded agent missions. The CLI is a thin wrapper over reusable runtime modules. It composes existing AI SDK, Agents SDK, PackWrite, RunLedger, ChangeBucket, Eval, Capsule, and Chain of Command contracts instead of replacing them.
 
-Status: `0.1.0` hardened local alpha. Offline execution, bounded repository work, bounded mission-spec inputs, resumable checkpoints, cooperative mission cancellation, symlink-safe evidence reads, packet integrity metadata, sealed typed evidence receipts, live bounded `runs watch` event observation, bounded adapter duration metrics, read-only run artifact size inventory, redacted subprocess evidence, explicit environment isolation, fixed executable search paths, shell-free command execution with exact read-only Git argv profiles, bounded lock backoff with contention evidence, budgets, deterministic evaluation, detached worktree missions, locked/self-healing run-index rebuilds, complete event-sequence verification, integrity-verified event export, real local Watchdog correlation, and one isolated fixture mission using the Agents SDK Tool Registry are verified locally. Relay is not yet enterprise-production-ready or universally useful: external live-provider proof, authenticated multi-tenant operation, full workcell isolation/recovery, provider-driven tool execution, durable concurrent storage, and release gates remain open.
+Status: `0.1.0` hardened local alpha. Offline execution, bounded repository work, bounded mission-spec inputs, bounded JSON evidence parsing, resumable checkpoints, cooperative mission cancellation, symlink-safe evidence reads, packet integrity metadata, sealed typed evidence receipts, live bounded `runs watch` event observation, bounded adapter duration metrics, read-only run artifact size inventory, redacted subprocess evidence, explicit environment isolation, fixed executable search paths, shell-free command execution with exact read-only Git argv profiles, bounded lock backoff with contention evidence, failure-aware model fallback, budgets, deterministic evaluation, detached worktree missions, locked/self-healing run-index rebuilds, complete event-sequence verification, integrity-verified event export, real local Watchdog correlation, and one isolated fixture mission using the Agents SDK Tool Registry are verified locally. Relay is not yet enterprise-production-ready or universally useful: external live-provider proof, authenticated multi-tenant operation, full workcell isolation/recovery, provider-driven tool execution, durable concurrent storage, and release gates remain open.
 
 ## Enterprise-readiness position
 
@@ -85,8 +85,7 @@ Mission actions are declarative and policy checked. Write-enabled missions requi
 - `tests/relay_mission_smoke.sh`: real write, pause/resume, ChangeBucket, Eval, and RunLedger smoke test
 - `tests/relay_budget_smoke.sh`: bounded step-budget failure smoke test
 - `tests/relay_worktree_smoke.sh`: isolated worktree creation, source protection, and confirmed cleanup smoke test
-- `tests/relay_store_smoke.sh`: tampered-index rejection and authoritative run-state rebuild smoke test
-- `tests/relay_store_smoke.sh`: tampered-index, event-symlink, receipt-tamper, truncation, and authoritative run-state rebuild smoke test
+- `tests/relay_store_smoke.sh`: bounded-index, event-symlink, receipt-tamper, truncation, and authoritative run-state rebuild smoke test
 - `tests/relay_lock_stress_smoke.sh`: bounded index-lock backoff and concurrent rebuild smoke test
 - `tests/relay_watch_smoke.sh`: bounded live event observation with terminal evidence verification
 - `tests/relay_metrics_smoke.sh`: bounded AI/adapter duration telemetry evidence
@@ -97,6 +96,7 @@ Mission actions are declarative and policy checked. Write-enabled missions requi
 - `tests/relay_watchdog_smoke.sh`: configured Watchdog health/config/request-correlation contract smoke test
 - `tests/relay_watchdog_real_smoke.sh`: actual local Watchdog server, token auth, stub upstream, and correlation smoke test
 - `tests/relay_agents_tool_smoke.sh`: isolated mission through the Agents SDK Tool Registry plus denied-write approval proof
+- `tests/relay_contract_tests.kujo`: contract coverage for bounded JSON reads and retryable versus non-retryable fallback classes
 
 ## Repository layout decision
 
@@ -126,4 +126,4 @@ bash tests/relay_agents_tool_smoke.sh
 git diff --check
 ```
 
-For the full integration evidence boundary and deferred enterprise work, see [`docs/enterprise-readiness-review-2026-07-11.md`](docs/enterprise-readiness-review-2026-07-11.md), [`docs/command-reference.md`](docs/command-reference.md), and the current [`docs/next-session-enhancement-backlog-2026-07-11-v17.md`](docs/next-session-enhancement-backlog-2026-07-11-v17.md).
+For the full integration evidence boundary and deferred enterprise work, see [`docs/enterprise-readiness-review-2026-07-11.md`](docs/enterprise-readiness-review-2026-07-11.md), [`docs/command-reference.md`](docs/command-reference.md), and the current [`docs/next-session-enhancement-backlog-2026-07-11-v18.md`](docs/next-session-enhancement-backlog-2026-07-11-v18.md).

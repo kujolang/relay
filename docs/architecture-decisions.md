@@ -127,3 +127,29 @@ Context: Relay already rejected symbolic-linked run directories and size-invento
 ## ADR-032: Bound mission-spec files before parsing
 
 Context: Relay bounded action count, budgets, and tool calls but accepted any caller-provided mission path and parsed its entire contents before persistence. Decision: `load_spec` requires an existing regular non-symbolic file no larger than 1 MiB before JSON parsing; larger or symbolic-linked inputs fail closed with explicit errors. Rationale: bound memory, parse, prompt, and state amplification at the first input boundary without constraining repository workspaces or legitimate mission actions. Consequence: larger workflows must use a future versioned packet or durable workflow owner; authenticated input identity and schema negotiation remain deferred. Rejected: parsing first and relying only on action-count limits, or silently truncating a mission document.
+
+## ADR-033: Bound persisted JSON before parsing
+
+Context: mission inputs and event logs had size checks, but the run index,
+lock-owner metadata, and state/evidence readers could still parse a large
+attacker-controlled JSON document before a later validation noticed its size.
+Decision: use a bounded JSON reader at persisted-store boundaries: index files
+are capped at 8 MiB, lock owners at 64 KiB, and run state at 64 MiB before
+parsing. Oversized inputs fail closed and let the authoritative rebuild or
+caller-facing error path decide the outcome. Rationale: make the memory bound
+apply before parsing, not merely after parsing. Consequence: corrupted or
+larger future stores need an explicit migration/retention owner; limits do not
+claim durable multi-host storage. Rejected: trusting the JSON parser to absorb
+arbitrary cache growth or silently truncating evidence.
+
+## ADR-034: Restrict model fallback to retryable failures
+
+Context: `RELAY_FALLBACK_MODEL` previously retried every failed primary call,
+including authentication, policy, Watchdog-route, and malformed-bridge errors.
+Decision: attempt fallback only for explicitly bounded transient or model
+capability failures; skip it for non-retryable failures and record the reason
+in `relay_telemetry`. Rationale: avoid duplicate unauthorized/expensive calls,
+preserve policy failures, and make routing behavior predictable. Consequence:
+providers that expose novel retryable codes require an explicit adapter update;
+adaptive routing remains deferred. Rejected: blanket fallback on every error or
+silently hiding the second call.

@@ -56,6 +56,8 @@ The correct posture is: **local-first hardened alpha / ecosystem showcase**. The
 | Mission cancellation | Cooperative `missions cancel` request checks around actions, terminal event, and RunLedger finish evidence | `src/runtime.kujo`, `src/cli.kujo`, `tests/relay_cancel_smoke.sh` |
 | Evidence path safety | JSON reads/appends and event inspection reject symbolic-linked or non-regular evidence files | `src/common.kujo`, `src/cli.kujo`, `tests/relay_store_smoke.sh` |
 | Mission input safety | Regular-file, non-symlink, 1 MiB mission-spec bound before JSON parsing | `src/runtime.kujo`, `tests/relay_spec_safety_smoke.sh` |
+| Persisted JSON safety | Index/lock-owner/state/receipt/export JSON is size-bounded before parsing | `src/common.kujo`, `src/store.kujo`, `src/cli.kujo`, contract and store smokes |
+| Fallback safety | Primary model fallback is limited to explicit transient/capability classes and skipped reasons are recorded | `src/adapters.kujo`, contract tests |
 | Event integrity | AgentEvent-compatible JSONL records carry deterministic SHA-256 integrity fields and tamper validation | `src/contracts.kujo`, contract smoke |
 | Worktree cleanup authority | Cleanup rejects tampered paths and requires the run-owned workspace target | `src/runtime.kujo`, `tests/relay_worktree_smoke.sh` |
 | Agents SDK tools | A Kujo bridge registers `relay.write_file` and `relay.run_command`, applies Agents SDK approval providers, and delegates to Relay's capability-bound policy worker | `src/agent_bridge.kujo`, `src/runtime.kujo`, `tests/relay_agents_tool_smoke.sh` |
@@ -224,6 +226,17 @@ whose sequence differs from authoritative run state. This keeps a valid prefix
 from being presented as a complete run and gives CI/Paperclip callers a clear
 failure signal for repair or recovery. The implementation remains local-first;
 durable append-only storage, signed exports, and crash recovery are still open.
+
+## Eighteenth 2026-07-11 review
+
+This review closes two pre-parse and retry-policy gaps. Persisted JSON reads now
+check size before parsing: index files are capped at 8 MiB, lock owners at
+64 KiB, and run state at 64 MiB, with bounded receipt/export reads at the CLI
+boundary. The store smoke proves an oversized index is rebuilt rather than
+trusted. Model fallback now runs only for explicit timeout, rate-limit,
+provider-availability, connection, overload, or missing-model classes; auth,
+policy, route, and malformed-bridge failures remain single-attempt and expose
+the skip reason. Relay remains local-first hardened alpha/showcase.
 
 ## Release recommendation
 
