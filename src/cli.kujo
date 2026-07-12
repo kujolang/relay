@@ -3,10 +3,15 @@ from src.contracts import RELAY_VERSION, event_chain_integrity_valid, event_sequ
 from src.registry import agent_catalog, find_agent, agent_path
 from src.adapters import ai_chat, capsule_run
 from src.runtime import ensure_dir, create_mission, run_mission, pause_run, cancel_run, cleanup_run, resume_run, execute_tool_request, state_root, run_root
-from src.store import load_run_index, rebuild_run_index, persist_run_index
+from src.store import load_run_index, rebuild_run_index, persist_run_index, store_root_safe
 from src.doctor import doctor
 
 func has_flag(flags, name) { return has_key(flags, name) }
+
+func state_store_check() {
+    if store_root_safe(state_root()) == false { return {"ok": false, "failure_class": "state_store_failure", "error": "Relay state store root is unsafe"} }
+    return {"ok": true}
+}
 
 func positional(values, index, fallback) {
     if type(values) != "array" || index < 0 || index >= len(values) { return fallback }
@@ -149,6 +154,8 @@ func cmd_missions(tokens) {
         return run_mission(path, {"offline_fixture": offline, "stream": false, "pause_after_plan": has_flag(parsed["flags"], "pause-after-plan"), "agents_sdk_smoke": has_flag(parsed["flags"], "skip-agent-smoke") == false})
     }
     id := positional(parsed["positionals"], 1, "")
+    store_check := state_store_check()
+    if store_check["ok"] == false { return store_check }
     index := load_run_index(state_root())
     if sub == "pause" { return pause_run(id) }
     if sub == "cancel" { return cancel_run(id) }
@@ -291,6 +298,8 @@ func run_artifact_sizes(record, run_id) {
 func cmd_runs(tokens) {
     parsed := parse_tokens(tokens)
     sub := positional(parsed["positionals"], 0, "list")
+    store_check := state_store_check()
+    if store_check["ok"] == false { return store_check }
     index := load_run_index(state_root())
     id := positional(parsed["positionals"], 1, "")
     if sub == "list" { return {"ok": true, "runs": index, "index_source": "validated_cache_or_rebuild"} }

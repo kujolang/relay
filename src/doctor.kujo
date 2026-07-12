@@ -2,6 +2,7 @@ from src.common import dict_get_or, env_or, safe_env_name
 from src.adapters import kujo_bin, ai_sdk_root, agents_sdk_root, watchdog_url
 from src.watchdog import health_check, proxy_config_check, route_policy
 from src.registry import agent_catalog, agent_path
+from src.store import store_root_safe
 
 func path_check(label, path, directory, required) {
     exists := false
@@ -15,6 +16,8 @@ func doctor() {
     checks := push(checks, path_check("kujo runtime", kujo_bin(), false, true))
     checks := push(checks, path_check("Relay entrypoint", root + "/main.kujo", false, true))
     checks := push(checks, path_check("Relay source tree", root + "/src", true, true))
+    store_safe := store_root_safe(root + "/.relay")
+    checks := push(checks, {"name": "Relay evidence store", "ok": store_safe, "required": true, "path": root + "/.relay", "reason": "state root and runs directory must not be symbolic links"})
     checks := push(checks, path_check("Relay launcher", root + "/bin/relay", false, false))
     checks := push(checks, path_check("AI SDK checkout", ai_sdk_root(), true, true))
     checks := push(checks, path_check("Agents SDK checkout", agents_sdk_root(), true, true))

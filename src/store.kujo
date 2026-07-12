@@ -26,6 +26,13 @@ func expected_run_dir(state_root, run_id) {
     return state_root + "/runs/" + run_id
 }
 
+func store_root_safe(state_root) {
+    if path_exists(state_root) && path_is_symlink(state_root) { return false }
+    runs_root := state_root + "/runs"
+    if path_exists(runs_root) && path_is_symlink(runs_root) { return false }
+    return true
+}
+
 func index_record(state_root, run_id, state) {
     return {
         "run_dir": expected_run_dir(state_root, run_id),
@@ -146,6 +153,7 @@ func run_directories_match_index(state_root, index) {
 }
 
 func load_run_index(state_root) {
+    if store_root_safe(state_root) == false { return {} }
     cached := read_json_limited(state_root + "/index.json", null, 8388608)
     if cached_index_is_safe(state_root, cached) && run_directories_match_index(state_root, cached) {
         return cached
@@ -156,6 +164,7 @@ func load_run_index(state_root) {
 }
 
 func persist_run_index(state_root, index) {
+    if store_root_safe(state_root) == false { return index }
     # Local callers may briefly contend while another process refreshes the
     # rebuildable cache. A small bounded backoff improves successful
     # multi-process coordination without turning the cache into an
@@ -169,6 +178,7 @@ func persist_run_index(state_root, index) {
 }
 
 export safe_run_key := safe_run_key
+export store_root_safe := store_root_safe
 export index_lock_path := index_lock_path
 export acquire_index_lock := acquire_index_lock
 export acquire_index_lock_retry := acquire_index_lock_retry

@@ -3,7 +3,7 @@ from src.policy import classify_failure, path_is_safe, path_is_within_workspace,
 from src.runtime import resume_state_safe, cleanup_state_safe, control_state_safe, save_state, mark_evidence_failure
 from src.common import safe_id, redact_text, shell_quote_single, command_args, process_options, safe_env_name, read_json_limited, dict_get_or, safe_json
 from src.adapters import fallback_allowed, watchdog_route_allowed
-from src.store import safe_run_key, acquire_index_lock, acquire_index_lock_retry, release_index_lock
+from src.store import safe_run_key, store_root_safe, acquire_index_lock, acquire_index_lock_retry, release_index_lock
 from src.watchdog import safe_base, route_policy
 
 func check(label, condition) {
@@ -106,6 +106,10 @@ failed = failed + check("Watchdog route policy redacts route value", dict_get_or
 failed = failed + check("Watchdog route policy records remote HTTP denial", dict_get_or(route_policy("http://watchdog.example.com"), "reason", "") == "http_non_loopback")
 failed = failed + check("safe run key", safe_run_key("relay-run-123"))
 failed = failed + check("unsafe run key denied", safe_run_key("../outside") == false)
+store_root := "/tmp/relay-contract-store-safe-" + to_string(current_timestamp())
+create_dir(store_root)
+failed = failed + check("real state store root accepted", store_root_safe(store_root))
+if path_is_dir(store_root) { os_rmdir(store_root) }
 lock_root := "/tmp/relay-contract-index-lock-" + to_string(current_timestamp())
 create_dir(lock_root)
 first_lock := acquire_index_lock(lock_root)
