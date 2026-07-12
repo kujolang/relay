@@ -5,6 +5,8 @@ from src.policy import tool_decision, classify_failure, path_is_safe, path_is_wi
 from src.adapters import ai_chat_correlated, agents_sdk_smoke, agents_sdk_tool_run, packwrite_generate, runledger_start, runledger_finish, changebucket, eval_run
 from src.store import rebuild_run_index, load_run_index, persist_run_index
 
+export MISSION_SPEC_MAX_BYTES := 1048576
+
 func ensure_dir(path) {
     if path == "" || path == "." || path_is_dir(path) { return }
     parts := split(path, "/")
@@ -68,6 +70,10 @@ func register_run(state, run_dir) {
 }
 
 func load_spec(path) {
+    if type(path) != "string" || trim(path) == "" || path_exists(path) == false { return {"ok": false, "error": "Mission file is missing or invalid JSON: " + to_string(path)} }
+    if path_is_symlink(path) { return {"ok": false, "error": "Mission file must not be a symbolic link"} }
+    if path_is_file(path) == false { return {"ok": false, "error": "Mission file must be a regular file"} }
+    if file_size(path) > MISSION_SPEC_MAX_BYTES { return {"ok": false, "error": "Mission file exceeds the 1 MiB safety limit"} }
     spec := read_json_or(path, null)
     if type(spec) != "dict" { return {"ok": false, "error": "Mission file is missing or invalid JSON: " + path} }
     if string_or(dict_get_or(spec, "name", ""), "") == "" { return {"ok": false, "error": "Mission requires name"} }
