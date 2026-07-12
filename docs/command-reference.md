@@ -172,6 +172,10 @@ Operator `missions pause` and `missions cancel` controls also verify the same
 checkpoint state before mutating a non-terminal run. This keeps all local
 control-plane mutations behind one integrity boundary.
 
+State, receipt, and event persistence failures are recorded as
+`evidence_failure`; the run is forced to `failed` before a terminal success can
+be reported. Temporary-file cleanup is attempted when an atomic write fails.
+
 ## Exit-code guidance
 
 - `0`: command or mission succeeded and required evidence passed.

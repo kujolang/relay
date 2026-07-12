@@ -222,6 +222,19 @@ doctor output; authenticated route discovery and certificate verification
 remain deferred. Rejected: reporting the URL for convenience or making doctor
 less strict than the live AI path.
 
+## ADR-043: Fail closed when evidence persistence fails
+
+Context: state, receipt, and event writes returned failure values that callers
+ignored, allowing a mission to continue toward a successful terminal status
+with incomplete evidence. Decision: mark persistence failures as
+`evidence_failure`, force failed status at the next state save, propagate
+receipt failures through the runtime, and delete temporary files after failed
+atomic writes. Rationale: a successful result without its authoritative
+evidence is not a truthful mission result. Consequence: local disk failures
+fail missions rather than silently degrading evidence; fsync, append-only
+durability, retention, and crash recovery remain deferred. Rejected: logging a
+warning and returning success or treating the event file as optional.
+
 ## ADR-040: Bind resumed actions to checkpoint integrity
 
 Context: a paused run persisted its mission and workspace state, but resume

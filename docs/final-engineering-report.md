@@ -290,3 +290,11 @@ non-secret posture fields. CLI and contract coverage proves remote HTTP
 rejection, malformed-route handling, and credential-bearing URL non-disclosure.
 Authenticated route discovery, certificate validation, mTLS, and external
 provider verification remain deferred.
+
+## Twenty-seventh 2026-07-12 review
+
+This review closed an evidence-truthfulness gap. State, receipt, and event
+persistence failures now propagate as `evidence_failure`, force a failed status
+before terminal success reporting, and clean temporary files after failed
+atomic writes. Contract failure injection and the full Relay suite pass. Fsync,
+append-only durability, retention, and crash recovery remain deferred.
