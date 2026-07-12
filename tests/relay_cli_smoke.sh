@@ -43,6 +43,13 @@ set -e
 test "$watchdog_status" -ne 0
 printf '%s' "$invalid_watchdog" | grep -q 'invalid_watchdog_route'
 
+set +e
+external_http_watchdog="$(RELAY_OFFLINE_FIXTURE=false RELAY_WATCHDOG_URL='http://watchdog.example.com/proxy/v1' "$KUJO" run "$ROOT/main.kujo" -- chat external-http-route --json 2>&1)"
+external_http_status=$?
+set -e
+test "$external_http_status" -ne 0
+printf '%s' "$external_http_watchdog" | grep -q 'invalid_watchdog_route'
+
 stream="$($KUJO run "$ROOT/main.kujo" -- chat stream-boundary --fixture --stream --json)"
 printf '%s' "$stream" | grep -q '"type":"delta"'
 printf '%s' "$stream" | grep -q '"type":"done"'

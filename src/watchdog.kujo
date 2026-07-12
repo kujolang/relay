@@ -16,7 +16,20 @@ func api_base() {
 func safe_base(value) {
     base := string_or(value, "")
     if base == "" || contains(base, " ") || contains(base, "@") { return false }
-    return starts_with(base, "http://") || starts_with(base, "https://")
+    if starts_with(base, "https://") { return true }
+    if starts_with(base, "http://") == false { return false }
+    host_port := substring(base, 7, len(base))
+    slash := index_of(host_port, "/")
+    if slash >= 0 { host_port = substring(host_port, 0, slash) }
+    host := host_port
+    if starts_with(host_port, "[") {
+        closing := index_of(host_port, "]")
+        if closing >= 0 { host = substring(host_port, 0, closing + 1) }
+    } else {
+        colon := index_of(host_port, ":")
+        if colon >= 0 { host = substring(host_port, 0, colon) }
+    }
+    return host == "127.0.0.1" || host == "localhost" || host == "[::1]"
 }
 
 func endpoint(path) {
