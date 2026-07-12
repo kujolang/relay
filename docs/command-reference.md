@@ -158,6 +158,11 @@ Watchdog URL, including when the value contains rejected credentials.
 
 Set `RELAY_WATCHDOG_VERIFY=true` to make live calls fail closed unless Relay can authenticate to Watchdog's API, verify health and proxy configuration, and find a request row matching the correlation ID emitted by the AI SDK request. `doctor --json` performs the health/config portion of this check.
 
+`missions resume` verifies the persisted mission-policy digest, run identity,
+workspace ownership, Git metadata, event/receipt integrity, and effective
+budgets before changing a paused run to `running`. A tampered checkpoint fails
+as `state_integrity_failure` before any resumed tool or repository action.
+
 ## Exit-code guidance
 
 - `0`: command or mission succeeded and required evidence passed.

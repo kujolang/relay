@@ -221,3 +221,17 @@ Consequence: operators diagnose route classes rather than copying a URL from
 doctor output; authenticated route discovery and certificate verification
 remain deferred. Rejected: reporting the URL for convenience or making doctor
 less strict than the live AI path.
+
+## ADR-040: Bind resumed actions to checkpoint integrity
+
+Context: a paused run persisted its mission and workspace state, but resume
+could trust a locally modified `state.json` and execute actions against a
+substituted repository or with altered budgets. Decision: persist a SHA-256
+digest of the mission policy and, before resume, verify run identity, policy
+digest, workspace/source/Git identity, effective budgets, event-chain integrity,
+and receipt integrity. Rationale: preserve the existing local evidence model
+while ensuring a checkpoint cannot silently expand authority before the first
+resumed action. Consequence: old paused runs without the digest require a new
+run; signed state, multi-user ownership, and durable crash recovery remain
+deferred. Rejected: trusting state because the run index points to the correct
+directory, or validating only the workspace path after resuming.

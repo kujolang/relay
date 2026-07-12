@@ -252,6 +252,15 @@ requires HTTPS for non-loopback hosts. Contract and CLI route smokes pass.
 Certificate validation, mTLS, authenticated route discovery, and external
 provider verification remain deferred.
 
+## Twenty-fourth 2026-07-12 review
+
+This review closed a paused-run authority gap. Resume now verifies the mission
+policy digest, run identity, source/workspace and Git metadata, effective
+budgets, event chain, and receipt sequence before changing state to running.
+Tampered workspace and policy state fail as `state_integrity_failure` before
+any resumed repository action. This is local checkpoint integrity, not signed
+state, authenticated multi-user ownership, or durable crash recovery.
+
 ## Twenty-third 2026-07-12 review
 
 This review aligned operator diagnostics with live Watchdog enforcement. The
