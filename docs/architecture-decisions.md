@@ -195,3 +195,16 @@ must use a plain configured URL and put authentication in the explicit token
 environment seams; custom schemes require a future adapter contract. Rejected:
 letting the downstream SDK decide route safety or validating only when optional
 Watchdog verification is enabled.
+
+## ADR-038: Require HTTPS for non-loopback Watchdog routes
+
+Context: route validation rejected malformed schemes and embedded credentials,
+but accepted cleartext HTTP for remote Watchdog hosts. Decision: allow HTTP
+only for localhost and loopback IPv4/IPv6 endpoints used by local development;
+require HTTPS for every non-loopback Watchdog host. Rationale: prevent remote
+AI traffic and bearer-token headers from crossing a cleartext route while
+preserving the established local Watchdog fixture path. Consequence: remote
+deployments need TLS termination and future route discovery must preserve this
+policy; certificate pinning and mTLS remain deferred. Rejected: allowing all
+HTTP because the URL has no userinfo, or silently upgrading the configured
+endpoint.

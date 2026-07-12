@@ -259,6 +259,14 @@ started. Relay now rejects unsupported schemes and embedded credentials with an
 boundary. This is route-input hardening, not TLS policy, authenticated route
 discovery, or external-provider proof.
 
+## Twenty-second 2026-07-11 review
+
+This review tightens live route policy. HTTP is now accepted only for
+localhost, 127.0.0.1, or [::1]; non-loopback Watchdog hosts must use HTTPS.
+Contract coverage proves local loopback HTTP, external HTTPS, and external HTTP
+rejection. This is transport policy hardening, not TLS certificate validation,
+mTLS, route discovery, or external-provider proof.
+
 ## Nineteenth 2026-07-11 review
 
 This review closes a worker-path authority gap. The Agents SDK bridge now rejects

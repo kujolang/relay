@@ -244,3 +244,10 @@ the AI SDK bridge. Unsupported schemes and embedded credentials fail closed as
 `invalid_watchdog_route`; the contract and CLI smokes pass. TLS policy,
 authenticated route discovery, and external-provider verification remain
 deferred.
+
+## Twenty-second 2026-07-11 review
+
+Live Watchdog route validation now allows cleartext HTTP only for loopback and
+requires HTTPS for non-loopback hosts. Contract and CLI route smokes pass.
+Certificate validation, mTLS, authenticated route discovery, and external
+provider verification remain deferred.
