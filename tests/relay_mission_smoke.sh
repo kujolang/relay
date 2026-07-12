@@ -25,6 +25,9 @@ resumed="$($KUJO run "$ROOT/main.kujo" -- missions resume "$run_id" --json)"
 printf '%s' "$resumed" | grep -q '"ok":true'
 printf '%s' "$resumed" | grep -q '"status":"completed"'
 printf '%s' "$resumed" | grep -q '"runledger_finish"'
+printf '%s' "$resumed" | grep -q '"packet_revision":1'
+printf '%s' "$resumed" | grep -q '"runledger_id"'
+printf '%s' "$resumed" | grep -q '"provider":"fixture"'
 
 test -f "$WORK/RELAY_OUTPUT.txt"
 echo "PASS relay mission smoke"

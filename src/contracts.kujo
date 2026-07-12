@@ -87,6 +87,9 @@ func run_state(mission_id, workflow, repo, run_id) {
         "current_step": "",
         "attempt": 0,
         "budgets": {"max_steps": 8, "max_repairs": 1, "max_tokens": 4000, "max_tool_calls": 4, "max_output_bytes": 1048576, "max_write_bytes": 1048576, "used_tokens": 0},
+        "model": "",
+        "provider": "",
+        "packet_revision": 0,
         "events": [],
         "artifacts": [],
         "evaluations": [],
@@ -109,6 +112,7 @@ func agent_profile(id, name, mandate, model, tools, authority) {
 }
 
 export event := event
+export event_integrity_input := event_integrity_input
 export event_integrity_valid := event_integrity_valid
 export event_chain_integrity_valid := event_chain_integrity_valid
 export event_sequence_matches_state := event_sequence_matches_state
