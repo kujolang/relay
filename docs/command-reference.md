@@ -72,6 +72,11 @@ for PackWrite, Agents SDK, model, tool, ChangeBucket, Eval, and RunLedger
 artifacts. Receipt IDs are included in the lifecycle events that create or
 complete those artifacts; upstream tools remain the canonical artifact owners.
 
+AI telemetry and bounded adapter/action results include non-negative
+`duration_ms` values. These are elapsed local measurements for the bridge or
+subprocess boundary, not provider billing, queue-time, or globally comparable
+latency guarantees.
+
 `--pause-after-plan` creates a supported checkpoint at `implementation`. `missions resume` executes the stored pending actions and reruns ChangeBucket and Eval. Arbitrary crash replay is not yet supported.
 
 Set `workspace_mode: "worktree"` to have Relay create a detached worktree from the immutable starting commit under the run directory. The source repository remains unchanged. The worktree is retained for inspection until an operator explicitly runs `missions cleanup <run-id> --confirm`; cleanup is refused while a run is active and is never implicit.

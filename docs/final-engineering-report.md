@@ -161,3 +161,13 @@ misclassifying a valid run. A concurrent mission smoke passes through
 durable event fan-out, external-provider proof, and enterprise identity remain
 open. The next handoff is
 `docs/next-session-enhancement-backlog-2026-07-11-v12.md`.
+
+## Thirteenth 2026-07-11 review
+
+This review adds bounded duration evidence to the AI bridge, tool commands,
+and ecosystem subprocess adapters. Fixture chat and mission telemetry now
+expose non-negative `duration_ms` values, with a focused metrics smoke and
+Loop Engineering gate. These are local elapsed measurements rather than
+provider billing, queue-time, SLA, or enterprise metrics aggregation proof.
+The next handoff is
+`docs/next-session-enhancement-backlog-2026-07-11-v13.md`.

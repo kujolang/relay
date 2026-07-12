@@ -51,6 +51,7 @@ The correct posture is: **local-first hardened alpha / ecosystem showcase**. The
 | Shell boundary | Allowlisted mission commands execute as direct argv without a shell; tabs, shell syntax, Git pathspecs, unknown options, and script arguments are rejected | `src/common.kujo`, `src/policy.kujo`, `src/runtime.kujo`, contract and mission smokes |
 | Index concurrency | Atomic lock directory, bounded four-attempt backoff, stale-lock recovery, cache-size/symlink checks, and state/status freshness validation protect the rebuildable index | `src/store.kujo`, contract, store, and lock-stress smokes |
 | Live observation | Bounded `runs watch` emits verified event records while a run is active and reconciles terminal state with the event file | `src/cli.kujo`, `tests/relay_watch_smoke.sh` |
+| Performance evidence | Bounded AI bridge, tool, and evidence adapter calls expose non-negative duration measurements | `src/adapters.kujo`, `src/runtime.kujo`, `tests/relay_metrics_smoke.sh` |
 | Event integrity | AgentEvent-compatible JSONL records carry deterministic SHA-256 integrity fields and tamper validation | `src/contracts.kujo`, contract smoke |
 | Worktree cleanup authority | Cleanup rejects tampered paths and requires the run-owned workspace target | `src/runtime.kujo`, `tests/relay_worktree_smoke.sh` |
 | Agents SDK tools | A Kujo bridge registers `relay.write_file` and `relay.run_command`, applies Agents SDK approval providers, and delegates to Relay's capability-bound policy worker | `src/agent_bridge.kujo`, `src/runtime.kujo`, `tests/relay_agents_tool_smoke.sh` |
@@ -161,6 +162,15 @@ receipts and state consistency. `tests/relay_watch_smoke.sh` proves a watcher
 can observe a concurrently executing fixture mission through `run_completed`.
 This is a local CLI observation surface, not a remote subscription service or a
 durable multi-host event bus.
+
+## Thirteenth review slice — bounded duration evidence
+
+Relay now records non-negative `duration_ms` values at the bounded subprocess
+adapter boundary and propagates the AI bridge duration into telemetry and
+mission action/evidence results. The metrics smoke verifies fixture chat and a
+fixture mission expose these measurements. These values improve local
+performance debugging and regression detection; they are not billing, queue,
+provider-SLA, or globally comparable latency metrics.
 
 ## Eighth review slice — complete evidence verification
 
