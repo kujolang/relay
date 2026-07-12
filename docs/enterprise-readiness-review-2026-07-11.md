@@ -60,7 +60,8 @@ The correct posture is: **local-first hardened alpha / ecosystem showcase**. The
 | Fallback safety | Primary model fallback is limited to explicit transient/capability classes and skipped reasons are recorded | `src/adapters.kujo`, contract tests |
 | Worker executable authority | Agents SDK worker root and binary must match trusted environment values before spawn | `src/agent_bridge.kujo`, `tests/relay_agents_tool_smoke.sh` |
 | Bridge payload safety | AI, Agents SDK, and tool-worker environment JSON is bounded and malformed input is structured before use | `src/ai_bridge.kujo`, `src/agent_bridge.kujo`, `src/cli.kujo`, `tests/relay_input_boundary_smoke.sh` |
-| Live route safety | Watchdog URL scheme and userinfo are rejected before provider invocation | `src/adapters.kujo`, `tests/relay_cli_smoke.sh`, contract tests |
+| Live route safety | Watchdog URL scheme, userinfo, malformed hosts, query/fragment values, and remote cleartext HTTP are rejected before provider invocation; remote HTTPS and loopback HTTP remain supported | `src/adapters.kujo`, `src/watchdog.kujo`, `tests/relay_cli_smoke.sh`, contract tests |
+| Secret-safe route diagnostics | `doctor --json` reuses route policy, fails live readiness for unsafe routes, and never echoes raw Watchdog URLs | `src/watchdog.kujo`, `src/doctor.kujo`, contract and CLI smokes |
 | Event integrity | AgentEvent-compatible JSONL records carry deterministic SHA-256 integrity fields and tamper validation | `src/contracts.kujo`, contract smoke |
 | Worktree cleanup authority | Cleanup rejects tampered paths and requires the run-owned workspace target | `src/runtime.kujo`, `tests/relay_worktree_smoke.sh` |
 | Agents SDK tools | A Kujo bridge registers `relay.write_file` and `relay.run_command`, applies Agents SDK approval providers, and delegates to Relay's capability-bound policy worker | `src/agent_bridge.kujo`, `src/runtime.kujo`, `tests/relay_agents_tool_smoke.sh` |

@@ -208,3 +208,16 @@ deployments need TLS termination and future route discovery must preserve this
 policy; certificate pinning and mTLS remain deferred. Rejected: allowing all
 HTTP because the URL has no userinfo, or silently upgrading the configured
 endpoint.
+
+## ADR-039: Keep Watchdog route posture secret-safe
+
+Context: `doctor --json` treated any non-empty Watchdog URL as configured and
+returned the raw value, even when route validation would reject it. Decision:
+reuse the Watchdog route policy in doctor, require a valid route for live
+readiness, and report only configured/valid/scheme/reason fields without the
+raw URL. Rationale: operator diagnostics must agree with the live invocation
+boundary and must not echo credentials or remote route details into CI logs.
+Consequence: operators diagnose route classes rather than copying a URL from
+doctor output; authenticated route discovery and certificate verification
+remain deferred. Rejected: reporting the URL for convenience or making doctor
+less strict than the live AI path.

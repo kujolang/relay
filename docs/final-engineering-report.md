@@ -251,3 +251,13 @@ Live Watchdog route validation now allows cleartext HTTP only for loopback and
 requires HTTPS for non-loopback hosts. Contract and CLI route smokes pass.
 Certificate validation, mTLS, authenticated route discovery, and external
 provider verification remain deferred.
+
+## Twenty-third 2026-07-12 review
+
+This review aligned operator diagnostics with live Watchdog enforcement. The
+route policy now rejects missing hosts and query/fragment-bearing endpoints,
+while `doctor --json` fails live readiness for unsafe routes and reports only
+non-secret posture fields. CLI and contract coverage proves remote HTTP
+rejection, malformed-route handling, and credential-bearing URL non-disclosure.
+Authenticated route discovery, certificate validation, mTLS, and external
+provider verification remain deferred.

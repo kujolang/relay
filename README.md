@@ -2,7 +2,7 @@
 
 Kujo Relay is a Kujo-native composition and execution layer for bounded agent missions. The CLI is a thin wrapper over reusable runtime modules. It composes existing AI SDK, Agents SDK, PackWrite, RunLedger, ChangeBucket, Eval, Capsule, and Chain of Command contracts instead of replacing them.
 
-Status: `0.1.0` hardened local alpha. Offline execution, bounded repository work, bounded mission-spec inputs, bounded JSON evidence parsing, bounded AI/Agents SDK/tool bridge payloads, validated live Watchdog routes with HTTPS required for non-loopback hosts, trusted Agents SDK worker-root binding, resumable checkpoints, cooperative mission cancellation, symlink-safe evidence reads, packet integrity metadata, sealed typed evidence receipts, live bounded `runs watch` event observation, bounded adapter duration metrics, read-only run artifact size inventory, redacted subprocess evidence, explicit environment isolation, fixed executable search paths, shell-free command execution with exact read-only Git argv profiles, bounded lock backoff with contention evidence, failure-aware model fallback, budgets, deterministic evaluation, detached worktree missions, locked/self-healing run-index rebuilds, complete event-sequence verification, integrity-verified event export, real local Watchdog correlation, and one isolated fixture mission using the Agents SDK Tool Registry are verified locally. Relay is not yet enterprise-production-ready or universally useful: external live-provider proof, authenticated multi-tenant operation, full workcell isolation/recovery, provider-driven tool execution, durable concurrent storage, and release gates remain open.
+Status: `0.1.0` hardened local alpha. Offline execution, bounded repository work, bounded mission-spec inputs, bounded JSON evidence parsing, bounded AI/Agents SDK/tool bridge payloads, validated and secret-safe live Watchdog route posture with HTTPS required for non-loopback hosts, trusted Agents SDK worker-root binding, resumable checkpoints, cooperative mission cancellation, symlink-safe evidence reads, packet integrity metadata, sealed typed evidence receipts, live bounded `runs watch` event observation, bounded adapter duration metrics, read-only run artifact size inventory, redacted subprocess evidence, explicit environment isolation, fixed executable search paths, shell-free command execution with exact read-only Git argv profiles, bounded lock backoff with contention evidence, failure-aware model fallback, budgets, deterministic evaluation, detached worktree missions, locked/self-healing run-index rebuilds, complete event-sequence verification, integrity-verified event export, real local Watchdog correlation, and one isolated fixture mission using the Agents SDK Tool Registry are verified locally. Relay is not yet enterprise-production-ready or universally useful: external live-provider proof, authenticated multi-tenant operation, full workcell isolation/recovery, provider-driven tool execution, durable concurrent storage, and release gates remain open.
 
 ## Enterprise-readiness position
 
@@ -58,7 +58,7 @@ Implemented and truthful in this slice:
 - `chat`, including normalized stream events and JSON output
 - `models list|inspect|probe`
 - `agents list|inspect|validate`
-- `doctor`, including dependency, agent-registry, live-route, and credential posture checks
+- `doctor`, including dependency, agent-registry, secret-safe live-route posture, and credential checks
 - `missions create|run|inspect|pause|resume|cancel|cleanup|report`; cancellation is cooperative and recorded as run evidence
 - `runs list|rebuild|inspect|events|watch|sizes|changes|evaluations|export`; event reads and exports verify the integrity chain and typed receipt index
 - `benchmark run` for the Capsule discovery slice
@@ -128,4 +128,4 @@ bash tests/relay_agents_tool_smoke.sh
 git diff --check
 ```
 
-For the full integration evidence boundary and deferred enterprise work, see [`docs/enterprise-readiness-review-2026-07-11.md`](docs/enterprise-readiness-review-2026-07-11.md), [`docs/command-reference.md`](docs/command-reference.md), and the current [`docs/next-session-enhancement-backlog-2026-07-11-v22.md`](docs/next-session-enhancement-backlog-2026-07-11-v22.md).
+For the full integration evidence boundary and deferred enterprise work, see [`docs/enterprise-readiness-review-2026-07-11.md`](docs/enterprise-readiness-review-2026-07-11.md), [`docs/command-reference.md`](docs/command-reference.md), and the current [`docs/next-session-enhancement-backlog-2026-07-11-v23.md`](docs/next-session-enhancement-backlog-2026-07-11-v23.md).

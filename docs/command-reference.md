@@ -152,6 +152,10 @@ schemes and userinfo fail closed as `invalid_watchdog_route`. Plain HTTP is
 allowed only for `localhost`, `127.0.0.1`, or `[::1]`; non-loopback Watchdog
 hosts must use HTTPS.
 
+`doctor --json` reports only non-secret route posture (`configured`, `valid`,
+`scheme`, and a bounded failure reason). It never echoes the configured
+Watchdog URL, including when the value contains rejected credentials.
+
 Set `RELAY_WATCHDOG_VERIFY=true` to make live calls fail closed unless Relay can authenticate to Watchdog's API, verify health and proxy configuration, and find a request row matching the correlation ID emitted by the AI SDK request. `doctor --json` performs the health/config portion of this check.
 
 ## Exit-code guidance
