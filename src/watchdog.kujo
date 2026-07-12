@@ -1,4 +1,4 @@
-from src.common import dict_get_or, env_or, string_or, safe_id, redact_text
+from src.common import dict_get_or, env_or, string_or, redact_text
 
 # Watchdog owns live AI proxying and telemetry storage. Relay only consumes the
 # narrow HTTP health/correlation contract needed to prove that a request was
@@ -45,6 +45,18 @@ func route_policy(value) {
 
 func safe_base(value) {
     return dict_get_or(route_policy(value), "valid", false)
+}
+
+func safe_correlation_id(value) {
+    candidate := trim(to_string(value))
+    if candidate == "" || len(candidate) > 160 { return "" }
+    mut i := 0
+    while i < len(candidate) {
+        character := substring(candidate, i, i + 1)
+        if index_of("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_", character) < 0 { return "" }
+        i = i + 1
+    }
+    return candidate
 }
 
 func endpoint(path) {
@@ -101,7 +113,7 @@ func proxy_config_check() {
 }
 
 func correlation_check(correlation_id) {
-    correlation := safe_id(correlation_id, "")
+    correlation := safe_correlation_id(correlation_id)
     if correlation == "" { return {"ok": false, "error": "A safe correlation ID is required"} }
     raw := get_json("/api/requests?correlation_id=" + correlation + "&page_size=20")
     result := {"ok": raw["ok"], "status": raw["status"], "endpoint": raw["endpoint"]}
@@ -132,6 +144,7 @@ func verify(correlation_id) {
 export api_base := api_base
 export route_policy := route_policy
 export safe_base := safe_base
+export safe_correlation_id := safe_correlation_id
 export health_check := health_check
 export proxy_config_check := proxy_config_check
 export correlation_check := correlation_check

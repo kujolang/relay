@@ -1,5 +1,5 @@
 from src.common import dict_get_or, env_or, string_or, bool_or, int_or, safe_json, read_json_or, redact_text, process_options, safe_env_name, contains_any
-from src.watchdog import watchdog_verify, safe_base
+from src.watchdog import watchdog_verify, safe_base, route_policy, safe_correlation_id
 
 func relay_root() { return env_or("RELAY_ROOT", env_or("PWD", ".")) }
 func kujo_bin() { return env_or("KUJO_BIN", relay_root() + "/../kujo/target/release/kujo") }
@@ -51,7 +51,9 @@ func call_ai(messages, model, provider, base_url, api_key_env, offline, stream, 
     if safe_env_name(api_key_env) == false {
         return {"ok": false, "error": {"code": "invalid_api_key_env", "message": "RELAY_API_KEY_ENV must be a safe non-reserved environment variable name"}, "relay_telemetry": {"route": "blocked_invalid_env", "provider": provider, "model": model}}
     }
-    correlation := string_or(correlation_id, env_or("RELAY_CORRELATION_ID", "relay-ai-" + to_string(current_timestamp()) + "-" + to_string(random_int(1000, 999999))))
+    requested_correlation := string_or(correlation_id, env_or("RELAY_CORRELATION_ID", ""))
+    correlation := safe_correlation_id(requested_correlation)
+    if correlation == "" { correlation = "relay-ai-" + to_string(current_timestamp()) + "-" + to_string(random_int(1000, 999999)) }
     payload := {
         "provider_id": "custom",
         "model": model,
@@ -81,7 +83,8 @@ func call_ai(messages, model, provider, base_url, api_key_env, offline, stream, 
     }
     route := "direct_ai_sdk"
     if watchdog_url() != "" && offline == false { route = "watchdog_proxy" }
-    parsed["relay_telemetry"] := {"route": route, "watchdog_url": watchdog_url(), "watchdog_auth_configured": watchdog_token != "", "provider": provider, "model": model, "stream_requested": stream, "correlation_id": correlation, "duration_ms": int_or(dict_get_or(result, "duration_ms", 0), 0)}
+    route_posture := route_policy(watchdog_url())
+    parsed["relay_telemetry"] := {"route": route, "watchdog_route": {"configured": dict_get_or(route_posture, "configured", false), "valid": dict_get_or(route_posture, "valid", false), "scheme": dict_get_or(route_posture, "scheme", ""), "reason": dict_get_or(route_posture, "reason", "")}, "watchdog_auth_configured": watchdog_token != "", "provider": provider, "model": model, "stream_requested": stream, "correlation_id": correlation, "duration_ms": int_or(dict_get_or(result, "duration_ms", 0), 0)}
     if offline == false && env_or("RELAY_WATCHDOG_VERIFY", "false") == "true" {
         verification := watchdog_verify(correlation)
         parsed["relay_watchdog_verification"] := verification

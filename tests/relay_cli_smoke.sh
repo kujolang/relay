@@ -36,6 +36,31 @@ if printf '%s' "$token_output" | grep -q 'relay-test-proxy-token'; then
   exit 1
 fi
 
+route_output="$(RELAY_WATCHDOG_URL='https://watchdog.example.com/proxy/v1' "$KUJO" run "$ROOT/main.kujo" -- chat route-boundary --fixture --json)"
+printf '%s' "$route_output" | grep -q '"watchdog_route"'
+if printf '%s' "$route_output" | grep -q 'watchdog.example.com'; then
+  echo "Watchdog route leaked into fixture telemetry" >&2
+  exit 1
+fi
+
+set +e
+credential_route_output="$(RELAY_WATCHDOG_URL='https://user:route-secret@watchdog.example.com/proxy/v1' "$KUJO" run "$ROOT/main.kujo" -- chat credential-route-boundary --fixture --json 2>&1)"
+credential_route_status=$?
+set -e
+test "$credential_route_status" -ne 0
+printf '%s' "$credential_route_output" | grep -q '"reason":"embedded_credentials"'
+if printf '%s' "$credential_route_output" | grep -q 'route-secret\|watchdog.example.com'; then
+  echo "Credential-bearing Watchdog route leaked into fixture telemetry" >&2
+  exit 1
+fi
+
+correlation_output="$(RELAY_CORRELATION_ID='relay&extra=1' "$KUJO" run "$ROOT/main.kujo" -- chat correlation-boundary --fixture --json)"
+printf '%s' "$correlation_output" | grep -q '"correlation_id":"relay-ai-'
+if printf '%s' "$correlation_output" | grep -q 'relay&extra=1'; then
+  echo "Unsafe correlation ID reached telemetry" >&2
+  exit 1
+fi
+
 set +e
 invalid_watchdog="$(RELAY_OFFLINE_FIXTURE=false RELAY_WATCHDOG_URL='file:///tmp/watchdog' "$KUJO" run "$ROOT/main.kujo" -- chat invalid-route --json 2>&1)"
 watchdog_status=$?

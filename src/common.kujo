@@ -91,6 +91,10 @@ func safe_env_name(value) {
     return true
 }
 
+func path_is_symlink_safe(path) {
+    try { return path_is_symlink(path) } except err { return false }
+}
+
 func write_text_atomic(path, content) {
     tmp := path + ".tmp-" + to_string(current_timestamp()) + "-" + to_string(random_int(1000, 999999))
     try {
@@ -138,14 +142,14 @@ func process_options(extra_env, timeout_ms, max_output_bytes) {
 
 func read_json_or(path, fallback) {
     if path_exists(path) == false { return fallback }
-    if path_is_symlink(path) || path_is_file(path) == false { return fallback }
+    if path_is_symlink_safe(path) || path_is_file(path) == false { return fallback }
     try { return parse_json(read_file(path)) } except err { return fallback }
 }
 
 func read_json_limited(path, fallback, max_bytes) {
     limit := int_or(max_bytes, 1048576)
     if limit <= 0 || path_exists(path) == false { return fallback }
-    if path_is_symlink(path) || path_is_file(path) == false || file_size(path) > limit { return fallback }
+    if path_is_symlink_safe(path) || path_is_file(path) == false || file_size(path) > limit { return fallback }
     return read_json_or(path, fallback)
 }
 
@@ -157,7 +161,7 @@ func append_jsonl(path, value) {
     try {
         line := safe_json(value) + "\n"
         if path_exists(path) {
-            if path_is_symlink(path) || path_is_file(path) == false { return false }
+            if path_is_symlink_safe(path) || path_is_file(path) == false { return false }
             append_file(path, line)
         } else { write_file(path, line) }
         return true
@@ -203,6 +207,7 @@ export safe_json := safe_json
 export shell_quote_single := shell_quote_single
 export command_args := command_args
 export safe_env_name := safe_env_name
+export path_is_symlink_safe := path_is_symlink_safe
 export write_text_atomic := write_text_atomic
 export safe_process_path := safe_process_path
 export process_options := process_options
