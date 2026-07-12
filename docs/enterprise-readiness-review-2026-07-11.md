@@ -55,6 +55,7 @@ The correct posture is: **local-first hardened alpha / ecosystem showcase**. The
 | Artifact size evidence | Read-only `runs sizes` inventories persisted run artifacts, excludes workspace, and rejects symlinks/oversized entry sets | `src/cli.kujo`, `tests/relay_sizes_smoke.sh` |
 | Mission cancellation | Cooperative `missions cancel` request checks around actions, terminal event, and RunLedger finish evidence | `src/runtime.kujo`, `src/cli.kujo`, `tests/relay_cancel_smoke.sh` |
 | Evidence path safety | JSON reads/appends and event inspection reject symbolic-linked or non-regular evidence files | `src/common.kujo`, `src/cli.kujo`, `tests/relay_store_smoke.sh` |
+| Mission input safety | Regular-file, non-symlink, 1 MiB mission-spec bound before JSON parsing | `src/runtime.kujo`, `tests/relay_spec_safety_smoke.sh` |
 | Event integrity | AgentEvent-compatible JSONL records carry deterministic SHA-256 integrity fields and tamper validation | `src/contracts.kujo`, contract smoke |
 | Worktree cleanup authority | Cleanup rejects tampered paths and requires the run-owned workspace target | `src/runtime.kujo`, `tests/relay_worktree_smoke.sh` |
 | Agents SDK tools | A Kujo bridge registers `relay.write_file` and `relay.run_command`, applies Agents SDK approval providers, and delegates to Relay's capability-bound policy worker | `src/agent_bridge.kujo`, `src/runtime.kujo`, `tests/relay_agents_tool_smoke.sh` |
@@ -195,6 +196,15 @@ proves cancellation during a slow repository action and rejects a false
 completion event. This is cooperative local cancellation only; process-group
 termination, rollback, distributed identity/authorization, and workcell
 recovery remain open.
+
+## Seventeenth review slice — bounded mission-spec input
+
+Relay now requires a mission input to be an existing regular, non-symbolic file
+no larger than 1 MiB before JSON parsing or run-state persistence. The focused
+spec-safety smoke proves both oversized and symlinked mission documents fail
+closed. This bounds local parse/prompt/state amplification; authenticated
+input identity, schema negotiation, and larger durable workflow packets remain
+future work.
 
 ## Sixteenth review slice — symlink-safe evidence access
 

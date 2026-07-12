@@ -46,6 +46,11 @@ Mission specs are JSON objects with `name`, `goal`, a Git `repository`, `actions
 - `write_file`: relative path, only with `allow_writes: true` and `approval.approved: true`.
 - `run_command`: read-oriented `git`, `kujo`, `bash scripts/`, or `sh scripts/` commands that pass policy. Commands are tokenized and executed as direct argv; shell pipelines, substitutions, globbing, tabs, and quoting expressions are rejected.
 
+Mission input files must be regular, non-symbolic files no larger than 1 MiB.
+This bound applies before JSON parsing and persistence, preventing an
+unbounded caller-controlled mission document from becoming run state or model
+context. Action count and tool-call budgets remain separately bounded.
+
 The approved Git profile is intentionally narrow: `status`, `diff`,
 `rev-parse`, `log`, and `show` with enumerated read-only options. Positional
 pathspecs, unknown options, arbitrary Git subcommands, and script arguments are

@@ -198,3 +198,11 @@ files, and event watch/inspection/export refuse such `events.jsonl` artifacts.
 The store smoke proves a symlink to `/etc/passwd` fails closed. Kernel-level
 no-follow primitives, multi-user ownership, and durable storage isolation are
 still deferred.
+
+## Seventeenth 2026-07-11 review
+
+This review bounds mission input before parsing: `load_spec` rejects missing,
+symbolic-linked, non-regular, or larger-than-1 MiB files. The focused
+spec-safety smoke proves oversized and symlinked mission documents fail closed.
+Authenticated input identity, schema negotiation, and larger durable workflow
+packets remain deferred.
