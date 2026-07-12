@@ -236,3 +236,11 @@ JSON. The input-boundary smoke proves oversized and malformed payload handling
 across all three machine-callable paths. This is a bounded local transport
 contract; authenticated file/socket transport and larger prompt semantics
 remain deferred.
+
+## Twenty-first 2026-07-11 review
+
+Live AI invocation now validates the configured Watchdog URL before starting
+the AI SDK bridge. Unsupported schemes and embedded credentials fail closed as
+`invalid_watchdog_route`; the contract and CLI smokes pass. TLS policy,
+authenticated route discovery, and external-provider verification remain
+deferred.

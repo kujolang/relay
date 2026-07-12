@@ -146,6 +146,10 @@ Watchdog-route, malformed-bridge, and other non-retryable failures do not
 trigger a second provider call; the skipped reason remains visible in
 `relay_telemetry`.
 
+Live AI calls also validate `RELAY_WATCHDOG_URL` before invoking the AI SDK. It
+must be an `http://` or `https://` URL without embedded credentials; invalid
+schemes and userinfo fail closed as `invalid_watchdog_route`.
+
 Set `RELAY_WATCHDOG_VERIFY=true` to make live calls fail closed unless Relay can authenticate to Watchdog's API, verify health and proxy configuration, and find a request row matching the correlation ID emitted by the AI SDK request. `doctor --json` performs the health/config portion of this check.
 
 ## Exit-code guidance

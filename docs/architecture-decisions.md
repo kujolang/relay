@@ -181,3 +181,17 @@ limits and make machine failures stable. Consequence: very large prompts or
 tool plans need a future transport contract; the mission-file boundary remains
 1 MiB because it is file-backed. Rejected: relying on OS argument limits,
 parsing unbounded environment strings, or silently truncating JSON.
+
+## ADR-037: Validate Watchdog routes before live AI invocation
+
+Context: Relay already required a Watchdog URL for live calls, but the adapter
+could pass a malformed scheme or credential-bearing URL onward to the AI SDK
+before Watchdog verification ran. Decision: live calls require an HTTP(S)
+Watchdog URL without embedded userinfo before any provider subprocess starts;
+invalid routes return a structured `invalid_watchdog_route` failure. Rationale:
+keep provider routing and credential-bearing endpoints behind the Relay safety
+boundary and make route failures deterministic. Consequence: local deployments
+must use a plain configured URL and put authentication in the explicit token
+environment seams; custom schemes require a future adapter contract. Rejected:
+letting the downstream SDK decide route safety or validating only when optional
+Watchdog verification is enabled.
