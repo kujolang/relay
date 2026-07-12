@@ -321,3 +321,12 @@ validation, and mTLS remain deferred.
 The concurrent index-lock probe was also made race-safe. A disappearing lock
 path is treated as a normal bounded contention lifecycle rather than an
 interpreter failure; the lock stress gate passes.
+
+## Thirtieth 2026-07-12 review
+
+Watchdog health and proxy-configuration transport failures now use an
+endpoint-independent error class. `doctor --json` retains status and logical
+endpoint information but no longer returns raw constructed URLs or transport
+exception text. The unreachable-route redaction smoke and full Relay gates
+pass. External provider proof, authenticated route discovery, TLS policy,
+certificate validation, and mTLS remain deferred.

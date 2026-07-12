@@ -278,6 +278,20 @@ caller identity and distributed correlation ownership remain deferred. Rejected:
 URL-encoding a permissive identifier or sanitizing only at the Watchdog query
 boundary.
 
+## ADR-048: Normalize Watchdog transport failures
+
+Context: `doctor --json` and optional live verification surfaced the HTTP
+library's raw request error. On an unreachable route that error included the
+configured Watchdog URL, bypassing the posture-only route contract. Decision:
+return the stable `Watchdog HTTP request failed` class with status and logical
+endpoint path, but never the transport exception text or constructed URL.
+Rationale: diagnostics and persisted verification evidence are machine-facing
+outputs and must not disclose route material merely because a connection
+failed. Consequence: operators get a bounded failure class and status while
+transport-specific debugging requires local logs or an explicitly authorized
+diagnostic channel. Rejected: applying string redaction to arbitrary HTTP
+errors or exposing raw errors only when the route is valid.
+
 ## ADR-047: Make concurrent store probes race-safe
 
 Context: concurrent index rebuilds could remove `.relay/.index.lock` between a

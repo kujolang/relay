@@ -162,6 +162,10 @@ posture (`configured`, `valid`, `scheme`, and a bounded failure reason). They
 never echo the configured Watchdog URL, including when the value contains
 rejected credentials.
 
+Watchdog health/configuration failures are also endpoint-independent; doctor
+returns a bounded failure class rather than a transport library error that
+could contain the configured URL.
+
 Correlation IDs are limited to 160 alphanumeric, hyphen, or underscore
 characters before they are placed in Watchdog headers, telemetry, or request
 queries. Invalid values are replaced with a generated safe ID.

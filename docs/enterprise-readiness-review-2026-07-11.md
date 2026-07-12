@@ -307,6 +307,15 @@ The same review also hardened the local index lock boundary: concurrent
 rebuilds now tolerate a lock directory disappearing between filesystem probes,
 and the lock stress gate passes without an interpreter race.
 
+## Thirtieth 2026-07-12 review
+
+This review closed a Watchdog diagnostic disclosure path. When health or proxy
+configuration requests fail, Relay now returns the bounded
+`Watchdog HTTP request failed` class and logical endpoint path without exposing
+the constructed URL or transport-library error. The unreachable-route doctor
+smoke and full local gates pass. This is diagnostic hardening, not authenticated
+route discovery, certificate validation, or mTLS.
+
 ## Release recommendation
 
 Publish Relay only as a local-first alpha/showcase until all P0 items have executable evidence. The review hardening is pushed to `origin/main`; keep the README's enterprise-readiness disclaimer and require a release report that distinguishes fixture, configured-live, and production-environment evidence.
