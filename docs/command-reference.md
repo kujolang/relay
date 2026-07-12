@@ -33,7 +33,7 @@ relay agents list|inspect <agent>|validate [--json]
 relay missions create [spec.json] [--output <path>] [--json]
 relay missions run <spec.json> [--fixture] [--pause-after-plan] [--skip-agent-smoke] [--json]
 relay missions inspect|pause|resume|cleanup|report <run-id> [--json]
-relay runs list|rebuild|inspect|events|watch|changes|evaluations <run-id> [--json]
+relay runs list|rebuild|inspect|events|watch|sizes|changes|evaluations <run-id> [--json]
 relay runs export <run-id> [--output <path>] [--json]
 relay tools execute --json (internal capability-bound worker callback)
 relay benchmark run <repository> [--json]
@@ -97,6 +97,15 @@ as a JSONL record while the run is active. Polling is bounded to 1–1000 ms and
 the watch timeout to 1–600000 ms. The watcher verifies the event chain on every
 poll, tolerates the short final state/file persistence race, and fails closed
 on malformed, oversized, or terminally inconsistent evidence.
+
+`runs sizes <run-id>` returns a versioned, read-only inventory of files and
+directories under the run artifact directory, including total byte/file counts
+and per-file sizes. The repository `workspace` subtree is always excluded and
+reported in `excluded`; this prevents a large checkout from dominating an
+artifact inspection. The inventory fails closed on symbolic links, unsupported
+paths, or more than 4096 artifact files. It does not delete, compact, rotate,
+or retain artifacts, and its byte counts are local filesystem sizes rather than
+storage-billing or transfer metrics.
 
 `chat --stream` emits normalized JSONL `delta` and `done` events. Relay forwards the stream option through the AI SDK bridge; live Watchdog proxy authorization is supplied through `RELAY_WATCHDOG_PROXY_TOKEN` and is never included in the model payload.
 

@@ -52,6 +52,7 @@ The correct posture is: **local-first hardened alpha / ecosystem showcase**. The
 | Index concurrency | Atomic lock directory, bounded four-attempt backoff, stale-lock recovery, cache-size/symlink checks, and state/status freshness validation protect the rebuildable index | `src/store.kujo`, contract, store, and lock-stress smokes |
 | Live observation | Bounded `runs watch` emits verified event records while a run is active and reconciles terminal state with the event file | `src/cli.kujo`, `tests/relay_watch_smoke.sh` |
 | Performance evidence | Bounded AI bridge, tool, and evidence adapter calls expose non-negative duration measurements | `src/adapters.kujo`, `src/runtime.kujo`, `tests/relay_metrics_smoke.sh` |
+| Artifact size evidence | Read-only `runs sizes` inventories persisted run artifacts, excludes workspace, and rejects symlinks/oversized entry sets | `src/cli.kujo`, `tests/relay_sizes_smoke.sh` |
 | Event integrity | AgentEvent-compatible JSONL records carry deterministic SHA-256 integrity fields and tamper validation | `src/contracts.kujo`, contract smoke |
 | Worktree cleanup authority | Cleanup rejects tampered paths and requires the run-owned workspace target | `src/runtime.kujo`, `tests/relay_worktree_smoke.sh` |
 | Agents SDK tools | A Kujo bridge registers `relay.write_file` and `relay.run_command`, applies Agents SDK approval providers, and delegates to Relay's capability-bound policy worker | `src/agent_bridge.kujo`, `src/runtime.kujo`, `tests/relay_agents_tool_smoke.sh` |
@@ -83,7 +84,7 @@ The correct posture is: **local-first hardened alpha / ecosystem showcase**. The
 1. Avoid running Agents SDK aggregate smoke on every production mission; make it a startup or release gate.
 2. Add bounded parallel read-only verification with serialized writes.
 3. Add streaming event sinks rather than only file-backed post-run JSONL.
-4. Add structured metrics for latency, tokens, retries, queue time, tool duration, and artifact sizes.
+4. Add structured aggregate metrics for latency, tokens, retries, queue time, tool duration, artifact sizes, and provider availability; local duration and size inventories remain raw evidence.
 5. Add retention/compaction for `.relay` artifacts and streaming artifact sinks.
 6. Add model capability discovery and explicit fallback-selection explanations.
 
@@ -171,6 +172,16 @@ mission action/evidence results. The metrics smoke verifies fixture chat and a
 fixture mission expose these measurements. These values improve local
 performance debugging and regression detection; they are not billing, queue,
 provider-SLA, or globally comparable latency metrics.
+
+## Fourteenth review slice — bounded artifact size evidence
+
+Relay now exposes `runs sizes <run-id>` as a read-only inventory of persisted
+run artifacts. It reports per-file bytes and aggregate counts, always reports
+the repository workspace as excluded, rejects symbolic links and unsupported
+paths, and caps inventory traversal at 4096 files. The focused size smoke proves
+both a normal inventory and fail-closed symlink handling. This is local disk
+evidence only; retention, compaction, transfer cost, and durable multi-host
+artifact storage remain open.
 
 ## Eighth review slice — complete evidence verification
 

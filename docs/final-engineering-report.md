@@ -171,3 +171,12 @@ Loop Engineering gate. These are local elapsed measurements rather than
 provider billing, queue-time, SLA, or enterprise metrics aggregation proof.
 The next handoff is
 `docs/next-session-enhancement-backlog-2026-07-11-v13.md`.
+
+## Fourteenth 2026-07-11 review
+
+This review adds a read-only `runs sizes <run-id>` artifact inventory with
+per-file byte counts, aggregate file/directory totals, an explicit repository
+workspace exclusion, and fail-closed symlink/entry-limit handling. The focused
+size smoke passes and the feature remains intentionally below retention,
+compaction, transfer-cost, and durable multi-host storage semantics. The next
+handoff is `docs/next-session-enhancement-backlog-2026-07-11-v14.md`.

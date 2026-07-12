@@ -19,10 +19,11 @@
 - Narrowed mission Git execution to exact read-only argv profiles and added bounded index-lock backoff with a concurrent rebuild stress smoke.
 - Added bounded `runs watch` live AgentEvent observation with per-poll chain verification and terminal state/file reconciliation.
 - Added non-negative adapter/action `duration_ms` measurements to AI telemetry and fixture mission evidence.
+- Added read-only `runs sizes` artifact inventory with workspace exclusion, per-file sizes, and fail-closed symlink/entry bounds.
 
 ## Deferred
 
-Live Ollama Cloud proof, a live Watchdog-backed mission against a real external provider, provider-driven model tool planning, richer Agents SDK runner/tool-result artifact integration, Dispatch workflow import, dynamic agent discovery, full workcell isolation/rollback/recovery, CaseFile failure bundles, Redact integration, MCP adapter, adaptive routing, Capsule A/B scoring, durable concurrent storage, signed export, richer retry/repair/cancellation receipts, remote event sinks, aggregate metrics, and ShipCheck/Concord release gates. Local real-Watchdog/stub-provider correlation, one fixture mission through the Agents SDK Tool Registry, complete event-sequence and receipt verification, exact Git argv policy, bounded lock backoff, bounded live event watch, bounded duration evidence, and core execution-context correlation are proven. See `docs/next-session-enhancement-backlog-2026-07-11-v13.md`.
+Live Ollama Cloud proof, a live Watchdog-backed mission against a real external provider, provider-driven model tool planning, richer Agents SDK runner/tool-result artifact integration, Dispatch workflow import, dynamic agent discovery, full workcell isolation/rollback/recovery, CaseFile failure bundles, Redact integration, MCP adapter, adaptive routing, Capsule A/B scoring, durable concurrent storage, signed export, richer retry/repair/cancellation receipts, remote event sinks, aggregate metrics, artifact retention/compaction, and ShipCheck/Concord release gates. Local real-Watchdog/stub-provider correlation, one fixture mission through the Agents SDK Tool Registry, complete event-sequence and receipt verification, exact Git argv policy, bounded lock backoff, bounded live event watch, bounded duration evidence, bounded artifact size inventory, and core execution-context correlation are proven. See `docs/next-session-enhancement-backlog-2026-07-11-v14.md`.
 
 ## Dependency order
 
