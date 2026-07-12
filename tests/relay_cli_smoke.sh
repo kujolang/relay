@@ -50,6 +50,28 @@ set -e
 test "$external_http_status" -ne 0
 printf '%s' "$external_http_watchdog" | grep -q 'invalid_watchdog_route'
 
+set +e
+unsafe_doctor="$(RELAY_OFFLINE_FIXTURE=false RELAY_WATCHDOG_URL='http://watchdog.example.com/proxy/v1' "$KUJO" run "$ROOT/main.kujo" -- doctor --json 2>&1)"
+unsafe_doctor_status=$?
+set -e
+test "$unsafe_doctor_status" -ne 0
+printf '%s' "$unsafe_doctor" | grep -q '"valid":false'
+if printf '%s' "$unsafe_doctor" | grep -q 'watchdog.example.com'; then
+  echo "doctor leaked the configured Watchdog route" >&2
+  exit 1
+fi
+
+set +e
+credential_doctor="$(RELAY_OFFLINE_FIXTURE=false RELAY_WATCHDOG_URL='https://user:route-secret@watchdog.example.com/proxy/v1' "$KUJO" run "$ROOT/main.kujo" -- doctor --json 2>&1)"
+credential_doctor_status=$?
+set -e
+test "$credential_doctor_status" -ne 0
+printf '%s' "$credential_doctor" | grep -q 'embedded_credentials'
+if printf '%s' "$credential_doctor" | grep -q 'route-secret\|watchdog.example.com'; then
+  echo "doctor leaked an unsafe Watchdog route" >&2
+  exit 1
+fi
+
 stream="$($KUJO run "$ROOT/main.kujo" -- chat stream-boundary --fixture --stream --json)"
 printf '%s' "$stream" | grep -q '"type":"delta"'
 printf '%s' "$stream" | grep -q '"type":"done"'

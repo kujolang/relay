@@ -13,23 +13,38 @@ func api_base() {
     return proxy
 }
 
-func safe_base(value) {
+func route_policy(value) {
     base := string_or(value, "")
-    if base == "" || contains(base, " ") || contains(base, "@") { return false }
-    if starts_with(base, "https://") { return true }
-    if starts_with(base, "http://") == false { return false }
-    host_port := substring(base, 7, len(base))
+    if base == "" { return {"configured": false, "valid": false, "scheme": "", "reason": "missing"} }
+    if contains(base, " ") || contains(base, "\n") || contains(base, "\r") || contains(base, "\t") { return {"configured": true, "valid": false, "scheme": "", "reason": "control_character"} }
+    if contains(base, "@") { return {"configured": true, "valid": false, "scheme": "", "reason": "embedded_credentials"} }
+    scheme := ""
+    offset := 0
+    if starts_with(base, "https://") { scheme = "https"; offset = 8 }
+    else if starts_with(base, "http://") { scheme = "http"; offset = 7 }
+    else { return {"configured": true, "valid": false, "scheme": "", "reason": "unsupported_scheme"} }
+    if contains(base, "?") || contains(base, "#") { return {"configured": true, "valid": false, "scheme": scheme, "reason": "query_or_fragment"} }
+    host_port := substring(base, offset, len(base))
     slash := index_of(host_port, "/")
     if slash >= 0 { host_port = substring(host_port, 0, slash) }
+    if host_port == "" { return {"configured": true, "valid": false, "scheme": scheme, "reason": "missing_host"} }
     host := host_port
     if starts_with(host_port, "[") {
         closing := index_of(host_port, "]")
-        if closing >= 0 { host = substring(host_port, 0, closing + 1) }
+        if closing < 0 { return {"configured": true, "valid": false, "scheme": scheme, "reason": "malformed_ipv6_host"} }
+        host = substring(host_port, 0, closing + 1)
     } else {
         colon := index_of(host_port, ":")
         if colon >= 0 { host = substring(host_port, 0, colon) }
     }
-    return host == "127.0.0.1" || host == "localhost" || host == "[::1]"
+    if host == "" { return {"configured": true, "valid": false, "scheme": scheme, "reason": "missing_host"} }
+    loopback := host == "127.0.0.1" || host == "localhost" || host == "[::1]"
+    if scheme == "http" && loopback == false { return {"configured": true, "valid": false, "scheme": scheme, "reason": "http_non_loopback"} }
+    return {"configured": true, "valid": true, "scheme": scheme, "reason": ""}
+}
+
+func safe_base(value) {
+    return dict_get_or(route_policy(value), "valid", false)
 }
 
 func endpoint(path) {
@@ -115,6 +130,7 @@ func verify(correlation_id) {
 }
 
 export api_base := api_base
+export route_policy := route_policy
 export safe_base := safe_base
 export health_check := health_check
 export proxy_config_check := proxy_config_check

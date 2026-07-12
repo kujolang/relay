@@ -1,6 +1,6 @@
 from src.common import dict_get_or, env_or, safe_env_name
 from src.adapters import kujo_bin, ai_sdk_root, agents_sdk_root, watchdog_url
-from src.watchdog import health_check, proxy_config_check
+from src.watchdog import health_check, proxy_config_check, route_policy
 from src.registry import agent_catalog, agent_path
 
 func path_check(label, path, directory, required) {
@@ -31,10 +31,11 @@ func doctor() {
     live := env_or("RELAY_OFFLINE_FIXTURE", "true") != "true"
     mode := "fixture"
     if live { mode = "live" }
-    watchdog_configured := watchdog_url() != ""
-    watchdog_ok := watchdog_configured
+    watchdog_route := route_policy(watchdog_url())
+    watchdog_configured := dict_get_or(watchdog_route, "configured", false)
+    watchdog_ok := dict_get_or(watchdog_route, "valid", false)
     if live == false { watchdog_ok = true }
-    checks := push(checks, {"name": "Watchdog route", "ok": watchdog_ok, "required": live, "configured": watchdog_configured, "url": watchdog_url()})
+    checks := push(checks, {"name": "Watchdog route", "ok": watchdog_ok, "required": live, "configured": watchdog_configured, "valid": dict_get_or(watchdog_route, "valid", false), "scheme": dict_get_or(watchdog_route, "scheme", ""), "reason": dict_get_or(watchdog_route, "reason", "")})
     watchdog_verify_required := live && env_or("RELAY_WATCHDOG_VERIFY", "false") == "true"
     if watchdog_verify_required {
         watchdog_health := health_check()
