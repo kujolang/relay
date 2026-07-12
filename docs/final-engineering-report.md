@@ -357,3 +357,10 @@ an existence check. Required paths must have the expected file/directory type
 and cannot be symbolic links; JSON callers receive explicit safety fields. A
 symlinked Kujo runtime is rejected before readiness is reported. This remains
 local path posture, not signed supply-chain provenance or deployment attestation.
+
+## Thirty-fourth 2026-07-12 review
+
+Action evidence now distinguishes cancelled commands and timed-out commands
+from generic tool failures. This gives RunLedger, operator reports, and machine
+callers a truthful stop reason without inferring from exit codes. Provider
+taxonomy normalization and typed retry/repair receipts remain open.

@@ -351,3 +351,13 @@ agent-registry paths now report explicit `exists`, `expected_type`, `symlink`,
 and `safe` posture and fail the doctor check when unsafe. The CLI smoke proves
 a symlinked Kujo runtime is rejected. Signed dependency manifests, executable
 hashes, provenance, and deployment ownership remain deferred.
+
+## Thirty-fourth 2026-07-12 review
+
+This review closed a failure-evidence precision gap. Active commands previously
+persisted cancellation and timeout outcomes as generic `tool_failure` records.
+Relay now maps Kujo cancellation to `cancelled`, timeout termination to
+`timeout`, and explicit cancellation codes to the same classification. The
+contract suite and cancellation smoke prove the distinction. Provider-specific
+failure taxonomies, typed retry/repair receipts, and cross-system normalization
+remain deferred.

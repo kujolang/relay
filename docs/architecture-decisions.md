@@ -390,3 +390,16 @@ matching these patterns are intentionally replaced and full prompt/packet
 redaction, secret custody, and tenant-aware policy remain deferred. Rejected:
 redacting only `KEY=` assignments, trusting downstream readers to sanitize, or
 persisting raw tool output for debugging convenience.
+
+## ADR-052: Preserve cancellation and timeout as distinct action failures
+
+Context: an active command cancelled through Kujo or terminated by its timeout
+was persisted with the generic `tool_failure` class, even though the runtime
+already had separate `cancelled` and `timed_out` signals. Decision: map those
+signals to `cancelled` and `timeout` action failure classes and classify
+explicit cancellation codes as `cancelled`. Rationale: retry policy, operator
+reports, RunLedger evidence, and machine callers must distinguish an expected
+stop from a tool defect. Consequence: downstream consumers must handle the
+more precise classes; provider-specific taxonomies and typed retry/repair
+receipts remain deferred. Rejected: inferring failure type from exit code or
+collapsing cancellation and timeout into generic tool failure.
