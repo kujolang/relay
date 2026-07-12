@@ -1,5 +1,5 @@
 from src.common import dict_get_or, env_or, string_or, bool_or, read_json_or, safe_json, write_json
-from src.contracts import RELAY_VERSION, event_chain_integrity_valid, event_sequence_matches_state
+from src.contracts import RELAY_VERSION, event_chain_integrity_valid, event_sequence_matches_state, receipt_sequence_valid, receipt_sequence_matches_state
 from src.registry import agent_catalog, find_agent, agent_path
 from src.adapters import ai_chat, capsule_run
 from src.runtime import ensure_dir, create_mission, run_mission, pause_run, cleanup_run, resume_run, execute_tool_request, state_root, run_root
@@ -184,11 +184,14 @@ func cmd_runs(tokens) {
         state := read_json_or(record["run_dir"] + "/state.json", {})
         chain_valid := event_chain_integrity_valid(events)
         state_consistent := event_sequence_matches_state(dict_get_or(state, "events", []), events)
-        valid := chain_valid && state_consistent
-        event_bundle := {"integrity_valid": valid, "chain_integrity_valid": chain_valid, "state_consistent": state_consistent, "events": events, "events_jsonl": raw_events}
+        receipts := read_json_or(record["run_dir"] + "/receipts.json", dict_get_or(state, "receipts", []))
+        receipts_valid := receipt_sequence_valid(receipts)
+        receipts_consistent := receipt_sequence_matches_state(dict_get_or(state, "receipts", []), receipts)
+        valid := chain_valid && state_consistent && receipts_valid && receipts_consistent
+        event_bundle := {"integrity_valid": valid, "chain_integrity_valid": chain_valid, "state_consistent": state_consistent, "receipts_valid": receipts_valid, "receipts_consistent": receipts_consistent, "events": events, "events_jsonl": raw_events}
         if sub == "events" { event_bundle["ok"] := valid; return event_bundle }
         if valid == false { event_bundle["ok"] := false; event_bundle["error"] := "run event integrity verification failed"; return event_bundle }
-        bundle := {"format": "relay-run-export-v1", "run_id": id, "integrity_valid": true, "run": state, "events": events, "changes": read_json_or(record["run_dir"] + "/changes.json", {}), "evaluations": read_json_or(record["run_dir"] + "/evaluations.json", []), "report": read_json_or(record["run_dir"] + "/report.json", {})}
+        bundle := {"format": "relay-run-export-v1", "run_id": id, "integrity_valid": true, "chain_integrity_valid": chain_valid, "state_consistent": state_consistent, "receipts_valid": receipts_valid, "receipts_consistent": receipts_consistent, "run": state, "events": events, "receipts": receipts, "changes": read_json_or(record["run_dir"] + "/changes.json", {}), "evaluations": read_json_or(record["run_dir"] + "/evaluations.json", []), "report": read_json_or(record["run_dir"] + "/report.json", {})}
         output_path := string_or(dict_get_or(parsed["flags"], "output", ""), "")
         if output_path != "" {
             if write_json(output_path, bundle) == false { return {"ok": false, "error": "run export could not be written"} }

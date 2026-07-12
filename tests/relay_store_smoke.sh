@@ -39,7 +39,18 @@ rm -f "$export_path"
 exported="$($KUJO run "$ROOT/main.kujo" -- runs export "$run_id" --output "$export_path" --json)"
 printf '%s' "$exported" | grep -q '"integrity_valid":true'
 test -f "$export_path"
-jq -e --arg run_id "$run_id" '.format == "relay-run-export-v1" and .run_id == $run_id and .integrity_valid == true and (.events | length) > 0' "$export_path" >/dev/null
+jq -e --arg run_id "$run_id" '.format == "relay-run-export-v1" and .run_id == $run_id and .integrity_valid == true and .receipts_valid == true and .receipts_consistent == true and (.events | length) > 0 and (.receipts | length) >= 7 and (.receipts | map(.receipt_id) as $ids | (($ids | unique | length) == ($ids | length)))' "$export_path" >/dev/null
+
+receipts_path="$ROOT/.relay/runs/$run_id/receipts.json"
+cp "$receipts_path" "$receipts_path.backup"
+ruby -rjson -e 'path=ARGV.fetch(0); receipts=JSON.parse(File.read(path)); receipts[0]["status"]="tampered"; File.write(path, JSON.generate(receipts))' "$receipts_path"
+set +e
+tampered_receipts="$($KUJO run "$ROOT/main.kujo" -- runs events "$run_id" --json 2>&1)"
+receipts_rc=$?
+set -e
+test "$receipts_rc" -ne 0
+printf '%s' "$tampered_receipts" | grep -q '"receipts_valid":false'
+mv "$receipts_path.backup" "$receipts_path"
 
 events_path="$ROOT/.relay/runs/$run_id/events.jsonl"
 cp "$events_path" "$events_path.backup"

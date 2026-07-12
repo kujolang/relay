@@ -2,6 +2,7 @@ from src.common import dict_get_or, string_or, array_or, now_iso, safe_json
 
 export RELAY_VERSION := "0.1.0"
 export EVENT_CONTRACT := "AgentEvent-compatible-v1"
+export RECEIPT_CONTRACT := "relay-receipt-v1"
 
 func event_integrity_input(item) {
     return to_string(dict_get_or(item, "type", "")) + "|" +
@@ -71,6 +72,62 @@ func event_sequence_matches_state(state_events, log_events) {
     return true
 }
 
+func receipt_integrity_input(item) {
+    return to_string(dict_get_or(item, "type", "")) + "|" +
+        to_string(dict_get_or(item, "contract_version", "")) + "|" +
+        to_string(dict_get_or(item, "receipt_id", "")) + "|" +
+        to_string(dict_get_or(item, "kind", "")) + "|" +
+        to_string(dict_get_or(item, "mission_id", "")) + "|" +
+        to_string(dict_get_or(item, "run_id", "")) + "|" +
+        to_string(dict_get_or(item, "step_id", "")) + "|" +
+        to_string(dict_get_or(item, "agent_id", "")) + "|" +
+        to_string(dict_get_or(item, "artifact_ref", "")) + "|" +
+        to_string(dict_get_or(item, "status", "")) + "|" +
+        to_string(dict_get_or(item, "created_at", "")) + "|" +
+        safe_json(dict_get_or(item, "payload", {}))
+}
+
+func receipt(kind, mission_id, run_id, step_id, agent_id, artifact_ref, status, payload) {
+    item := {
+        "type": "RelayReceipt",
+        "contract_version": RECEIPT_CONTRACT,
+        "receipt_id": "rcpt-" + to_string(current_timestamp()) + "-" + to_string(random_int(1000, 999999)) + "-" + kind,
+        "kind": kind,
+        "mission_id": mission_id,
+        "run_id": run_id,
+        "step_id": step_id,
+        "agent_id": agent_id,
+        "artifact_ref": artifact_ref,
+        "status": status,
+        "created_at": now_iso(),
+        "payload": payload
+    }
+    item["integrity_sha256"] := sha256(receipt_integrity_input(item))
+    return item
+}
+
+func receipt_integrity_valid(item) {
+    expected := string_or(dict_get_or(item, "integrity_sha256", ""), "")
+    return expected != "" && expected == sha256(receipt_integrity_input(item))
+}
+
+func receipt_sequence_valid(items) {
+    if type(items) != "array" { return false }
+    seen := {}
+    for item in items {
+        if type(item) != "dict" { return false }
+        receipt_id := string_or(dict_get_or(item, "receipt_id", ""), "")
+        if receipt_id == "" || has_key(seen, receipt_id) || receipt_integrity_valid(item) == false { return false }
+        seen[receipt_id] := true
+    }
+    return true
+}
+
+func receipt_sequence_matches_state(state_receipts, file_receipts) {
+    if type(state_receipts) != "array" || type(file_receipts) != "array" { return false }
+    return safe_json(state_receipts) == safe_json(file_receipts)
+}
+
 func run_state(mission_id, workflow, repo, run_id) {
     return {
         "type": "RelayRun",
@@ -91,6 +148,7 @@ func run_state(mission_id, workflow, repo, run_id) {
         "provider": "",
         "packet_revision": 0,
         "events": [],
+        "receipts": [],
         "artifacts": [],
         "evaluations": [],
         "changes": {},
@@ -116,5 +174,10 @@ export event_integrity_input := event_integrity_input
 export event_integrity_valid := event_integrity_valid
 export event_chain_integrity_valid := event_chain_integrity_valid
 export event_sequence_matches_state := event_sequence_matches_state
+export receipt := receipt
+export receipt_integrity_input := receipt_integrity_input
+export receipt_integrity_valid := receipt_integrity_valid
+export receipt_sequence_valid := receipt_sequence_valid
+export receipt_sequence_matches_state := receipt_sequence_matches_state
 export run_state := run_state
 export agent_profile := agent_profile

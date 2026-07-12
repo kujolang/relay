@@ -1,4 +1,4 @@
-from src.contracts import event, event_integrity_valid, event_chain_integrity_valid, event_sequence_matches_state, run_state, agent_profile, RELAY_VERSION, EVENT_CONTRACT
+from src.contracts import event, event_integrity_valid, event_chain_integrity_valid, event_sequence_matches_state, receipt, receipt_integrity_valid, receipt_sequence_valid, receipt_sequence_matches_state, run_state, agent_profile, RELAY_VERSION, EVENT_CONTRACT, RECEIPT_CONTRACT
 from src.policy import classify_failure, path_is_safe, path_is_within_workspace, command_is_allowed, tool_decision
 from src.common import safe_id, redact_text, shell_quote_single, command_args, process_options, safe_env_name
 from src.store import safe_run_key, acquire_index_lock, release_index_lock
@@ -12,6 +12,7 @@ func check(label, condition) {
 failed := 0
 failed = failed + check("version", RELAY_VERSION == "0.1.0")
 failed = failed + check("event contract", EVENT_CONTRACT == "AgentEvent-compatible-v1")
+failed = failed + check("receipt contract", RECEIPT_CONTRACT == "relay-receipt-v1")
 e := event("run_started", "m1", "r1", "s1", "a1", {"ok": true}, "")
 failed = failed + check("event required fields", has_key(e, "run_id") && has_key(e, "payload") && has_key(e, "metadata"))
 failed = failed + check("event integrity", event_integrity_valid(e))
@@ -26,6 +27,13 @@ failed = failed + check("event sequence matches state", event_sequence_matches_s
 failed = failed + check("event sequence truncation rejected", event_sequence_matches_state([chain_first, chain_second], [chain_first]) == false)
 chain_second["parent_event_id"] := "tampered-parent"
 failed = failed + check("event chain tamper rejected", event_chain_integrity_valid([chain_first, chain_second]) == false)
+r := receipt("artifact", "m1", "r1", "s1", "a1", "agent/MASTER.md", "completed", {"ok": true})
+failed = failed + check("receipt required fields", has_key(r, "receipt_id") && has_key(r, "artifact_ref") && has_key(r, "integrity_sha256"))
+failed = failed + check("receipt integrity", receipt_integrity_valid(r))
+failed = failed + check("receipt sequence integrity", receipt_sequence_valid([r]))
+failed = failed + check("receipt sequence matches state", receipt_sequence_matches_state([r], [r]))
+r["status"] := "tampered"
+failed = failed + check("tampered receipt rejected", receipt_integrity_valid(r) == false)
 s := run_state("m1", "verified-feature", ".", "r1")
 failed = failed + check("run state", s["status"] == "created" && s["run_id"] == "r1")
 a := agent_profile("planner", "Planner", "plan", "fixture-model", ["read_repo"], "read_only")
