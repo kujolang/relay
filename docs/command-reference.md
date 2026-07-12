@@ -57,11 +57,14 @@ Budget fields are non-negative integers: `max_steps`, `max_repairs`, and `max_to
 
 ## JSON evidence
 
-A successful mission JSON result contains `run_id`, `status`, `current_step`, `budgets`, `events`, `artifacts`, `action_results`, `changes`, `evaluations`, `runledger`, and `runledger_finish`. Run artifacts live under `.relay/runs/<run-id>/` and include `state.json`, `events.jsonl`, `agent/`, `eval.json`, `changes.json`, `evaluations.json`, `report.json`, and `report.md` when the corresponding phase ran.
+A successful mission JSON result contains `run_id`, `status`, `current_step`, `budgets`, `events`, `receipts`, `artifacts`, `action_results`, `changes`, `evaluations`, `runledger`, and `runledger_finish`. Run artifacts live under `.relay/runs/<run-id>/` and include `state.json`, `events.jsonl`, `receipts.json`, `agent/`, `eval.json`, `changes.json`, `evaluations.json`, `report.json`, and `report.md` when the corresponding phase ran.
 
 Event metadata includes the workflow, model, provider, packet revision, and
-RunLedger run ID associated with the emission. Typed tool, artifact,
-evaluation, retry, repair, and cancellation receipts remain future extensions.
+RunLedger run ID associated with the emission. A completed mission also writes
+`receipts.json`, containing versioned SHA-256-sealed `RelayReceipt` references
+for PackWrite, Agents SDK, model, tool, ChangeBucket, Eval, and RunLedger
+artifacts. Receipt IDs are included in the lifecycle events that create or
+complete those artifacts; upstream tools remain the canonical artifact owners.
 
 `--pause-after-plan` creates a supported checkpoint at `implementation`. `missions resume` executes the stored pending actions and reruns ChangeBucket and Eval. Arbitrary crash replay is not yet supported.
 
@@ -75,8 +78,8 @@ Each AgentEvent-compatible JSONL record includes a deterministic `integrity_sha2
 IDs against authoritative run state before returning it. Event inspection and
 export are bounded to an 8 MiB JSONL log to keep machine callers memory-safe.
 `runs export` emits a versioned JSON bundle containing run state, verified
-events, changes, evaluations, and the final report; it refuses to export a
-tampered or malformed event log.
+events, receipts, changes, evaluations, and the final report; it refuses to
+export tampered, inconsistent, or malformed event/receipt evidence.
 
 `chat --stream` emits normalized JSONL `delta` and `done` events. Relay forwards the stream option through the AI SDK bridge; live Watchdog proxy authorization is supplied through `RELAY_WATCHDOG_PROXY_TOKEN` and is never included in the model payload.
 

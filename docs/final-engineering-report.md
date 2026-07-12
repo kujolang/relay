@@ -42,7 +42,7 @@ Not proven in this local session: live Ollama Cloud or another external provider
 
 ## Known limitations
 
-The current run engine still accepts explicit action plans, but missions may now opt into a bounded fixture-driven Agents SDK Tool Registry call list. Provider-driven model tool planning, dynamic role discovery, typed tool-result artifacts, arbitrary interrupted-step replay, and failure-repair flows require follow-up integration work. External-provider/Ollama remains unverified; local real-Watchdog correlation is covered by the dedicated smoke.
+The current run engine still accepts explicit action plans, but missions may now opt into a bounded fixture-driven Agents SDK Tool Registry call list. Provider-driven model tool planning, dynamic role discovery, richer typed tool-result artifacts, arbitrary interrupted-step replay, and failure-repair flows require follow-up integration work. External-provider/Ollama remains unverified; local real-Watchdog correlation is covered by the dedicated smoke.
 
 ## 2026-07-11 enterprise-readiness review
 
@@ -111,14 +111,28 @@ rejected. The next handoff is
 This review attaches workflow, model, provider, packet revision, and RunLedger
 IDs to every newly emitted AgentEvent-compatible record before integrity
 sealing. The mission smoke proves the context is visible in resumable run
-state. Typed tool, artifact, evaluation, retry, and repair receipts remain
+state. Retry, repair, escalation, approval, and cancellation receipts remain
 follow-up work. The next handoff is
 `docs/next-session-enhancement-backlog-2026-07-11-v9.md`.
 
 ## Repository handoff
 
 The current Relay implementation includes execution-context event correlation
-in `df38e81`, with the review documentation in the follow-up commit.
-Both are intended to be pushed to `origin/main`, and the tree should remain
-clean. The next session should preserve this evidence boundary rather than
-widening claims.
+and typed receipt verification in the current review commits. They are
+intended to be pushed to `origin/main`, and the tree should remain clean. The
+next session should preserve this evidence boundary rather than widening
+claims.
+
+## Tenth 2026-07-11 review
+
+This review adds a versioned `RelayReceipt` index over the canonical
+PackWrite, Agents SDK, model, tool, ChangeBucket, Eval, and RunLedger
+artifacts. Each receipt is SHA-256 sealed, carries mission/run/step/agent
+context, and is referenced by the lifecycle event that creates or completes
+the evidence. `runs events` and `runs export` now fail closed when the receipt
+file is tampered with or disagrees with authoritative state. The new contract,
+mission assertions, export assertions, and tamper regression pass locally.
+This is correlation and integrity hardening, not a replacement for upstream
+stores or proof of external-provider, durable multi-host, or signed export
+support. The next handoff is
+`docs/next-session-enhancement-backlog-2026-07-11-v10.md`.

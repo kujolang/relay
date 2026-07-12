@@ -127,6 +127,17 @@ machine adapters. Typed tool, artifact, evaluation, retry, repair, and
 cancellation IDs remain open, so this is correlation hardening rather than a
 claim of complete enterprise evidence.
 
+## Tenth review slice — typed evidence references
+
+Relay now emits a versioned `RelayReceipt` index for the PackWrite packet,
+Agents SDK smoke/tool result, model call, ChangeBucket result, Eval result, and
+RunLedger start/finish artifacts. Receipts carry mission, run, step, agent,
+artifact reference, status, and a SHA-256 integrity field. Lifecycle events
+include the relevant receipt IDs, and `runs events`/`runs export` verify both
+receipt integrity and exact agreement with authoritative state. The store smoke
+proves a tampered receipt fails closed. Upstream tools remain canonical; this
+index is a Relay correlation layer, not a second artifact store.
+
 ## Eighth review slice — complete evidence verification
 
 The machine evidence boundary now rejects not only mutated or reordered event

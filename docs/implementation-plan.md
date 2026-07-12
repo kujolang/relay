@@ -15,10 +15,11 @@
 - Fixed subprocess executable paths, workspace-bound worker capabilities, validated Agent SDK tool-call budgets, integrity-chain verification for `runs events`, and versioned `runs export` bundles.
 - Added authoritative event-sequence matching and an 8 MiB event-inspection bound so truncated, malformed, or oversized evidence cannot be exported as complete.
 - Enriched every emitted event with workflow, model, provider, packet revision, and RunLedger correlation metadata before resealing its integrity hash.
+- Added the sealed `RelayReceipt` index for typed cross-references to PackWrite, Agents SDK, model, tool, ChangeBucket, Eval, and RunLedger evidence; event inspection/export verifies receipt integrity and state consistency.
 
 ## Deferred
 
-Live Ollama Cloud proof, a live Watchdog-backed mission against a real external provider, provider-driven model tool planning, richer Agents SDK runner/tool-result artifact integration, Dispatch workflow import, dynamic agent discovery, full workcell isolation/rollback/recovery, CaseFile failure bundles, Redact integration, MCP adapter, adaptive routing, Capsule A/B scoring, durable concurrent storage, signed export, and ShipCheck/Concord release gates. Local real-Watchdog/stub-provider correlation, one fixture mission through the Agents SDK Tool Registry, complete event-sequence verification, and core execution-context correlation are proven. See `docs/next-session-enhancement-backlog-2026-07-11-v9.md`.
+Live Ollama Cloud proof, a live Watchdog-backed mission against a real external provider, provider-driven model tool planning, richer Agents SDK runner/tool-result artifact integration, Dispatch workflow import, dynamic agent discovery, full workcell isolation/rollback/recovery, CaseFile failure bundles, Redact integration, MCP adapter, adaptive routing, Capsule A/B scoring, durable concurrent storage, signed export, richer retry/repair/cancellation receipts, and ShipCheck/Concord release gates. Local real-Watchdog/stub-provider correlation, one fixture mission through the Agents SDK Tool Registry, complete event-sequence and receipt verification, and core execution-context correlation are proven. See `docs/next-session-enhancement-backlog-2026-07-11-v10.md`.
 
 ## Dependency order
 
