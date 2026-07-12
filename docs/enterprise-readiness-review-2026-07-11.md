@@ -59,6 +59,7 @@ The correct posture is: **local-first hardened alpha / ecosystem showcase**. The
 | Persisted JSON safety | Index/lock-owner/state/receipt/export JSON is size-bounded before parsing | `src/common.kujo`, `src/store.kujo`, `src/cli.kujo`, contract and store smokes |
 | Fallback safety | Primary model fallback is limited to explicit transient/capability classes and skipped reasons are recorded | `src/adapters.kujo`, contract tests |
 | Worker executable authority | Agents SDK worker root and binary must match trusted environment values before spawn | `src/agent_bridge.kujo`, `tests/relay_agents_tool_smoke.sh` |
+| Bridge payload safety | AI, Agents SDK, and tool-worker environment JSON is bounded and malformed input is structured before use | `src/ai_bridge.kujo`, `src/agent_bridge.kujo`, `src/cli.kujo`, `tests/relay_input_boundary_smoke.sh` |
 | Event integrity | AgentEvent-compatible JSONL records carry deterministic SHA-256 integrity fields and tamper validation | `src/contracts.kujo`, contract smoke |
 | Worktree cleanup authority | Cleanup rejects tampered paths and requires the run-owned workspace target | `src/runtime.kujo`, `tests/relay_worktree_smoke.sh` |
 | Agents SDK tools | A Kujo bridge registers `relay.write_file` and `relay.run_command`, applies Agents SDK approval providers, and delegates to Relay's capability-bound policy worker | `src/agent_bridge.kujo`, `src/runtime.kujo`, `tests/relay_agents_tool_smoke.sh` |
@@ -238,6 +239,16 @@ trusted. Model fallback now runs only for explicit timeout, rate-limit,
 provider-availability, connection, overload, or missing-model classes; auth,
 policy, route, and malformed-bridge failures remain single-attempt and expose
 the skip reason. Relay remains local-first hardened alpha/showcase.
+
+## Twentieth 2026-07-11 review
+
+This review hardens the machine-callable bridge boundary. AI, Agents SDK, and
+tool-worker JSON received through environment variables is capped at 128 KiB
+before parsing; malformed and non-object payloads return structured errors
+instead of raw interpreter failures. The focused input-boundary smoke proves
+oversized and malformed payload rejection across all three bridges. Larger
+future prompts or tool plans require an authenticated file or socket transport.
+Relay remains local-first hardened alpha/showcase.
 
 ## Nineteenth 2026-07-11 review
 

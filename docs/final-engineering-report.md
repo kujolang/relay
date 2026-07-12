@@ -227,3 +227,12 @@ failure through the existing bounded agent-run result. The focused Agents SDK
 smoke proves a tampered root is rejected without writing to the workspace.
 Authenticated service identity, binary signing, and workcell isolation remain
 deferred.
+
+## Twentieth 2026-07-11 review
+
+The AI, Agents SDK, and tool-worker environment bridges now enforce a 128 KiB
+pre-parse payload limit and return structured errors for malformed or non-object
+JSON. The input-boundary smoke proves oversized and malformed payload handling
+across all three machine-callable paths. This is a bounded local transport
+contract; authenticated file/socket transport and larger prompt semantics
+remain deferred.

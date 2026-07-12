@@ -19,6 +19,12 @@ Relay commands return process exit code `0` on success and nonzero on invalid in
 | `RELAY_MODEL` / `RELAY_PROVIDER` | Defaults for model listing/probes | `gpt-4.1-mini` / `openai-compatible` |
 | `RELAY_FALLBACK_MODEL` | Visible model fallback after a failed primary call | unset |
 
+The environment-backed AI, Agents SDK, and tool-worker JSON bridges reject
+payloads larger than 128 KiB before parsing and return structured invalid-payload
+errors. This protects the machine boundary and stays below common process
+environment limits; larger future requests should use an authenticated file or
+socket transport rather than an unbounded environment variable.
+
 Run `relay doctor --json` before a live or CI invocation. Fixture mode does not require Watchdog or credentials; live mode fails closed when either is absent.
 
 ## Commands

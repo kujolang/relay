@@ -167,3 +167,17 @@ Consequence: embedding applications must configure worker paths in the
 process environment, and authenticated service ownership remains deferred.
 Rejected: trusting payload paths because the workspace capability is valid, or
 adding executable paths to a user-controlled mission packet.
+
+## ADR-036: Bound environment-backed bridge payloads before parsing
+
+Context: the AI bridge, Agents SDK bridge, and tool-worker CLI receive JSON
+through environment variables, but those machine-callable boundaries parsed
+the entire value and malformed JSON could surface as raw interpreter failures.
+Decision: cap each environment-backed payload at 128 KiB before parsing and
+return structured invalid or oversized-payload errors; larger future requests
+must use an authenticated file or socket transport. Rationale: enforce a
+pre-parse resource bound that is practical below common process environment
+limits and make machine failures stable. Consequence: very large prompts or
+tool plans need a future transport contract; the mission-file boundary remains
+1 MiB because it is file-backed. Rejected: relying on OS argument limits,
+parsing unbounded environment strings, or silently truncating JSON.
