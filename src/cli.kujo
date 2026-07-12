@@ -1,4 +1,4 @@
-from src.common import dict_get_or, env_or, string_or, bool_or, int_or, read_json_or, safe_json, write_json
+from src.common import dict_get_or, env_or, string_or, bool_or, int_or, read_json_or, safe_json, write_json, now_iso
 from src.contracts import RELAY_VERSION, event_chain_integrity_valid, event_sequence_matches_state, receipt_sequence_valid, receipt_sequence_matches_state
 from src.registry import agent_catalog, find_agent, agent_path
 from src.adapters import ai_chat, capsule_run
@@ -60,7 +60,7 @@ func help_text() {
         "  missions create [spec.json] [--output path]\n" +
         "  missions run <spec.json> [--fixture] [--pause-after-plan] [--skip-agent-smoke] [--json]\n" +
         "  missions inspect <run-id>|pause <run-id>|resume <run-id>|cleanup <run-id> --confirm|report <run-id>\n" +
-        "  runs list|rebuild|inspect <run-id>|events <run-id>|watch <run-id>|changes <run-id>|evaluations <run-id>|export <run-id> [--output path]\n" +
+        "  runs list|rebuild|inspect <run-id>|events <run-id>|watch <run-id>|sizes <run-id>|changes <run-id>|evaluations <run-id>|export <run-id> [--output path]\n" +
         "  tools execute --json (bounded Agents SDK worker callback)\n" +
         "  benchmark run <repo> [--json] (Capsule discovery slice)"
 }
@@ -231,6 +231,58 @@ func watch_run_events(record, flags) {
     return {"ok": false, "_streamed": true}
 }
 
+func artifact_inventory(path, relative, max_entries) {
+    if path_is_symlink(path) { return {"ok": false, "error": "run artifact inventory encountered a symbolic link: " + relative} }
+    if path_is_dir(path) {
+        mut entries := []
+        mut total_bytes := 0
+        mut files := 0
+        mut directories := 1
+        names := sort(list_dir(path))
+        for name in names {
+            child := artifact_inventory(path + "/" + name, relative + "/" + name, max_entries)
+            if dict_get_or(child, "ok", false) == false { return child }
+            child_entries := dict_get_or(child, "entries", [])
+            if type(child_entries) == "array" {
+                for entry in child_entries { entries := push(entries, entry) }
+            }
+            total_bytes := total_bytes + int_or(dict_get_or(child, "bytes", 0), 0)
+            files := files + int_or(dict_get_or(child, "files", 0), 0)
+            directories := directories + int_or(dict_get_or(child, "directories", 0), 0)
+            if len(entries) > max_entries { return {"ok": false, "error": "run artifact inventory exceeds the entry limit"} }
+        }
+        return {"ok": true, "entries": entries, "bytes": total_bytes, "files": files, "directories": directories}
+    }
+    if path_is_file(path) == false { return {"ok": false, "error": "run artifact inventory encountered an unsupported path: " + relative} }
+    return {"ok": true, "entries": [{"path": relative, "kind": "file", "bytes": file_size(path)}], "bytes": file_size(path), "files": 1, "directories": 0}
+}
+
+func run_artifact_sizes(record, run_id) {
+    run_dir := string_or(dict_get_or(record, "run_dir", ""), "")
+    if run_dir == "" || path_is_dir(run_dir) == false || path_is_symlink(run_dir) { return {"ok": false, "error": "run artifact directory is missing or unsafe"} }
+    mut entries := []
+    mut total_bytes := 0
+    mut files := 0
+    mut directories := 0
+    mut excluded := [{"path": "workspace", "reason": "repository workspace excluded from artifact inventory", "present": path_exists(run_dir + "/workspace")}]
+    for name in sort(list_dir(run_dir)) {
+        if name == "workspace" {
+            continue
+        }
+        child := artifact_inventory(run_dir + "/" + name, name, 4096)
+        if dict_get_or(child, "ok", false) == false { return child }
+        child_entries := dict_get_or(child, "entries", [])
+        if type(child_entries) == "array" {
+            for entry in child_entries { entries := push(entries, entry) }
+        }
+        total_bytes := total_bytes + int_or(dict_get_or(child, "bytes", 0), 0)
+        files := files + int_or(dict_get_or(child, "files", 0), 0)
+        directories := directories + int_or(dict_get_or(child, "directories", 0), 0)
+        if len(entries) > 4096 { return {"ok": false, "error": "run artifact inventory exceeds the entry limit"} }
+    }
+    return {"ok": true, "format": "relay-run-sizes-v1", "run_id": run_id, "run_dir": run_dir, "generated_at": now_iso(), "summary": {"bytes": total_bytes, "files": files, "directories": directories}, "entries": entries, "excluded": excluded}
+}
+
 func cmd_runs(tokens) {
     parsed := parse_tokens(tokens)
     sub := positional(parsed["positionals"], 0, "list")
@@ -241,6 +293,7 @@ func cmd_runs(tokens) {
     record := dict_get_or(index, id, null)
     if type(record) != "dict" { return {"ok": false, "error": "unknown run: " + id} }
     if sub == "watch" { return watch_run_events(record, parsed["flags"]) }
+    if sub == "sizes" { return run_artifact_sizes(record, id) }
     if sub == "inspect" { return {"ok": true, "run": read_json_or(record["run_dir"] + "/state.json", {}), "run_dir": record["run_dir"]} }
     if sub == "events" || sub == "export" {
         events_path := record["run_dir"] + "/events.jsonl"

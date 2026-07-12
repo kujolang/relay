@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+KUJO="${KUJO:-${KUJO_BIN:-$ROOT/../kujo/target/release/kujo}}"
+WORK="/tmp/relay-sizes-workspace"
+MISSION_OUTPUT="/tmp/relay-sizes-mission.json"
+
+rm -rf "$WORK" "$ROOT/.relay" "$MISSION_OUTPUT"
+mkdir -p "$WORK"
+git init -q "$WORK"
+git -C "$WORK" config user.email relay@example.invalid
+git -C "$WORK" config user.name Relay
+touch "$WORK/README.md"
+git -C "$WORK" add README.md
+git -C "$WORK" commit -qm baseline
+
+export RELAY_ROOT="$ROOT"
+"$KUJO" run "$ROOT/main.kujo" -- missions run "$ROOT/examples/fixture-mission.json" --fixture --skip-agent-smoke --json >"$MISSION_OUTPUT"
+run_id="$(jq -r '.run.run_id // .run_id' "$MISSION_OUTPUT")"
+test -n "$run_id" && test "$run_id" != "null"
+
+sizes="$($KUJO run "$ROOT/main.kujo" -- runs sizes "$run_id" --json)"
+printf '%s\n' "$sizes" | jq -e '.ok == true and .summary.files > 0 and .summary.bytes > 0 and ((.excluded | map(.path)) | index("workspace")) != null and ((.entries | map(.path) | map(startswith("workspace/")) | any) == false)' >/dev/null
+
+run_dir="$ROOT/.relay/runs/$run_id"
+ln -s /etc "$run_dir/unsafe-link"
+set +e
+unsafe_output="$($KUJO run "$ROOT/main.kujo" -- runs sizes "$run_id" --json 2>&1)"
+unsafe_status=$?
+set -e
+test "$unsafe_status" -ne 0
+printf '%s\n' "$unsafe_output" | grep -q "symbolic link"
+rm "$run_dir/unsafe-link"
+
+echo "PASS relay sizes smoke"
