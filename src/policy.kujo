@@ -1,4 +1,4 @@
-from src.common import contains_any, dict_get_or, string_or, process_options
+from src.common import command_args, contains_any, dict_get_or, string_or, process_options
 
 func classify_failure(code) {
     if contains_any(code, ["auth", "unauthorized", "401"]) { return "authentication_failure" }
@@ -76,14 +76,47 @@ func path_is_within_workspace(root, requested) {
     return parent_real != "" && path_is_within_root(parent_real, root_real)
 }
 
+func git_read_argv_allowed(argv) {
+    if type(argv) != "array" || len(argv) < 2 || argv[0] != "git" { return false }
+    subcommand := argv[1]
+    allowed_options := []
+    if subcommand == "status" { allowed_options = ["--short", "--porcelain", "--branch", "--untracked-files=no"] }
+    else if subcommand == "diff" { allowed_options = ["--check", "--stat", "--name-only", "--name-status"] }
+    else if subcommand == "rev-parse" { allowed_options = ["--show-toplevel", "--is-inside-work-tree", "--verify"] }
+    else if subcommand == "log" { allowed_options = ["--oneline", "--decorate", "--no-decorate", "--max-count=1", "--max-count=5", "--max-count=10"] }
+    else if subcommand == "show" { allowed_options = ["--stat", "--oneline", "--name-only"] }
+    else { return false }
+    mut i := 2
+    while i < len(argv) {
+        token := argv[i]
+        # Read-only mission commands never accept arbitrary pathspecs. This
+        # prevents a permitted Git reader from reaching outside the workspace
+        # or from using a path-like option to redirect interpretation.
+        if starts_with(token, "-") == false { return false }
+        matched := false
+        for option in allowed_options { if token == option { matched = true } }
+        if matched == false { return false }
+        i = i + 1
+    }
+    return true
+}
+
+func script_argv_allowed(argv, interpreter) {
+    if type(argv) != "array" || len(argv) != 2 || argv[0] != interpreter { return false }
+    target := string_or(argv[1], "")
+    return starts_with(target, "scripts/") && ends_with(target, ".sh") && path_is_safe(".", target)
+}
+
 func command_is_allowed(command, policy) {
     value := string_or(command, "")
     if value == "" { return false }
     if contains_any(value, ["rm -rf", "sudo", "mkfs", "dd if=", "force-push", "--force", "reset --hard", "clean -f", "credential", ".env", ".ssh", "id_rsa", "git push", "git config", "git remote", "git checkout", "git switch", "git reset", "git clean", "--ext-diff", "--textconv", "--upload-pack", "--exec-path", "--output", "--config", " --config-env"]) { return false }
     if contains_any(value, [";", "&&", "||", "|", "&", "`", "$", ">", "<", "~", "*", "?", "{", "}", "'", "\"", "\\", "\n", "\r", "\t"]) { return false }
+    argv := command_args(value)
+    if len(argv) == 0 { return false }
     allowed := dict_get_or(policy, "allowed_commands", ["git", "kujo"])
     for prefix in allowed {
-        if prefix == "git" && (starts_with(value, "git status") || starts_with(value, "git diff") || starts_with(value, "git rev-parse") || starts_with(value, "git log") || starts_with(value, "git show")) { return true }
+        if prefix == "git" && git_read_argv_allowed(argv) { return true }
         if prefix == "kujo" && value == "kujo test" { return true }
         if prefix == "kujo" && starts_with(value, "kujo test ") {
             target := trim(substring(value, 10, len(value)))
@@ -96,8 +129,8 @@ func command_is_allowed(command, policy) {
             if ends_with(target, ".kujo") && path_is_safe(dict_get_or(policy, "workspace", "."), target) { return true }
             return false
         }
-        if prefix == "bash" && starts_with(value, "bash scripts/") { return true }
-        if prefix == "sh" && starts_with(value, "sh scripts/") { return true }
+        if prefix == "bash" && script_argv_allowed(argv, "bash") { return true }
+        if prefix == "sh" && script_argv_allowed(argv, "sh") { return true }
     }
     return false
 }
@@ -122,6 +155,7 @@ func tool_decision(tool_name, input, policy) {
 }
 
 export classify_failure := classify_failure
+export git_read_argv_allowed := git_read_argv_allowed
 export path_is_safe := path_is_safe
 export canonicalize_path := canonicalize_path
 export path_is_within_root := path_is_within_root

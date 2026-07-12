@@ -1,7 +1,7 @@
 from src.contracts import event, event_integrity_valid, event_chain_integrity_valid, event_sequence_matches_state, receipt, receipt_integrity_valid, receipt_sequence_valid, receipt_sequence_matches_state, run_state, agent_profile, RELAY_VERSION, EVENT_CONTRACT, RECEIPT_CONTRACT
 from src.policy import classify_failure, path_is_safe, path_is_within_workspace, command_is_allowed, tool_decision
 from src.common import safe_id, redact_text, shell_quote_single, command_args, process_options, safe_env_name
-from src.store import safe_run_key, acquire_index_lock, release_index_lock
+from src.store import safe_run_key, acquire_index_lock, acquire_index_lock_retry, release_index_lock
 from src.watchdog import safe_base
 
 func check(label, condition) {
@@ -44,6 +44,10 @@ failed = failed + check("nested traversal", path_is_safe(".", "src/../secret") =
 failed = failed + check("secret file denied", path_is_safe(".", ".env") == false)
 failed = failed + check("workspace containment", path_is_within_workspace(".", "src/common.kujo"))
 failed = failed + check("safe command", command_is_allowed("git status", {"allowed_commands": ["git"]}))
+failed = failed + check("safe Git status option", command_is_allowed("git status --porcelain", {"allowed_commands": ["git"]}))
+failed = failed + check("safe Git diff check", command_is_allowed("git diff --check", {"allowed_commands": ["git"]}))
+failed = failed + check("Git pathspec denied", command_is_allowed("git diff /etc/passwd", {"allowed_commands": ["git"]}) == false)
+failed = failed + check("Git unknown subcommand denied", command_is_allowed("git status-malicious", {"allowed_commands": ["git"]}) == false)
 failed = failed + check("unsafe git command", command_is_allowed("git commit -am unsafe", {"allowed_commands": ["git"]}) == false)
 failed = failed + check("blocked command", command_is_allowed("rm -rf /", {"allowed_commands": ["rm"]}) == false)
 failed = failed + check("blocked push", command_is_allowed("git push --force", {"allowed_commands": ["git"]}) == false)
@@ -54,6 +58,7 @@ failed = failed + check("blocked shell background", command_is_allowed("git stat
 failed = failed + check("blocked quoted shell form", command_is_allowed("git status 'README.md'", {"allowed_commands": ["git"]}) == false)
 failed = failed + check("blocked git output flag", command_is_allowed("git diff --output=/tmp/escape", {"allowed_commands": ["git"]}) == false)
 failed = failed + check("blocked external diff", command_is_allowed("git diff --ext-diff", {"allowed_commands": ["git"]}) == false)
+failed = failed + check("script arguments denied", command_is_allowed("bash scripts/check.sh --unsafe", {"allowed_commands": ["bash"]}) == false)
 failed = failed + check("safe Kujo test command", command_is_allowed("kujo test", {"allowed_commands": ["kujo"]}))
 failed = failed + check("unsafe Kujo test path denied", command_is_allowed("kujo test /tmp/evil.kujo", {"workspace": ".", "allowed_commands": ["kujo"]}) == false)
 failed = failed + check("unsafe Kujo script path denied", command_is_allowed("kujo run /tmp/evil.kujo", {"workspace": ".", "allowed_commands": ["kujo"]}) == false)
@@ -85,8 +90,13 @@ first_lock := acquire_index_lock(lock_root)
 second_lock := acquire_index_lock(lock_root)
 failed = failed + check("index lock acquired", first_lock["ok"] == true)
 failed = failed + check("index lock excludes concurrent writer", second_lock["ok"] == false)
+contended_lock := acquire_index_lock_retry(lock_root, 2, 1)
+failed = failed + check("bounded lock retry reports contention", contended_lock["ok"] == false && contended_lock["attempts"] == 2)
 released_lock := release_index_lock(lock_root, first_lock["token"])
 failed = failed + check("index lock released", released_lock["ok"] == true)
+retried_lock := acquire_index_lock_retry(lock_root, 2, 1)
+failed = failed + check("bounded lock retry acquires after release", retried_lock["ok"] == true && retried_lock["attempts"] == 1)
+release_index_lock(lock_root, retried_lock["token"])
 if path_is_dir(lock_root) { os_rmdir(lock_root) }
 failed = failed + check("safe Watchdog URL", safe_base("http://127.0.0.1:7700"))
 failed = failed + check("Watchdog URL with embedded credentials denied", safe_base("http://user:secret@127.0.0.1:7700") == false)

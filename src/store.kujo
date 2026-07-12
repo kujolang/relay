@@ -1,4 +1,4 @@
-from src.common import dict_get_or, read_json_or, write_json, string_or
+from src.common import dict_get_or, int_or, read_json_or, write_json, string_or
 
 # The index is a rebuildable cache. Per-run state.json remains authoritative;
 # this keeps inspection correct after a torn write, copied workspace, or a
@@ -61,6 +61,28 @@ func acquire_index_lock(state_root) {
         return {"ok": false, "error": "Unable to persist run index lock owner"}
     }
     return {"ok": true, "token": token}
+}
+
+func acquire_index_lock_retry(state_root, max_attempts, delay_ms) {
+    attempts := int_or(max_attempts, 1)
+    delay := int_or(delay_ms, 0)
+    if attempts < 1 { attempts = 1 }
+    if attempts > 8 { attempts = 8 }
+    if delay < 0 { delay = 0 }
+    if delay > 1000 { delay = 1000 }
+    mut attempt := 1
+    mut last := {"ok": false, "error": "Run index lock acquisition failed"}
+    while attempt <= attempts {
+        last = acquire_index_lock(state_root)
+        if last["ok"] {
+            last["attempts"] := attempt
+            return last
+        }
+        if attempt < attempts && delay > 0 { sleep(delay * attempt) }
+        attempt = attempt + 1
+    }
+    last["attempts"] := attempts
+    return last
 }
 
 func release_index_lock(state_root, token) {
@@ -134,7 +156,11 @@ func load_run_index(state_root) {
 }
 
 func persist_run_index(state_root, index) {
-    lock := acquire_index_lock(state_root)
+    # Local callers may briefly contend while another process refreshes the
+    # rebuildable cache. A small bounded backoff improves successful
+    # multi-process coordination without turning the cache into an
+    # unbounded wait or pretending it is a durable database.
+    lock := acquire_index_lock_retry(state_root, 4, 20)
     if lock["ok"] == false { return index }
     authoritative := rebuild_run_index(state_root)
     write_json(state_root + "/index.json", authoritative)
@@ -145,6 +171,7 @@ func persist_run_index(state_root, index) {
 export safe_run_key := safe_run_key
 export index_lock_path := index_lock_path
 export acquire_index_lock := acquire_index_lock
+export acquire_index_lock_retry := acquire_index_lock_retry
 export release_index_lock := release_index_lock
 export rebuild_run_index := rebuild_run_index
 export load_run_index := load_run_index
