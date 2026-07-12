@@ -189,9 +189,14 @@ func redact_text(value) {
     text := replace(text, "AZURE_OPENAI_API_KEY=", "AZURE_OPENAI_API_KEY=[REDACTED]")
     text := replace(text, "RELAY_API_KEY=", "RELAY_API_KEY=[REDACTED]")
     text := regex_replace(text, "(?i)Bearer[[:space:]]+[^[:space:]]+", "Bearer [REDACTED]")
-    text := regex_replace(text, "(?i)(?:x-watchdog-token|x-watchdog-proxy-token|authorization)[[:space:]]*[:=][[:space:]]*[^[:space:],;]+", "[REDACTED_CREDENTIAL]")
+    text := regex_replace(text, "(?i)(api[_-]?key|access[_-]?token|auth[_-]?token|client[_-]?secret|authorization|token|password|secret)([[:space:]:=\\\"']+)[^[:space:],}\\\"']+", "$1$2[REDACTED_CREDENTIAL]")
     text := regex_replace(text, "(?i)[A-Za-z0-9_-]*(?:TOKEN|KEY|SECRET|PASSWORD)[A-Za-z0-9_-]*[[:space:]]*=[[:space:]]*[^[:space:],;]+", "[REDACTED_CREDENTIAL]")
-    text := replace(text, "sk-", "[REDACTED_KEY]-")
+    text := regex_replace(text, "sk-[A-Za-z0-9_-]{8}[A-Za-z0-9_-]+", "sk-[REDACTED_KEY]")
+    text := regex_replace(text, "AKIA[0-9A-Z]{16}", "AKIA[REDACTED_KEY]")
+    text := regex_replace(text, "github_pat_[A-Za-z0-9_]{20,}", "github_pat_[REDACTED_KEY]")
+    text := regex_replace(text, "gh[pousr]_[A-Za-z0-9]{20,}", "gh_[REDACTED_KEY]")
+    text := regex_replace(text, "xox[baprs]-[A-Za-z0-9-]{10,}", "xox-[REDACTED_KEY]")
+    text := regex_replace(text, "-----BEGIN [A-Z ]*PRIVATE KEY-----", "[REDACTED_PRIVATE_KEY]")
     return text
 }
 
