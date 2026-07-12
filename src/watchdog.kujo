@@ -1,4 +1,4 @@
-from src.common import dict_get_or, env_or, string_or, redact_text
+from src.common import dict_get_or, env_or, string_or
 
 # Watchdog owns live AI proxying and telemetry storage. Relay only consumes the
 # narrow HTTP health/correlation contract needed to prove that a request was
@@ -84,9 +84,9 @@ func get_json(path) {
                 request_ok := status >= 200 && status < 300
                 return {"ok": request_ok, "status": status, "body": parsed, "endpoint": path}
             }
-            case Err(error): { return {"ok": false, "status": 0, "error": redact_text(to_string(error)), "endpoint": path} }
+            case Err(error): { return {"ok": false, "status": 0, "error": "Watchdog HTTP request failed", "endpoint": path} }
         }
-    } except err { return {"ok": false, "status": 0, "error": redact_text(to_string(err)), "endpoint": path} }
+    } except err { return {"ok": false, "status": 0, "error": "Watchdog HTTP request failed", "endpoint": path} }
 }
 
 func health_check() {

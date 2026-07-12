@@ -97,6 +97,17 @@ if printf '%s' "$credential_doctor" | grep -q 'route-secret\|watchdog.example.co
   exit 1
 fi
 
+set +e
+unreachable_doctor="$(RELAY_OFFLINE_FIXTURE=false RELAY_WATCHDOG_URL='https://127.0.0.1:1/proxy/v1' RELAY_WATCHDOG_VERIFY=true "$KUJO" run "$ROOT/main.kujo" -- doctor --json 2>&1)"
+unreachable_doctor_status=$?
+set -e
+test "$unreachable_doctor_status" -ne 0
+printf '%s' "$unreachable_doctor" | grep -q 'Watchdog HTTP request failed'
+if printf '%s' "$unreachable_doctor" | grep -q '127.0.0.1:1\|proxy/v1'; then
+  echo "doctor leaked the configured Watchdog endpoint on request failure" >&2
+  exit 1
+fi
+
 stream="$($KUJO run "$ROOT/main.kujo" -- chat stream-boundary --fixture --stream --json)"
 printf '%s' "$stream" | grep -q '"type":"delta"'
 printf '%s' "$stream" | grep -q '"type":"done"'
