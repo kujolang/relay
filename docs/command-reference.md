@@ -100,11 +100,14 @@ latency guarantees.
 
 `missions cancel <run-id>` records a bounded cancellation request for a running
 mission. The active runtime checks the request before and after each declared
-action, stops before the next action, emits a `run_cancelled` event, finishes
+action, passes the request to Kujo's process cancellation hook for an active
+command, stops before the next action, emits a `run_cancelled` event, finishes
 the RunLedger record with failure status, and preserves the request as
-`cancel.request.json`. A paused run can be cancelled immediately. Cancellation
-does not kill an already-running external process or claim rollback; callers
-must wait for terminal state and inspect the evidence before cleanup.
+`cancel.request.json`. On Unix, Kujo runs each spawned command in its own
+process group so descendant processes do not keep cancellation pipes open. A
+paused run can be cancelled immediately. Cancellation does not claim rollback
+of repository changes; callers must wait for terminal state and inspect the
+evidence before cleanup. Non-Unix runtimes retain the direct-child fallback.
 
 Set `workspace_mode: "worktree"` to have Relay create a detached worktree from the immutable starting commit under the run directory. The source repository remains unchanged. The worktree is retained for inspection until an operator explicitly runs `missions cleanup <run-id> --confirm`; cleanup is refused while a run is active and is never implicit.
 

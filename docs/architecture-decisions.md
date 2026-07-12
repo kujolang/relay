@@ -344,3 +344,20 @@ artifacts without the policy digest require migration or manual recovery;
 rollback, signed state, and authenticated ownership remain deferred. Rejected:
 trusting only the run-directory path or checking the workspace path after
 starting Git removal.
+
+## ADR-049: Delegate command cancellation to Kujo process groups
+
+Context: Relay's cooperative cancellation request previously stopped only at
+action boundaries. An active command could continue running, and a descendant
+that inherited the command's output pipes could keep the mission blocked even
+after the direct child was killed. Decision: Relay passes its run-owned
+`cancel.request.json` to Kujo's `spawn_process` `cancel_file` option for
+mission commands; on Unix, Kujo starts each command in a new process group and
+terminates that group on cancellation or timeout. Rationale: Relay owns the
+mission state transition and evidence, while Kujo owns process lifecycle and
+is the only layer that can reliably terminate descendants. Consequence:
+Unix cancellation is bounded for descendant processes, while non-Unix runtimes
+retain a direct-child fallback; rollback, workcell ownership, and distributed
+cancellation remain deferred. Rejected: Relay-managed shell kill commands,
+process-name scans, or claiming cooperative cancellation was sufficient without
+an executable descendant test.

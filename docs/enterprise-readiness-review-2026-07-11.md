@@ -319,3 +319,14 @@ route discovery, certificate validation, or mTLS.
 ## Release recommendation
 
 Publish Relay only as a local-first alpha/showcase until all P0 items have executable evidence. The review hardening is pushed to `origin/main`; keep the README's enterprise-readiness disclaimer and require a release report that distinguishes fixture, configured-live, and production-environment evidence.
+
+## Thirty-first 2026-07-12 review
+
+This review closed an active-command cancellation gap. Relay now passes the
+run-owned cancellation marker to Kujo's `spawn_process` runtime, and Kujo
+commit `f24b3c3` starts Unix commands in their own process groups so cancelling
+the direct child also terminates descendants that inherited output pipes. The
+Relay smoke runs a 30-second descendant task and proves terminal cancellation
+within eight seconds, with no orphaned slow process observed. Non-Unix
+direct-child behavior, rollback-aware workcells, and distributed cancellation
+remain deferred.

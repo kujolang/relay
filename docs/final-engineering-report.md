@@ -237,6 +237,17 @@ across all three machine-callable paths. This is a bounded local transport
 contract; authenticated file/socket transport and larger prompt semantics
 remain deferred.
 
+## Thirty-first 2026-07-12 review
+
+The cancellation path now composes with Kujo's process lifecycle contract.
+Relay supplies `cancel_file` for active mission commands; Kujo's Unix runtime
+uses a per-command process group and terminates the group for cancellation or
+timeout. The bounded smoke test uses a 30-second descendant task and returns
+within eight seconds with terminal evidence. This extends cancellation
+evidence without making Relay responsible for shell-level process discovery.
+Non-Unix descendant guarantees, rollback, workcell recovery, and distributed
+control authorization remain open.
+
 ## Twenty-sixth 2026-07-12 review
 
 This review reused checkpoint integrity for operator pause and cancel controls.
