@@ -163,6 +163,11 @@ workspace ownership, Git metadata, event/receipt integrity, and effective
 budgets before changing a paused run to `running`. A tampered checkpoint fails
 as `state_integrity_failure` before any resumed tool or repository action.
 
+`missions cleanup --confirm` applies the same policy-digest, run-owned
+worktree, source-repository, Git-metadata, event, and receipt checks before
+calling Git worktree removal. A tampered terminal state cannot redirect cleanup
+to another repository.
+
 ## Exit-code guidance
 
 - `0`: command or mission succeeded and required evidence passed.

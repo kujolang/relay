@@ -235,3 +235,16 @@ resumed action. Consequence: old paused runs without the digest require a new
 run; signed state, multi-user ownership, and durable crash recovery remain
 deferred. Rejected: trusting state because the run index points to the correct
 directory, or validating only the workspace path after resuming.
+
+## ADR-041: Revalidate state before destructive worktree cleanup
+
+Context: confirmed cleanup invoked `git worktree remove --force` using terminal
+state fields, while the state itself could be edited after a run completed.
+Decision: before cleanup, verify the mission-policy digest, run identity, source
+repository, run-owned worktree path, Git metadata, event chain, and receipts;
+reject failures as `state_integrity_failure`. Rationale: confirmation expresses
+operator intent but does not authorize a tampered target. Consequence: old
+artifacts without the policy digest require migration or manual recovery;
+rollback, signed state, and authenticated ownership remain deferred. Rejected:
+trusting only the run-directory path or checking the workspace path after
+starting Git removal.

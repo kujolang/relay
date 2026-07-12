@@ -261,6 +261,16 @@ Tampered workspace and policy state fail as `state_integrity_failure` before
 any resumed repository action. This is local checkpoint integrity, not signed
 state, authenticated multi-user ownership, or durable crash recovery.
 
+## Twenty-fifth 2026-07-12 review
+
+This review extended state integrity to confirmed worktree cleanup. Cleanup now
+revalidates the mission-policy digest, run identity, source repository,
+run-owned worktree path, Git metadata, event chain, and receipt sequence before
+calling destructive Git removal. Tampered terminal state fails as
+`state_integrity_failure`; the existing worktree smoke and contract coverage
+pass. Signed state, authenticated ownership, rollback, and crash recovery
+remain deferred.
+
 ## Twenty-third 2026-07-12 review
 
 This review aligned operator diagnostics with live Watchdog enforcement. The
