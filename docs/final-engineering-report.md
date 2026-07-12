@@ -217,3 +217,13 @@ to explicit transient or model-capability failures and records skipped reasons
 for authentication, policy, route, and malformed-bridge failures. These are
 local resource and cost-control improvements, not durable multi-host storage,
 provider taxonomy, or adaptive-routing proof.
+
+## Nineteenth 2026-07-11 review
+
+The Agents SDK bridge no longer trusts payload-selected worker paths. It binds
+the Relay source root and Kujo executable to trusted environment values,
+rejects mismatches and unsafe roots before process spawn, and records the
+failure through the existing bounded agent-run result. The focused Agents SDK
+smoke proves a tampered root is rejected without writing to the workspace.
+Authenticated service identity, binary signing, and workcell isolation remain
+deferred.

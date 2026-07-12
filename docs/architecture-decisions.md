@@ -153,3 +153,17 @@ preserve policy failures, and make routing behavior predictable. Consequence:
 providers that expose novel retryable codes require an explicit adapter update;
 adaptive routing remains deferred. Rejected: blanket fallback on every error or
 silently hiding the second call.
+
+## ADR-035: Bind Agents SDK worker paths to trusted environment
+
+Context: the Agents SDK bridge used payload-supplied `relay_root` and
+`kujo_bin` values to launch the policy worker, while its capability digest
+covered the workspace but not the executable or source root. Decision: worker
+launch paths must match trusted `RELAY_ROOT` and `KUJO_BIN` environment values;
+the bridge rejects mismatches and missing or symbolic-linked Relay roots before
+launching. Rationale: prevent a caller-controlled payload from redirecting an
+otherwise valid workspace capability into another runtime or source tree.
+Consequence: embedding applications must configure worker paths in the
+process environment, and authenticated service ownership remains deferred.
+Rejected: trusting payload paths because the workspace capability is valid, or
+adding executable paths to a user-controlled mission packet.

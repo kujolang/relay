@@ -62,7 +62,10 @@ its authority through Git's option surface.
 approval provider run in `src/agent_bridge.kujo`; a capability-bound worker then
 delegates to Relay's policy executor. It does not grant the Agents SDK direct
 filesystem or shell authority. Provider-generated tool planning, interactive
-approvals, and authenticated remote invocation are not yet enabled.
+approvals, and authenticated remote invocation are not yet enabled. The worker
+also ignores or rejects payload-selected `relay_root` and `kujo_bin` values
+unless they exactly match the trusted process environment, and refuses a
+symbolic-linked or missing trusted Relay root.
 
 Budget fields are non-negative integers: `max_steps`, `max_repairs`, and `max_tokens`; `max_tool_calls`, `max_output_bytes`, and `max_write_bytes` must be positive. Agents SDK tool calls are capped at 16 per mission and the configured `max_tool_calls` limit is enforced inside the worker. Output and write budgets are capped at 8 MiB per mission; command timeouts must be between 1 ms and 10 minutes. A budget failure is recorded as a failed run with a typed failure class; it is never reported as completed.
 

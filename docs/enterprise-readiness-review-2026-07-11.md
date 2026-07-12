@@ -58,6 +58,7 @@ The correct posture is: **local-first hardened alpha / ecosystem showcase**. The
 | Mission input safety | Regular-file, non-symlink, 1 MiB mission-spec bound before JSON parsing | `src/runtime.kujo`, `tests/relay_spec_safety_smoke.sh` |
 | Persisted JSON safety | Index/lock-owner/state/receipt/export JSON is size-bounded before parsing | `src/common.kujo`, `src/store.kujo`, `src/cli.kujo`, contract and store smokes |
 | Fallback safety | Primary model fallback is limited to explicit transient/capability classes and skipped reasons are recorded | `src/adapters.kujo`, contract tests |
+| Worker executable authority | Agents SDK worker root and binary must match trusted environment values before spawn | `src/agent_bridge.kujo`, `tests/relay_agents_tool_smoke.sh` |
 | Event integrity | AgentEvent-compatible JSONL records carry deterministic SHA-256 integrity fields and tamper validation | `src/contracts.kujo`, contract smoke |
 | Worktree cleanup authority | Cleanup rejects tampered paths and requires the run-owned workspace target | `src/runtime.kujo`, `tests/relay_worktree_smoke.sh` |
 | Agents SDK tools | A Kujo bridge registers `relay.write_file` and `relay.run_command`, applies Agents SDK approval providers, and delegates to Relay's capability-bound policy worker | `src/agent_bridge.kujo`, `src/runtime.kujo`, `tests/relay_agents_tool_smoke.sh` |
@@ -237,6 +238,16 @@ trusted. Model fallback now runs only for explicit timeout, rate-limit,
 provider-availability, connection, overload, or missing-model classes; auth,
 policy, route, and malformed-bridge failures remain single-attempt and expose
 the skip reason. Relay remains local-first hardened alpha/showcase.
+
+## Nineteenth 2026-07-11 review
+
+This review closes a worker-path authority gap. The Agents SDK bridge now rejects
+payload-selected Relay roots or Kujo binaries unless they exactly match trusted
+process environment values, and rejects missing or symbolic-linked trusted roots
+before spawning the policy worker. The Agents SDK smoke proves a tampered root
+cannot redirect the worker or create the requested file. This is local launch
+integrity hardening, not authenticated service identity, signed binary
+verification, or full workcell isolation.
 
 ## Release recommendation
 
