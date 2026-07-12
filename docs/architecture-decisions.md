@@ -250,6 +250,48 @@ writes, and workcell isolation remain deferred. Rejected: relying on per-file
 symlink checks or allowing the index rebuild to treat a redirected directory as
 empty.
 
+## ADR-045: Keep Watchdog route telemetry posture-only
+
+Context: the Watchdog route boundary already rejected unsafe live URLs and
+`doctor --json` avoided echoing them, but successful AI calls copied the raw
+`RELAY_WATCHDOG_URL` into `relay_telemetry`, allowing hostnames and any future
+route material to spread into run artifacts. Decision: emit only configured,
+valid, scheme, and reason posture fields in AI telemetry, matching doctor.
+Rationale: telemetry is persisted and machine-forwarded evidence, so it must
+share the same non-disclosure boundary as diagnostics. Consequence: operators
+lose convenient raw-route replay from a run, while route troubleshooting stays
+classifiable; authenticated route discovery and certificate policy remain
+deferred. Rejected: relying on downstream redaction or exposing the URL only in
+fixture mode.
+
+## ADR-046: Constrain correlation IDs before transport
+
+Context: Relay includes a correlation ID in AI request headers, persisted
+telemetry, and the Watchdog request lookup query. The previous normalization
+allowed query delimiters and whitespace, so a caller could alter the lookup
+parameters or create ambiguous evidence labels. Decision: accept only a
+bounded identifier made of alphanumeric characters, hyphens, and underscores;
+replace invalid or oversized values with a generated safe ID. Rationale: the
+same identifier must be safe across HTTP headers, URLs, logs, and evidence.
+Consequence: callers cannot choose arbitrary correlation syntax; authenticated
+caller identity and distributed correlation ownership remain deferred. Rejected:
+URL-encoding a permissive identifier or sanitizing only at the Watchdog query
+boundary.
+
+## ADR-047: Make concurrent store probes race-safe
+
+Context: concurrent index rebuilds could remove `.relay/.index.lock` between a
+presence check and `path_is_symlink`, producing an interpreter error instead of
+retrying or reporting bounded contention. Decision: centralize a tolerant
+symlink probe that treats a path disappearing during inspection as absent, and
+use it throughout the rebuildable store boundary. Rationale: a local
+multi-process cache must fail as a bounded contention or recovery case, not
+crash because of a normal lock lifecycle race. Consequence: a concurrent
+disappearance is re-evaluated by the existing bounded lock protocol; durable
+multi-host ownership and a database-backed store remain deferred. Rejected:
+adding sleeps around the race or treating interpreter failures as acceptable
+stress-test noise.
+
 ## ADR-040: Bind resumed actions to checkpoint integrity
 
 Context: a paused run persisted its mission and workspace state, but resume

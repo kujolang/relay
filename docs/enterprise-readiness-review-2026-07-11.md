@@ -292,6 +292,21 @@ that neither symlink shape can redirect evidence into an external target. This
 is local path hardening, not kernel-level no-follow durability, authenticated
 ownership, or full workcell isolation.
 
+## Twenty-ninth 2026-07-12 review
+
+This review closed telemetry and correlation-input gaps. Successful AI calls
+previously copied the raw `RELAY_WATCHDOG_URL` into `relay_telemetry`, even
+though doctor already exposed only route posture. Relay now emits only
+configured, valid, scheme, and reason fields in `watchdog_route`, and accepts
+only transport-safe correlation IDs before headers, telemetry, or Watchdog
+queries. CLI and contract coverage prove both boundaries, including fixture
+execution. This is local telemetry hardening, not authenticated route
+discovery, certificate validation, or mTLS.
+
+The same review also hardened the local index lock boundary: concurrent
+rebuilds now tolerate a lock directory disappearing between filesystem probes,
+and the lock stress gate passes without an interpreter race.
+
 ## Release recommendation
 
 Publish Relay only as a local-first alpha/showcase until all P0 items have executable evidence. The review hardening is pushed to `origin/main`; keep the README's enterprise-readiness disclaimer and require a release report that distinguishes fixture, configured-live, and production-environment evidence.

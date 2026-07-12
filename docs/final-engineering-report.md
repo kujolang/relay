@@ -307,3 +307,17 @@ mission, index, inspection, and operator-control paths; `doctor --json` exposes
 the required posture without following the link. Contract and redirection
 smoke evidence pass. Durable no-follow storage, authenticated ownership, and
 full workcell isolation remain deferred.
+
+## Twenty-ninth 2026-07-12 review
+
+AI telemetry now follows the same non-disclosure contract as `doctor --json`.
+Raw Watchdog URLs are not persisted or returned; only bounded route posture is
+available for diagnostics and machine callers. Correlation IDs are also bounded
+before transport, preventing query-delimiter injection into Watchdog lookups.
+Remote-host, credential-bearing-route, and unsafe-correlation regression checks
+pass. External-provider proof, authenticated route discovery, certificate
+validation, and mTLS remain deferred.
+
+The concurrent index-lock probe was also made race-safe. A disappearing lock
+path is treated as a normal bounded contention lifecycle rather than an
+interpreter failure; the lock stress gate passes.
