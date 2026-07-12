@@ -1,6 +1,6 @@
 from src.contracts import event, event_integrity_valid, event_chain_integrity_valid, event_sequence_matches_state, receipt, receipt_integrity_valid, receipt_sequence_valid, receipt_sequence_matches_state, run_state, agent_profile, RELAY_VERSION, EVENT_CONTRACT, RECEIPT_CONTRACT
 from src.policy import classify_failure, path_is_safe, path_is_within_workspace, command_is_allowed, tool_decision
-from src.runtime import resume_state_safe
+from src.runtime import resume_state_safe, cleanup_state_safe
 from src.common import safe_id, redact_text, shell_quote_single, command_args, process_options, safe_env_name, read_json_limited, dict_get_or, safe_json
 from src.adapters import fallback_allowed, watchdog_route_allowed
 from src.store import safe_run_key, acquire_index_lock, acquire_index_lock_retry, release_index_lock
@@ -128,4 +128,6 @@ resume_state := {"run_id": "resume-contract", "mission_spec": resume_spec, "miss
 failed = failed + check("resume state integrity accepts matching state", resume_state_safe(resume_state, "resume-contract", "/tmp/relay-contract-run") ["ok"])
 resume_state["repository"] := "/tmp"
 failed = failed + check("resume state integrity rejects workspace substitution", resume_state_safe(resume_state, "resume-contract", "/tmp/relay-contract-run")["ok"] == false)
+cleanup_state := {"run_id": "cleanup-contract", "mission_spec": {"repository": ".", "workspace_mode": "worktree"}, "mission_spec_integrity_sha256": sha256(safe_json({"repository": ".", "workspace_mode": "worktree"})), "events": [], "receipts": [], "repository": "/tmp/relay-contract-run/workspace", "workspace": {"mode": "worktree", "source_repository": ".", "path": "/tmp/other-workspace", "cleaned": true}}
+failed = failed + check("cleanup state integrity rejects mismatched worktree", cleanup_state_safe(cleanup_state, "cleanup-contract", "/tmp/relay-contract-run")["ok"] == false)
 exit(failed)

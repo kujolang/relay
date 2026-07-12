@@ -32,7 +32,7 @@ tampered_cleanup="$($KUJO run "$ROOT/main.kujo" -- missions cleanup "$(printf '%
 tampered_rc=$?
 set -e
 test "$tampered_rc" -ne 0
-printf '%s' "$tampered_cleanup" | grep -q 'run-owned workspace'
+printf '%s' "$tampered_cleanup" | grep -q 'state_integrity_failure'
 mv "$state_path.backup" "$state_path"
 set +e
 cleanup="$($KUJO run "$ROOT/main.kujo" -- missions cleanup "$(printf '%s' "$result" | ruby -rjson -e 'd=JSON.parse(STDIN.read); print d["run"]["run_id"]')" --json 2>&1)"
