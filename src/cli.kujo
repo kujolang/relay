@@ -2,7 +2,7 @@ from src.common import dict_get_or, env_or, string_or, bool_or, int_or, read_jso
 from src.contracts import RELAY_VERSION, event_chain_integrity_valid, event_sequence_matches_state, receipt_sequence_valid, receipt_sequence_matches_state
 from src.registry import agent_catalog, find_agent, agent_path
 from src.adapters import ai_chat, capsule_run
-from src.runtime import ensure_dir, create_mission, run_mission, pause_run, cleanup_run, resume_run, execute_tool_request, state_root, run_root
+from src.runtime import ensure_dir, create_mission, run_mission, pause_run, cancel_run, cleanup_run, resume_run, execute_tool_request, state_root, run_root
 from src.store import load_run_index, rebuild_run_index, persist_run_index
 from src.doctor import doctor
 
@@ -59,7 +59,7 @@ func help_text() {
         "  doctor [--json]\n" +
         "  missions create [spec.json] [--output path]\n" +
         "  missions run <spec.json> [--fixture] [--pause-after-plan] [--skip-agent-smoke] [--json]\n" +
-        "  missions inspect <run-id>|pause <run-id>|resume <run-id>|cleanup <run-id> --confirm|report <run-id>\n" +
+        "  missions inspect <run-id>|pause <run-id>|resume <run-id>|cancel <run-id>|cleanup <run-id> --confirm|report <run-id>\n" +
         "  runs list|rebuild|inspect <run-id>|events <run-id>|watch <run-id>|sizes <run-id>|changes <run-id>|evaluations <run-id>|export <run-id> [--output path]\n" +
         "  tools execute --json (bounded Agents SDK worker callback)\n" +
         "  benchmark run <repo> [--json] (Capsule discovery slice)"
@@ -151,6 +151,7 @@ func cmd_missions(tokens) {
     id := positional(parsed["positionals"], 1, "")
     index := load_run_index(state_root())
     if sub == "pause" { return pause_run(id) }
+    if sub == "cancel" { return cancel_run(id) }
     if sub == "cleanup" { return cleanup_run(id, has_flag(parsed["flags"], "confirm")) }
     if sub == "resume" { return resume_run(id) }
     if sub == "inspect" || sub == "report" {

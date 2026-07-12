@@ -213,16 +213,39 @@ func execute_tool_request(request, supplied_capability) {
     return {"ok": true, "tool_name": tool_name, "result": result, "artifacts": []}
 }
 
+func cancellation_request(run_dir) {
+    path := run_dir + "/cancel.request.json"
+    if path_exists(path) == false { return {"ok": true, "requested": false} }
+    if path_is_symlink(path) { return {"ok": false, "error": "cancellation request is a symbolic link"} }
+    request := read_json_or(path, null)
+    if type(request) != "dict" { return {"ok": false, "error": "cancellation request is invalid"} }
+    return {"ok": true, "requested": true, "request": request}
+}
+
 func execute_actions(spec, state, run_dir) {
     actions := dict_get_or(spec, "actions", [])
     results := []
     for action in actions {
+        cancellation := cancellation_request(run_dir)
+        if dict_get_or(cancellation, "ok", false) == false {
+            return {"ok": false, "cancelled": false, "results": results, "state": state, "failure": {"failure_class": "evidence_failure", "error": dict_get_or(cancellation, "error", "cancellation request is invalid")}}
+        }
+        if bool_or(dict_get_or(cancellation, "requested", false), false) {
+            return {"ok": false, "cancelled": true, "results": results, "state": state, "cancellation": dict_get_or(cancellation, "request", {}), "failure": {"failure_class": "cancelled", "error": "mission cancellation requested"}}
+        }
         if state["attempt"] >= state["budgets"]["max_steps"] {
             return {"ok": false, "results": results, "state": state, "failure": {"failure_class": "budget_exceeded", "error": "Mission max_steps budget exceeded"}}
         }
         result := execute_action(action, spec, state, run_dir)
         results := push(results, result)
         state["attempt"] := state["attempt"] + 1
+        cancellation := cancellation_request(run_dir)
+        if dict_get_or(cancellation, "ok", false) == false {
+            return {"ok": false, "cancelled": false, "results": results, "state": state, "failure": {"failure_class": "evidence_failure", "error": dict_get_or(cancellation, "error", "cancellation request is invalid")}}
+        }
+        if bool_or(dict_get_or(cancellation, "requested", false), false) {
+            return {"ok": false, "cancelled": true, "results": results, "state": state, "cancellation": dict_get_or(cancellation, "request", {}), "failure": {"failure_class": "cancelled", "error": "mission cancellation requested"}}
+        }
         if result["ok"] == false { return {"ok": false, "results": results, "state": state, "failure": result} }
     }
     return {"ok": true, "results": results, "state": state}
@@ -376,7 +399,7 @@ func run_mission(path, options) {
         state["status"] := "paused"
         state["current_step"] := "implementation"
         state["checkpoint"] := {"step": "implementation", "reason": "pause_after_plan", "created_at": now_iso()}
-        state := add_event(state, run_dir, "run_cancelled", "implementation", "relay", {"reason": "checkpoint_requested", "resumable": true})
+        state := add_event(state, run_dir, "run_paused", "implementation", "relay", {"reason": "checkpoint_requested", "resumable": true})
         save_state(state, run_dir)
         report(state, run_dir)
         register_run(state, run_dir)
@@ -390,11 +413,18 @@ func run_mission(path, options) {
     state := actions["state"]
     state["action_results"] := actions["results"]
     if actions["ok"] == false {
-        state["status"] := "failed"
-        failure_class := dict_get_or(actions["failure"], "failure_class", "tool_failure")
-        if preflight_ok == false { failure_class = "integration_failure" }
-        state["failure"] := {"class": failure_class, "message": dict_get_or(actions["failure"], "error", "action or preflight failed"), "repair_attempts": 0}
-        state := add_event(state, run_dir, "run_failed", "implementation", "core-developer", state["failure"])
+        if bool_or(dict_get_or(actions, "cancelled", false), false) {
+            state["status"] := "cancelled"
+            state["current_step"] := ""
+            state["cancellation"] := dict_get_or(actions, "cancellation", {})
+            state := add_event(state, run_dir, "run_cancelled", "implementation", "relay", {"reason": "operator_cancel", "cancellation": state["cancellation"]})
+        } else {
+            state["status"] := "failed"
+            failure_class := dict_get_or(actions["failure"], "failure_class", "tool_failure")
+            if preflight_ok == false { failure_class = "integration_failure" }
+            state["failure"] := {"class": failure_class, "message": dict_get_or(actions["failure"], "error", "action or preflight failed"), "repair_attempts": 0}
+            state := add_event(state, run_dir, "run_failed", "implementation", "core-developer", state["failure"])
+        }
     } else {
         state["current_step"] := "verify"
         state := add_event(state, run_dir, "tool_call_completed", "implementation", "core-developer", {"actions": len(actions["results"]), "ok": true})
@@ -446,10 +476,47 @@ func pause_run(run_id) {
     if type(state) != "dict" { return {"ok": false, "error": "run state missing"} }
     if state["status"] != "running" { return {"ok": false, "error": "only running runs can be paused; use --pause-after-plan for a resumable checkpoint"} }
     state["status"] := "paused"
-    state := add_event(state, record["run_dir"], "run_cancelled", "pause", "relay", {"reason": "operator_pause", "resumable": true})
+    state := add_event(state, record["run_dir"], "run_paused", "pause", "relay", {"reason": "operator_pause", "resumable": true})
     save_state(state, record["run_dir"])
     register_run(state, record["run_dir"])
     return {"ok": true, "run": state}
+}
+
+func cancel_run(run_id) {
+    index := load_run_index(state_root())
+    record := dict_get_or(index, run_id, null)
+    if type(record) != "dict" { return {"ok": false, "error": "unknown run: " + run_id} }
+    run_dir := string_or(dict_get_or(record, "run_dir", ""), "")
+    if run_dir == "" || path_is_dir(run_dir) == false || path_is_symlink(run_dir) { return {"ok": false, "error": "run directory is missing or unsafe"} }
+    state := read_json_or(run_dir + "/state.json", null)
+    if type(state) != "dict" { return {"ok": false, "error": "run state missing"} }
+    status := string_or(dict_get_or(state, "status", ""), "")
+    if status == "completed" || status == "failed" || status == "cancelled" { return {"ok": false, "error": "run is already terminal", "run": state} }
+    if status == "paused" {
+        state["status"] := "cancelled"
+        state["current_step"] := ""
+        state["cancellation"] := {"requested_at": now_iso(), "requested_by": "operator", "reason": "operator_cancel"}
+        state := add_event(state, run_dir, "run_cancelled", "cancel", "relay", {"reason": "operator_cancel", "resumable": false})
+        ledger_id := string_or(dict_get_or(dict_get_or(state, "runledger", {}), "run_id", ""), run_id)
+        state["runledger_finish"] := runledger_finish(run_dir, ledger_id, "fail", "Relay run cancelled", "Evidence in " + run_dir)
+        finish_receipt_result := record_receipt(state, run_dir, "runledger", "cancel", "relay", run_dir + "/ledger", "fail", {"runledger_id": ledger_id, "ok": state["runledger_finish"]["ok"], "cancelled": true})
+        state["receipts"] := finish_receipt_result["receipts"]
+        save_state(state, run_dir)
+        report(state, run_dir)
+        register_run(state, run_dir)
+        return {"ok": true, "run": state, "status": "cancelled"}
+    }
+    request_path := run_dir + "/cancel.request.json"
+    if path_exists(request_path) && path_is_symlink(request_path) { return {"ok": false, "error": "cancellation request is a symbolic link"} }
+    request := {"requested_at": now_iso(), "requested_by": "operator", "reason": "operator_cancel"}
+    if write_json(request_path, request) == false { return {"ok": false, "error": "cancellation request could not be recorded"} }
+    latest := read_json_or(run_dir + "/state.json", state)
+    latest_status := string_or(dict_get_or(latest, "status", status), status)
+    if latest_status == "completed" || latest_status == "failed" || latest_status == "cancelled" {
+        if path_exists(request_path) && path_is_symlink(request_path) == false { delete_file(request_path) }
+        return {"ok": false, "error": "run completed before cancellation was requested", "run": latest}
+    }
+    return {"ok": true, "status": "cancellation_requested", "run": latest, "request": request}
 }
 
 func cleanup_run(run_id, confirmed) {
@@ -545,6 +612,7 @@ export load_spec := load_spec
 export create_mission := create_mission
 export run_mission := run_mission
 export pause_run := pause_run
+export cancel_run := cancel_run
 export cleanup_run := cleanup_run
 export resume_run := resume_run
 export execute_tool_request := execute_tool_request
