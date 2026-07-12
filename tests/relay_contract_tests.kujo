@@ -101,6 +101,8 @@ failed = failed + check("fallback allows rate limit", fallback_allowed({"error":
 failed = failed + check("fallback allows unavailable provider", fallback_allowed({"error": {"code": "provider_unavailable"}}))
 failed = failed + check("fallback rejects authentication", fallback_allowed({"error": {"code": "authentication_failure"}}) == false)
 failed = failed + check("fallback rejects policy failure", fallback_allowed({"error": {"code": "policy_violation"}}) == false)
+failed = failed + check("cancelled failure classification", classify_failure("cancelled") == "cancelled")
+failed = failed + check("timeout failure classification", classify_failure("timed_out") == "timeout")
 failed = failed + check("safe Watchdog route", watchdog_route_allowed("http://127.0.0.1:7700/proxy/v1"))
 failed = failed + check("HTTPS external Watchdog route", watchdog_route_allowed("https://watchdog.example.com/proxy/v1"))
 failed = failed + check("HTTP external Watchdog route denied", watchdog_route_allowed("http://watchdog.example.com/proxy/v1") == false)

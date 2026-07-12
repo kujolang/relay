@@ -48,7 +48,7 @@ elapsed_wait=$(( $(date +%s) - started_wait ))
 test "$elapsed_wait" -lt 8
 
 state="$($KUJO run "$ROOT/main.kujo" -- missions inspect "$run_id" --json)"
-printf '%s' "$state" | jq -e '.ok == true and .run.status == "cancelled" and (.run.events | map(.kind) | index("run_cancelled")) != null and (.run.events | map(.kind) | index("run_completed")) == null' >/dev/null
+printf '%s' "$state" | jq -e '.ok == true and .run.status == "cancelled" and (.run.events | map(.kind) | index("run_cancelled")) != null and (.run.events | map(.kind) | index("run_completed")) == null and (.run.action_results | any(.cancelled == true and .failure_class == "cancelled"))' >/dev/null
 test -f "$run_dir/cancel.request.json"
 
 echo "PASS relay cancel smoke"

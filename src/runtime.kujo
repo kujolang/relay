@@ -276,7 +276,10 @@ func execute_action(action, spec, state, run_dir) {
         ok := result.success
         output_truncated := result.stdout_truncated
         if result.stderr_truncated { output_truncated = true }
-        return {"ok": ok, "tool": "run_command", "command": redact_text(command), "stdout": redact_text(result.stdout), "stderr": redact_text(result.stderr), "timed_out": result.timed_out, "cancelled": result.cancelled, "stdout_truncated": result.stdout_truncated, "stderr_truncated": result.stderr_truncated, "output_truncated": output_truncated, "duration_ms": duration_ms, "failure_class": "tool_failure"}
+        failure_class := "tool_failure"
+        if result.cancelled { failure_class = "cancelled" }
+        else if result.timed_out { failure_class = "timeout" }
+        return {"ok": ok, "tool": "run_command", "command": redact_text(command), "stdout": redact_text(result.stdout), "stderr": redact_text(result.stderr), "timed_out": result.timed_out, "cancelled": result.cancelled, "stdout_truncated": result.stdout_truncated, "stderr_truncated": result.stderr_truncated, "output_truncated": output_truncated, "duration_ms": duration_ms, "failure_class": failure_class}
     }
     return {"ok": false, "failure_class": "policy_violation", "error": "unknown_action_type"}
 }
