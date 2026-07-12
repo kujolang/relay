@@ -349,3 +349,11 @@ common provider token/private-key markers in addition to bearer and
 environment-style secrets. This is a local disclosure reduction with focused
 contract evidence; it does not replace the deferred Redact integration,
 tenant-aware secret custody, or prompt/packet/handoff policy.
+
+## Thirty-third 2026-07-12 review
+
+Relay's doctor now treats dependency identity as a safety boundary rather than
+an existence check. Required paths must have the expected file/directory type
+and cannot be symbolic links; JSON callers receive explicit safety fields. A
+symlinked Kujo runtime is rejected before readiness is reported. This remains
+local path posture, not signed supply-chain provenance or deployment attestation.

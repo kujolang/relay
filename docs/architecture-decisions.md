@@ -362,6 +362,20 @@ cancellation remain deferred. Rejected: Relay-managed shell kill commands,
 process-name scans, or claiming cooperative cancellation was sufficient without
 an executable descendant test.
 
+## ADR-051: Make dependency readiness type- and symlink-aware
+
+Context: `doctor --json` previously treated any existing path as a healthy
+dependency. A directory at an executable path or a symlinked runtime could
+therefore appear ready even though the configured dependency identity had not
+been verified. Decision: required doctor paths must have their expected file or
+directory type and must not be symbolic links; machine output reports
+`exists`, `expected_type`, `symlink`, and `safe`. Rationale: fail closed before
+live or repository-changing operations and give CI/machine callers an explicit
+dependency posture. Consequence: symlink-managed installations must point Relay
+at the resolved trusted path; signed manifests, hashes, provenance, and
+deployment ownership remain deferred. Rejected: checking only `path_exists`,
+following symlinks silently, or treating doctor output as a binary signature.
+
 ## ADR-050: Redact structured credentials before evidence persistence
 
 Context: Relay already redacted bearer headers and environment-style secret

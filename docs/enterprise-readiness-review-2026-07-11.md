@@ -341,3 +341,13 @@ secrets, passwords, generic secret fields, OpenAI/AWS/GitHub/Slack token
 patterns, and private-key markers. Contract tests prove the new cases. Full
 Redact integration across prompts, packets, handoffs, tenant-aware custody,
 and external-provider evidence remains deferred.
+
+## Thirty-third 2026-07-12 review
+
+This review closed a dependency-readiness gap. `doctor --json` previously
+treated an existing path as healthy even when it was the wrong type or a
+symbolic link. Required runtime, entrypoint, source, SDK, ecosystem-tool, and
+agent-registry paths now report explicit `exists`, `expected_type`, `symlink`,
+and `safe` posture and fail the doctor check when unsafe. The CLI smoke proves
+a symlinked Kujo runtime is rejected. Signed dependency manifests, executable
+hashes, provenance, and deployment ownership remain deferred.
