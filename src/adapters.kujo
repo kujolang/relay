@@ -1,4 +1,4 @@
-from src.common import dict_get_or, env_or, string_or, bool_or, safe_json, read_json_or, redact_text, process_options, safe_env_name
+from src.common import dict_get_or, env_or, string_or, bool_or, int_or, safe_json, read_json_or, redact_text, process_options, safe_env_name
 from src.watchdog import watchdog_verify
 
 func relay_root() { return env_or("RELAY_ROOT", env_or("PWD", ".")) }
@@ -25,6 +25,7 @@ func last_json(raw) {
 }
 
 func run_process(command, cwd, extra_env, timeout_ms) {
+    started_ms := current_timestamp()
     options := process_options(extra_env, timeout_ms, 8 * 1024 * 1024)
     actual_command := command
     if cwd != "" {
@@ -33,9 +34,9 @@ func run_process(command, cwd, extra_env, timeout_ms) {
     }
     try {
         raw := spawn_process(actual_command, options)
-        return {"success": raw.success, "exit_code": raw.exitcode, "stdout": redact_text(raw.stdout), "stderr": redact_text(raw.stderr), "timed_out": raw.timed_out, "stdout_truncated": raw.stdout_truncated, "stderr_truncated": raw.stderr_truncated}
+        return {"success": raw.success, "exit_code": raw.exitcode, "stdout": redact_text(raw.stdout), "stderr": redact_text(raw.stderr), "timed_out": raw.timed_out, "stdout_truncated": raw.stdout_truncated, "stderr_truncated": raw.stderr_truncated, "duration_ms": current_timestamp() - started_ms}
     } except err {
-        return {"success": false, "exit_code": 3, "stdout": "", "stderr": redact_text(to_string(err)), "timed_out": false, "stdout_truncated": false, "stderr_truncated": false}
+        return {"success": false, "exit_code": 3, "stdout": "", "stderr": redact_text(to_string(err)), "timed_out": false, "stdout_truncated": false, "stderr_truncated": false, "duration_ms": current_timestamp() - started_ms}
     }
 }
 
@@ -76,7 +77,7 @@ func call_ai(messages, model, provider, base_url, api_key_env, offline, stream, 
     }
     route := "direct_ai_sdk"
     if watchdog_url() != "" && offline == false { route = "watchdog_proxy" }
-    parsed["relay_telemetry"] := {"route": route, "watchdog_url": watchdog_url(), "watchdog_auth_configured": watchdog_token != "", "provider": provider, "model": model, "stream_requested": stream, "correlation_id": correlation}
+    parsed["relay_telemetry"] := {"route": route, "watchdog_url": watchdog_url(), "watchdog_auth_configured": watchdog_token != "", "provider": provider, "model": model, "stream_requested": stream, "correlation_id": correlation, "duration_ms": int_or(dict_get_or(result, "duration_ms", 0), 0)}
     if offline == false && env_or("RELAY_WATCHDOG_VERIFY", "false") == "true" {
         verification := watchdog_verify(correlation)
         parsed["relay_watchdog_verification"] := verification
@@ -112,7 +113,7 @@ func ai_chat_correlated(messages, model, provider, offline, stream, correlation_
 func agents_sdk_smoke() {
     command := ["/usr/bin/env", "-C", agents_sdk_root(), kujo_bin(), "run", "examples/examples_smoke_runner.kujo", "--interpreter"]
     result := run_process(command, "", {}, 120000)
-    return {"ok": dict_get_or(result, "success", false), "data": last_json(dict_get_or(result, "stdout", "")), "stdout": dict_get_or(result, "stdout", ""), "stderr": dict_get_or(result, "stderr", "")}
+    return {"ok": dict_get_or(result, "success", false), "data": last_json(dict_get_or(result, "stdout", "")), "stdout": dict_get_or(result, "stdout", ""), "stderr": dict_get_or(result, "stderr", ""), "duration_ms": dict_get_or(result, "duration_ms", 0)}
 }
 
 func agents_sdk_tool_run(workspace, spec, run_id, session_id) {
@@ -141,7 +142,7 @@ func agents_sdk_tool_run(workspace, spec, run_id, session_id) {
     parsed := last_json(dict_get_or(result, "stdout", ""))
     ok := dict_get_or(result, "success", false)
     if type(parsed) != "dict" || dict_get_or(parsed, "ok", false) == false { ok = false }
-    return {"ok": ok, "data": parsed, "stdout": dict_get_or(result, "stdout", ""), "stderr": dict_get_or(result, "stderr", "")}
+    return {"ok": ok, "data": parsed, "stdout": dict_get_or(result, "stdout", ""), "stderr": dict_get_or(result, "stderr", ""), "duration_ms": dict_get_or(result, "duration_ms", 0)}
 }
 
 func packwrite_generate(run_dir, prompt_path, packet_path) {
@@ -149,7 +150,7 @@ func packwrite_generate(run_dir, prompt_path, packet_path) {
     fake_file := env_or("RELAY_PACKWRITE_FAKE_RESPONSE", relay_root() + "/examples/packwrite-response.json")
     command := ["/usr/bin/env", "-C", run_dir, packwrite, "init", prompt_path, "--output", "agent", "--overwrite"]
     result := run_process(command, "", {"KUJO": kujo_bin(), "PACKWRITE_FAKE_RESPONSE_FILE": fake_file}, 120000)
-    return {"ok": dict_get_or(result, "success", false), "command": command, "stdout": dict_get_or(result, "stdout", ""), "stderr": dict_get_or(result, "stderr", ""), "artifact_dir": run_dir + "/agent", "packet_path": packet_path}
+    return {"ok": dict_get_or(result, "success", false), "command": command, "stdout": dict_get_or(result, "stdout", ""), "stderr": dict_get_or(result, "stderr", ""), "artifact_dir": run_dir + "/agent", "packet_path": packet_path, "duration_ms": dict_get_or(result, "duration_ms", 0)}
 }
 
 func runledger_start(run_dir, model, provider, task, repo) {
@@ -161,31 +162,31 @@ func runledger_start(run_dir, model, provider, task, repo) {
     for line in split(output, "\n") {
         if starts_with(trim(line), "Started run: ") { run_id = trim(substring(trim(line), 13, len(trim(line)))) }
     }
-    return {"ok": dict_get_or(result, "success", false), "run_id": run_id, "ledger": ledger, "output": output, "error": dict_get_or(result, "stderr", "")}
+    return {"ok": dict_get_or(result, "success", false), "run_id": run_id, "ledger": ledger, "output": output, "error": dict_get_or(result, "stderr", ""), "duration_ms": dict_get_or(result, "duration_ms", 0)}
 }
 
 func runledger_finish(run_dir, run_id, status, verdict, notes) {
     command := ["/usr/bin/env", "-C", run_dir, env_or("RELAY_RUNLEDGER_BIN", relay_root() + "/../runledger/bin/runledger"), "finish", run_id, "--status", status, "--verdict", verdict, "--notes", notes, "--ledger", run_dir + "/ledger"]
     result := run_process(command, "", {"KUJO": kujo_bin()}, 60000)
-    return {"ok": dict_get_or(result, "success", false), "output": dict_get_or(result, "stdout", ""), "error": dict_get_or(result, "stderr", "")}
+    return {"ok": dict_get_or(result, "success", false), "output": dict_get_or(result, "stdout", ""), "error": dict_get_or(result, "stderr", ""), "duration_ms": dict_get_or(result, "duration_ms", 0)}
 }
 
 func changebucket(repo, run_dir) {
     command := ["/usr/bin/env", env_or("RELAY_CHANGEBUCKET_BIN", relay_root() + "/../changebucket/bin/changebucket"), "--json", "--repo", repo]
     result := run_process(command, run_dir, {"KUJO": kujo_bin()}, 60000)
-    return {"ok": dict_get_or(result, "success", false), "data": last_json(dict_get_or(result, "stdout", "")), "stdout": dict_get_or(result, "stdout", ""), "stderr": dict_get_or(result, "stderr", "")}
+    return {"ok": dict_get_or(result, "success", false), "data": last_json(dict_get_or(result, "stdout", "")), "stdout": dict_get_or(result, "stdout", ""), "stderr": dict_get_or(result, "stderr", ""), "duration_ms": dict_get_or(result, "duration_ms", 0)}
 }
 
 func eval_run(run_dir, config_path) {
     command := ["/usr/bin/env", "-C", run_dir, kujo_bin(), "run", env_or("RELAY_EVAL_ENTRY", relay_root() + "/../eval/main.kujo"), "--", "run", config_path, "--json"]
     result := run_process(command, "", {}, 120000)
-    return {"ok": dict_get_or(result, "success", false), "data": last_json(dict_get_or(result, "stdout", "")), "stdout": dict_get_or(result, "stdout", ""), "stderr": dict_get_or(result, "stderr", "")}
+    return {"ok": dict_get_or(result, "success", false), "data": last_json(dict_get_or(result, "stdout", "")), "stdout": dict_get_or(result, "stdout", ""), "stderr": dict_get_or(result, "stderr", ""), "duration_ms": dict_get_or(result, "duration_ms", 0)}
 }
 
 func capsule_run(repo, output_dir) {
     capsule := env_or("RELAY_CAPSULE_BIN", relay_root() + "/../benchmarks-capsule/bin/capsule")
     result := run_process(["/usr/bin/env", capsule, "make", repo, "--out", output_dir, "--stable"], "", {"KUJO": kujo_bin()}, 120000)
-    return {"ok": dict_get_or(result, "success", false), "stdout": dict_get_or(result, "stdout", ""), "stderr": dict_get_or(result, "stderr", ""), "artifacts": output_dir}
+    return {"ok": dict_get_or(result, "success", false), "stdout": dict_get_or(result, "stdout", ""), "stderr": dict_get_or(result, "stderr", ""), "artifacts": output_dir, "duration_ms": dict_get_or(result, "duration_ms", 0)}
 }
 
 export kujo_bin := kujo_bin
