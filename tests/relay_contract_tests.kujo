@@ -1,6 +1,7 @@
 from src.contracts import event, event_integrity_valid, event_chain_integrity_valid, event_sequence_matches_state, receipt, receipt_integrity_valid, receipt_sequence_valid, receipt_sequence_matches_state, run_state, agent_profile, RELAY_VERSION, EVENT_CONTRACT, RECEIPT_CONTRACT
 from src.policy import classify_failure, path_is_safe, path_is_within_workspace, command_is_allowed, tool_decision
-from src.common import safe_id, redact_text, shell_quote_single, command_args, process_options, safe_env_name, read_json_limited, dict_get_or
+from src.runtime import resume_state_safe
+from src.common import safe_id, redact_text, shell_quote_single, command_args, process_options, safe_env_name, read_json_limited, dict_get_or, safe_json
 from src.adapters import fallback_allowed, watchdog_route_allowed
 from src.store import safe_run_key, acquire_index_lock, acquire_index_lock_retry, release_index_lock
 from src.watchdog import safe_base, route_policy
@@ -122,4 +123,9 @@ if path_is_dir(lock_root) { os_rmdir(lock_root) }
 failed = failed + check("safe Watchdog URL", safe_base("http://127.0.0.1:7700"))
 failed = failed + check("Watchdog URL with embedded credentials denied", safe_base("http://user:secret@127.0.0.1:7700") == false)
 failed = failed + check("Watchdog URL with unsupported scheme denied", safe_base("file:///tmp/watchdog") == false)
+resume_spec := {"repository": ".", "workspace_mode": "provided", "budgets": {"max_steps": 8}}
+resume_state := {"run_id": "resume-contract", "mission_spec": resume_spec, "mission_spec_integrity_sha256": sha256(safe_json(resume_spec)), "events": [], "receipts": [], "repository": ".", "workspace": {"mode": "provided", "source_repository": ".", "path": "."}, "budgets": {"max_steps": 8, "max_repairs": 1, "max_tokens": 4000, "max_tool_calls": 4, "max_output_bytes": 1048576, "max_write_bytes": 1048576}, "attempt": 0}
+failed = failed + check("resume state integrity accepts matching state", resume_state_safe(resume_state, "resume-contract", "/tmp/relay-contract-run") ["ok"])
+resume_state["repository"] := "/tmp"
+failed = failed + check("resume state integrity rejects workspace substitution", resume_state_safe(resume_state, "resume-contract", "/tmp/relay-contract-run")["ok"] == false)
 exit(failed)

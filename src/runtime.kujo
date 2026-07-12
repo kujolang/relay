@@ -1,5 +1,5 @@
 from src.common import dict_get_or, env_or, string_or, bool_or, int_or, now_iso, safe_id, read_json_or, read_json_limited, write_json, append_jsonl, safe_json, shell_quote_single, command_args, write_text_atomic, process_options, redact_text
-from src.contracts import run_state, event, event_integrity_input, receipt
+from src.contracts import run_state, event, event_integrity_input, receipt, event_chain_integrity_valid, receipt_sequence_valid
 from src.registry import find_agent
 from src.policy import tool_decision, classify_failure, path_is_safe, path_is_within_workspace, command_is_allowed
 from src.adapters import ai_chat_correlated, agents_sdk_smoke, agents_sdk_tool_run, packwrite_generate, runledger_start, runledger_finish, changebucket, eval_run
@@ -67,6 +67,46 @@ func register_run(state, run_dir) {
     index := rebuild_run_index(state_root())
     index[state["run_id"]] := {"run_dir": run_dir, "mission_id": state["mission_id"], "status": state["status"]}
     persist_run_index(state_root(), index)
+}
+
+func expected_budget(spec, key, fallback) {
+    budgets := dict_get_or(spec, "budgets", {})
+    if type(budgets) == "dict" && has_key(budgets, key) { return int_or(budgets[key], fallback) }
+    return fallback
+}
+
+func resume_state_safe(state, run_id, run_dir) {
+    if type(state) != "dict" || string_or(dict_get_or(state, "run_id", ""), "") != string_or(run_id, "") { return {"ok": false, "error": "run state identity does not match the requested run"} }
+    spec := dict_get_or(state, "mission_spec", null)
+    if type(spec) != "dict" { return {"ok": false, "error": "run mission policy is missing"} }
+    digest := string_or(dict_get_or(state, "mission_spec_integrity_sha256", ""), "")
+    if digest == "" || digest != sha256(safe_json(spec)) { return {"ok": false, "error": "run mission policy integrity verification failed"} }
+    if event_chain_integrity_valid(dict_get_or(state, "events", [])) == false { return {"ok": false, "error": "run event state integrity verification failed"} }
+    if receipt_sequence_valid(dict_get_or(state, "receipts", [])) == false { return {"ok": false, "error": "run receipt state integrity verification failed"} }
+    source_repo := string_or(dict_get_or(spec, "repository", ""), "")
+    if source_repo == "" || path_is_dir(source_repo) == false || path_is_symlink(source_repo) || path_exists(source_repo + "/.git") == false || path_is_symlink(source_repo + "/.git") { return {"ok": false, "error": "run source repository integrity verification failed"} }
+    repository := string_or(dict_get_or(state, "repository", ""), "")
+    workspace := dict_get_or(state, "workspace", {})
+    if type(workspace) != "dict" || repository == "" || path_is_dir(repository) == false || path_is_symlink(repository) || path_exists(repository + "/.git") == false || path_is_symlink(repository + "/.git") { return {"ok": false, "error": "run workspace integrity verification failed"} }
+    mode := string_or(dict_get_or(spec, "workspace_mode", "provided"), "provided")
+    workspace_mode := string_or(dict_get_or(workspace, "mode", ""), "")
+    workspace_path := string_or(dict_get_or(workspace, "path", ""), "")
+    workspace_source := string_or(dict_get_or(workspace, "source_repository", ""), "")
+    if mode == "provided" {
+        if workspace_mode != "provided" || repository != source_repo || workspace_path != source_repo || workspace_source != source_repo { return {"ok": false, "error": "provided workspace identity does not match the mission"} }
+    } else if mode == "worktree" {
+        expected_workspace := run_dir + "/workspace"
+        if workspace_mode != "worktree" || repository != expected_workspace || workspace_path != expected_workspace || workspace_source != source_repo { return {"ok": false, "error": "worktree identity does not match the run"} }
+    } else { return {"ok": false, "error": "run workspace mode is invalid"} }
+    state_budgets := dict_get_or(state, "budgets", {})
+    if type(state_budgets) != "dict" { return {"ok": false, "error": "run budget state is missing"} }
+    defaults := {"max_steps": 8, "max_repairs": 1, "max_tokens": 4000, "max_tool_calls": 4, "max_output_bytes": 1048576, "max_write_bytes": 1048576}
+    for key in keys(defaults) {
+        if int_or(dict_get_or(state_budgets, key, -1), -1) != expected_budget(spec, key, defaults[key]) { return {"ok": false, "error": "run budget integrity verification failed"} }
+    }
+    attempt := int_or(dict_get_or(state, "attempt", -1), -1)
+    if attempt < 0 || attempt > int_or(dict_get_or(state_budgets, "max_steps", 0), 0) { return {"ok": false, "error": "run attempt state is invalid"} }
+    return {"ok": true}
 }
 
 func load_spec(path) {
@@ -337,6 +377,7 @@ func run_mission(path, options) {
     }
     state := run_state(mission_id, string_or(dict_get_or(spec, "workflow", "verified-feature"), "verified-feature"), repo, run_key)
     state["mission_spec"] := spec
+    state["mission_spec_integrity_sha256"] := sha256(safe_json(spec))
     state["workspace"] := workspace
     state["model"] := string_or(dict_get_or(spec, "model", "fixture-model"), "fixture-model")
     state["provider"] := string_or(dict_get_or(spec, "provider", "fixture"), "fixture")
@@ -566,6 +607,8 @@ func resume_run(run_id) {
     if type(checkpoint) != "dict" || dict_get_or(checkpoint, "step", "") != "implementation" {
         return {"ok": false, "error": "run has no supported resumable checkpoint"}
     }
+    integrity := resume_state_safe(state, run_id, record["run_dir"])
+    if integrity["ok"] == false { return {"ok": false, "failure_class": "state_integrity_failure", "error": integrity["error"]} }
     state["status"] := "running"
     state := add_event(state, record["run_dir"], "handoff_started", "resume", "relay", {"checkpoint": checkpoint})
     actions := execute_actions(state["mission_spec"], state, record["run_dir"])
@@ -624,3 +667,4 @@ export resume_run := resume_run
 export execute_tool_request := execute_tool_request
 export state_root := state_root
 export run_root := run_root
+export resume_state_safe := resume_state_safe
