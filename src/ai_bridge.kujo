@@ -9,7 +9,11 @@ func get(obj, key, fallback) {
 
 payload_text := env("RELAY_AI_PAYLOAD")
 if type(payload_text) == "null" || trim(to_string(payload_text)) == "" { print(to_json({"ok": false, "error": {"code": "missing_payload"}})); exit(1) }
-payload := parse_json(payload_text)
+payload_text := to_string(payload_text)
+if len(payload_text) > 131072 { print(to_json({"ok": false, "error": {"code": "payload_too_large", "message": "RELAY_AI_PAYLOAD exceeds the 128 KiB safety limit"}})); exit(1) }
+payload := null
+try { payload = parse_json(payload_text) } except err { print(to_json({"ok": false, "error": {"code": "invalid_payload", "message": "RELAY_AI_PAYLOAD is invalid JSON"}})); exit(1) }
+if type(payload) != "dict" { print(to_json({"ok": false, "error": {"code": "invalid_payload", "message": "RELAY_AI_PAYLOAD must be a JSON object"}})); exit(1) }
 base_url := get(payload, "base_url", "https://api.openai.com/v1")
 api_env := get(payload, "api_key_env", "OPENAI_API_KEY")
 model := get(payload, "model", "fixture-model")

@@ -114,7 +114,11 @@ func summarize_agent_result(result) {
 
 payload_text := env("RELAY_AGENT_PAYLOAD")
 if type(payload_text) == "null" || trim(to_string(payload_text)) == "" { print(to_json({"ok": false, "error": {"code": "missing_agent_payload"}})); exit(1) }
-payload := parse_json(payload_text)
+payload_text := to_string(payload_text)
+if len(payload_text) > 131072 { print(to_json({"ok": false, "error": {"code": "payload_too_large", "message": "RELAY_AGENT_PAYLOAD exceeds the 128 KiB safety limit"}})); exit(1) }
+payload := null
+try { payload = parse_json(payload_text) } except err { print(to_json({"ok": false, "error": {"code": "invalid_payload", "message": "RELAY_AGENT_PAYLOAD is invalid JSON"}})); exit(1) }
+if type(payload) != "dict" { print(to_json({"ok": false, "error": {"code": "invalid_payload", "message": "RELAY_AGENT_PAYLOAD must be a JSON object"}})); exit(1) }
 
 fake_chat := func(client, messages, request_options) {
     return {"ok": true, "provider": "relay-agent-fixture", "model": get(payload, "model", "fixture-model"), "output_text": get(payload, "output_text", "Relay Agents SDK tool execution"), "tool_calls": get(payload, "tool_calls", []), "usage": {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0}}

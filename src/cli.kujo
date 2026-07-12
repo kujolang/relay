@@ -347,8 +347,11 @@ func cmd_tools(tokens) {
     if sub != "execute" { return {"ok": false, "error": "unknown tools command"} }
     raw := env("RELAY_TOOL_REQUEST")
     if type(raw) == "null" || trim(to_string(raw)) == "" { return {"ok": false, "error": "RELAY_TOOL_REQUEST is required"} }
+    raw := to_string(raw)
+    if len(raw) > 131072 { return {"ok": false, "error": "RELAY_TOOL_REQUEST exceeds the 128 KiB safety limit"} }
     request := null
     try { request = parse_json(raw) } except err { return {"ok": false, "error": "RELAY_TOOL_REQUEST is invalid JSON"} }
+    if type(request) != "dict" { return {"ok": false, "error": "RELAY_TOOL_REQUEST must be a JSON object"} }
     return execute_tool_request(request, dict_get_or(parsed["flags"], "capability", ""))
 }
 
