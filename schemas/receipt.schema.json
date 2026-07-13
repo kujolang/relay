@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kujo.dev/relay/schemas/receipt.schema.json",
+  "title": "Kujo Relay receipt",
+  "type": "object",
+  "required": ["type", "contract_version", "receipt_id", "kind", "mission_id", "run_id", "step_id", "agent_id", "artifact_ref", "status", "created_at", "metadata", "payload", "integrity_sha256"],
+  "properties": {
+    "type": {"const": "RelayReceipt"},
+    "contract_version": {"const": "relay-receipt-v1"},
+    "receipt_id": {"type": "string", "minLength": 1},
+    "kind": {"type": "string", "minLength": 1},
+    "mission_id": {"type": "string", "minLength": 1},
+    "run_id": {"type": "string", "minLength": 1},
+    "step_id": {"type": "string"},
+    "agent_id": {"type": "string", "minLength": 1},
+    "artifact_ref": {"type": "string"},
+    "status": {"type": "string", "minLength": 1},
+    "created_at": {"type": "string", "minLength": 1},
+    "metadata": {"type": "object"},
+    "payload": {"type": "object"},
+    "integrity_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  },
+  "additionalProperties": true
+}

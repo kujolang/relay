@@ -1,0 +1,7 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kujo.dev/relay/schemas/report.schema.json",
+  "title": "Kujo Relay report",
+  "allOf": [{"$ref": "run.schema.json"}],
+  "description": "The JSON report is the sealed RelayRun state plus report-consumer extensions."
+}

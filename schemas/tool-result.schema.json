@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kujo.dev/relay/schemas/tool-result.schema.json",
+  "title": "Kujo Relay tool result",
+  "type": "object",
+  "required": ["ok"],
+  "properties": {
+    "ok": {"type": "boolean"},
+    "tool_name": {"type": "string"},
+    "result": {"type": "object"},
+    "artifacts": {"type": "array"},
+    "error": {"type": ["object", "string"]}
+  },
+  "additionalProperties": true
+}

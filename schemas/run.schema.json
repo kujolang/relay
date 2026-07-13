@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kujo.dev/relay/schemas/run.schema.json",
+  "title": "Kujo Relay run",
+  "type": "object",
+  "required": ["type", "contract_version", "mission_id", "run_id", "workflow", "status", "repository", "events", "receipts", "integrity_sha256"],
+  "properties": {
+    "type": {"const": "RelayRun"},
+    "contract_version": {"const": "relay-run-v1"},
+    "mission_id": {"type": "string", "minLength": 1},
+    "run_id": {"type": "string", "minLength": 1},
+    "workflow": {"type": "string", "minLength": 1},
+    "status": {"enum": ["created", "running", "paused", "finalizing", "completed", "failed", "cancelled"]},
+    "repository": {"type": "string", "minLength": 1},
+    "mission_spec": {"type": "object"},
+    "workspace": {"type": "object"},
+    "budgets": {"type": "object"},
+    "events": {"type": "array", "items": {"$ref": "event.schema.json"}},
+    "receipts": {"type": "array", "items": {"$ref": "receipt.schema.json"}},
+    "artifacts": {"type": "array"},
+    "evaluations": {"type": "array"},
+    "changes": {"type": "object"},
+    "failure": {"type": ["object", "null"]},
+    "integrity_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  },
+  "additionalProperties": true
+}

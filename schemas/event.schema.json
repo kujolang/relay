@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kujo.dev/relay/schemas/event.schema.json",
+  "title": "Kujo Relay AgentEvent",
+  "type": "object",
+  "required": ["type", "kind", "run_id", "agent_id", "session_id", "step_id", "event_id", "timestamp", "parent_event_id", "payload", "metadata", "integrity_sha256"],
+  "properties": {
+    "type": {"const": "AgentEvent"},
+    "kind": {"type": "string", "minLength": 1},
+    "run_id": {"type": "string", "minLength": 1, "maxLength": 160},
+    "agent_id": {"type": "string", "minLength": 1},
+    "session_id": {"type": "string", "minLength": 1},
+    "step_id": {"type": "string"},
+    "event_id": {"type": "string", "minLength": 1, "maxLength": 256},
+    "timestamp": {"type": "string", "minLength": 1},
+    "parent_event_id": {"type": "string"},
+    "payload": {"type": ["object", "array", "string", "number", "boolean", "null"]},
+    "metadata": {"type": "object"},
+    "integrity_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  },
+  "additionalProperties": true
+}

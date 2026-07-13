@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kujo.dev/relay/schemas/probe.schema.json",
+  "title": "Kujo Relay model probe result",
+  "type": "object",
+  "required": ["ok", "model", "provider", "offline", "routing", "result"],
+  "properties": {
+    "ok": {"type": "boolean"},
+    "model": {"type": "string", "minLength": 1},
+    "provider": {"type": "string", "minLength": 1},
+    "offline": {"type": "boolean"},
+    "routing": {"type": "object", "required": ["mode", "reason", "tool_planning", "tool_execution"]},
+    "result": {"type": "object"}
+  },
+  "additionalProperties": true
+}
