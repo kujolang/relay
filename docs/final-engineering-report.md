@@ -762,3 +762,17 @@ failure. This closes a local evidence gap but does not establish live provider
 dialect compatibility, durable storage, authenticated tenancy, or enterprise
 production readiness. The next-session work is tracked in
 `docs/next-session-enhancement-backlog-2026-07-13-v68.md`.
+
+## Seventieth 2026-07-13 review
+
+This review tightened repository command authority and operational inspection.
+`bash` and `sh` actions now require an exact caller-declared SHA-256 for a
+regular, non-symbolic `scripts/*.sh` file, checked at validation and execution;
+changed or undeclared scripts fail closed. `runs sizes --hashes` provides an
+opt-in bounded SHA-256 inventory while preserving the default size-only fast
+path. New run-verification and run-sizes JSON Schemas make both machine
+boundaries explicit. Contract, schema, sizes, timeout, and cancellation tests
+passed. These are local security and observability improvements; live provider
+compatibility, authenticated tenancy, recoverable workcells, durable storage,
+and release gates remain open. The next-session work is tracked in
+`docs/next-session-enhancement-backlog-2026-07-13-v69.md`.

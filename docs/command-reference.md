@@ -93,7 +93,7 @@ relay agents list|inspect <agent>|validate [--json]
 relay missions create [spec.json] [--output <path>] [--json]
 relay missions run <spec.json> [--fixture] [--pause-after-plan] [--skip-agent-smoke] [--json]
 relay missions inspect|pause|resume|cancel|cleanup|report <run-id> [--json]
-relay runs list [--after <run-id>] [--limit <n>]|rebuild|inspect|verify|events|watch|sizes|changes|evaluations <run-id> [--json]
+relay runs list [--after <run-id>] [--limit <n>]|rebuild|inspect|verify|events|watch|sizes [--hashes]|changes|evaluations <run-id> [--json]
 relay runs export <run-id> [--partial] [--output <path>] [--json]
 relay tools execute --json (internal capability-bound worker callback)
 relay benchmark run <repository> [--json]
@@ -112,6 +112,14 @@ Mission specs are JSON objects with `name`, `goal`, a Git `repository`, `actions
 
 - `write_file`: relative path, only with `allow_writes: true` and `approval.approved: true`.
 - `run_command`: read-oriented `git`, `kujo`, `bash scripts/`, or `sh scripts/` commands that pass policy. Commands are tokenized and executed as direct argv; shell pipelines, substitutions, globbing, tabs, and quoting expressions are rejected.
+
+Shell-script execution is hash-pinned. A mission that allows `bash` or `sh` must
+declare `allowed_script_hashes` mapping each `scripts/*.sh` path to its exact
+64-character SHA-256. Relay verifies the regular, non-symbolic script and its
+digest at validation and execution time; missing hashes, changed scripts, and
+symlinked script paths are denied. This prevents a write-enabled mission or
+repository mutation from turning the script allowance into arbitrary shell
+authority.
 
 Mission input files must be regular, non-symbolic files no larger than 1 MiB.
 This bound applies before JSON parsing and persistence, preventing an
@@ -318,9 +326,10 @@ reported in `excluded`; this prevents a large checkout from dominating an
 artifact inspection. The inventory fails closed on symbolic links, unsupported
 paths, more than 4096 artifact files, directory nesting deeper than 16 levels,
 or more than 8 MiB of total artifact bytes. It does not delete, compact, rotate,
-or retain artifacts, and its byte
-counts are local filesystem sizes rather than storage-billing or transfer
-metrics.
+or retain artifacts, and its byte counts are local filesystem sizes rather than
+storage-billing or transfer metrics. Add `--hashes` to opt into bounded SHA-256
+digests for each regular artifact file; the default remains size-only to avoid
+hashing overhead during routine inspection.
 
 `chat --stream` emits normalized JSONL `delta` and `done` events. Relay forwards the stream option through the AI SDK bridge; live Watchdog proxy authorization is supplied through `RELAY_WATCHDOG_PROXY_TOKEN` and is never included in the model payload.
 

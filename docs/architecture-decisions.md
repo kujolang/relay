@@ -1106,3 +1106,54 @@ future work.
 
 Rejected: trusting the state copy of tool results, treating the artifact as
 informational only, or inventing a second receipt/database authority.
+
+## ADR-098: Require exact hashes for repository shell scripts
+
+Context: the direct-argv policy removed shell metacharacters, but allowing
+`bash scripts/name.sh` or `sh scripts/name.sh` still permitted any repository
+script to execute. A write-enabled mission could create or alter such a script
+and then invoke it, widening authority beyond the declared read-oriented
+command intent.
+
+Decision: repository shell-script commands require a `scripts/*.sh` path, a
+regular non-symbolic file with no symbolic parent, and an exact 64-character
+SHA-256 in the mission's `allowed_script_hashes` map. Relay recomputes the
+digest at validation and immediately before execution. Hash mismatches,
+missing declarations, and symlinked scripts fail closed.
+
+Rationale: preserve bounded script functionality for immutable, explicitly
+approved fixtures while making content—not only the interpreter name—part of
+the authority contract. This reuses Kujo hashing and Relay path policy rather
+than adding a shell sandbox that does not exist.
+
+Consequences: existing script missions must add hashes; scripts changed during
+a mission cannot be executed until a new explicitly approved mission revision
+is created. Signed provenance, authenticated callers, and workcell-level
+network/filesystem isolation remain open.
+
+Rejected: allowing every `scripts/*.sh`, hashing only at mission load, or
+replacing the contract with an unrestricted shell denylist.
+
+## ADR-099: Keep artifact hashing opt-in on the bounded size inventory
+
+Context: operators and machine callers need a lightweight way to inspect run
+artifact footprints, but integrity comparison and future manifest generation
+also need per-file digests. Hashing every file on every `runs sizes` call would
+turn a read-only operational probe into unnecessary I/O for large evidence
+trees.
+
+Decision: preserve the existing bounded size-only `runs sizes` default and add
+`--hashes` as an explicit opt-in. The same depth, entry, byte, regular-file,
+and symlink bounds apply; opted-in regular files receive SHA-256 values and
+the response declares `hashes_included`.
+
+Rationale: add useful integrity data without regressing normal inspection
+latency or creating a second artifact-manifest owner. The sizes smoke proves
+both the fast path and digest shape.
+
+Consequences: hash-based comparisons require an explicit flag and are still
+local unsigned observations; signed manifests, retention, and durable artifact
+ownership remain future work.
+
+Rejected: hashing by default, scanning the excluded workspace, or persisting a
+parallel manifest store from a read-only command.

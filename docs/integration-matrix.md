@@ -13,6 +13,7 @@
 | Timeout process ownership | Kujo `spawn_process` + Relay runtime | bounded command timeout terminates the Unix process group, preserves `timed_out`, and records `failure_class: timeout` | non-Unix process-tree guarantees, rollback, and workcell ownership remain open | 30-second descendant timeout returns within 12 seconds with no orphan and typed terminal evidence | high |
 | Performance evidence | AI SDK/Watchdog + Relay adapters | bounded subprocess `duration_ms` propagated into telemetry and action/evidence results | aggregate metrics, cost normalization, and provider availability remain upstream concerns | fixture chat/mission metrics smoke | medium |
 | Artifact size inspection | Relay run store boundary | read-only `runs sizes` inventory for persisted run artifacts, with workspace exclusion, a 4096-file bound, and a 16-level directory-depth bound | rotation, compaction, retention, resumable export, and durable storage ownership remain open | fixture size inventory plus symlink and deep-tree fail-closed smoke | medium |
+| Artifact digest inspection | Relay CLI + common hashing | opt-in `runs sizes --hashes` adds bounded SHA-256 digests while preserving the default size-only fast path | signed manifests, retention, and durable artifact ownership remain open | sizes smoke verifies per-file digest shape | medium |
 | Evidence path safety | Relay common/CLI boundaries | JSON reads, JSONL appends, event inspection, export, workspace controls, dependency checks, and Agents SDK worker binding reject symbolic-linked or non-regular files; metadata-first probing catches dangling links, probe errors fail closed, and missing paths remain absent | complete no-follow atomic filesystem primitives and multi-user ownership remain upstream/platform concerns | contract probe-error check, dedicated dangling-link smoke, store smoke, worker smoke, and symlink rejection coverage | high |
 | Mission input safety | Relay runtime loader | regular-file, non-symlink, 1 MiB mission-spec bound before JSON parsing | schema negotiation, authenticated caller identity, and richer streaming input remain open | oversized and symlink mission-spec smoke | high |
 | Persisted JSON safety | Relay common/store/CLI boundaries | bounded pre-parse readers for index, lock owner, run state, receipts, and export-side artifacts | durable schema migration, compaction, and no-follow kernel primitives remain open | contract bounded-read checks plus oversized-index store smoke | high |
@@ -35,6 +36,7 @@
 | Routing | AI SDK model preferences; Dispatch patterns | explicit model profile fields | adaptive routing deferred | models list and telemetry reason | medium |
 | Context compression | Scent/Muzzle | pre/post workflow integration | no runtime dependency in MVP | discovery inventory | medium |
 | Authority | Agents SDK approvals + MCP/Fence patterns | Agents SDK approval policy/provider wraps Relay's policy worker; Relay remains authoritative for workspace and exact read-only Git argv checks | interactive approvals, identity, cancellation, and network controls pending | denied Tool Registry write plus direct policy/argv tests | high |
+| Script execution authority | Relay policy + mission contract | `bash`/`sh` actions require a regular in-workspace `scripts/*.sh` file and an exact caller-declared SHA-256, checked before each execution | signed script provenance, workcell isolation, and authenticated caller ownership remain open | contract hash-accept/mismatch checks plus timeout/cancellation smokes | high |
 | Failure evidence | CaseFile | deferred command adapter | capture failed run bundle | failure classification contract | medium |
 | Release verification | ShipCheck/Concord | deferred release workflow | report aggregation | docs and contract tests | medium |
 | Secrets/output | Relay redaction boundary + Redact + Watchdog redaction | persisted subprocess and adapter evidence redacts structured API keys, access/auth tokens, secrets, passwords, common provider token formats, private-key markers, and existing bearer/env forms | full Redact integration across prompts, packets, handoffs, and multi-tenant secret custody remains open | contract coverage for JSON credentials, provider tokens, private-key markers, bearer headers, and environment-style secrets | high |
@@ -103,3 +105,10 @@ its run identity and SHA-256 against authoritative state, and include it in
 machine-readable exports. The provider-tool smoke proves a valid bundle and a
 tampered bundle failure; this remains local evidence rather than live-provider
 dialect or enterprise-storage proof.
+
+The v69 review requires exact SHA-256 declarations for repository shell scripts
+and adds the opt-in `runs sizes --hashes` artifact digest mode. New
+run-verification and run-sizes schemas make the machine contracts explicit;
+focused contract, schema, sizes, timeout, and cancellation tests passed. Signed
+script provenance, authenticated ownership, workcells, and durable manifests
+remain open.

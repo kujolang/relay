@@ -765,3 +765,16 @@ improvements do not establish live Ollama Cloud or independent-provider
 compatibility, authenticated tenancy, durable concurrent storage, recoverable
 workcells, or release-gate completion. The next-session work is tracked in
 `docs/next-session-enhancement-backlog-2026-07-13-v67.md`.
+
+## Seventieth 2026-07-13 review
+
+The latest local hardening closes two remaining composition-boundary gaps.
+Repository `bash`/`sh` actions now require an exact SHA-256 declaration for a
+regular, non-symbolic `scripts/*.sh` file, verified at both validation and
+execution. The read-only artifact inventory keeps its fast size-only default
+and adds opt-in `runs sizes --hashes` digests, with new JSON Schemas for the
+verification and size responses. Focused contract, schema, sizes, timeout, and
+cancellation checks pass. This does not establish live provider compatibility,
+authenticated tenancy, recoverable workcells, durable storage, signed
+manifests, or release-gate completion; the v69 backlog records those remaining
+boundaries.
