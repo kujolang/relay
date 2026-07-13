@@ -845,3 +845,14 @@ readiness without execution. This improves local authority containment but does
 not prove executable signatures, authenticated deployment ownership, external
 provider compatibility, durable workcells, or enterprise readiness. The next
 session backlog is `docs/next-session-enhancement-backlog-2026-07-13-v74.md`.
+
+## Seventy-sixth 2026-07-13 review
+
+Relay now issues short-lived Agents SDK capability records instead of trusting
+caller-supplied nonce material alone. A digest-only parent secret, run/session/
+workspace binding, expiry, bounded call allowance, locked consumption, and
+worker-exit revocation are enforced by the Relay tool authority. The Agents SDK
+tool smoke proves issued capability use and replay rejection. This closes a
+local replay gap but does not provide authenticated remote tenancy, signed
+provenance, multi-host revocation, or crash-recovery reconciliation. The next
+session backlog is `docs/next-session-enhancement-backlog-2026-07-13-v75.md`.

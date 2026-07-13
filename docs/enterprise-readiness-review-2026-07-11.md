@@ -842,3 +842,15 @@ the symlink rejection. This is local hardening only; signed provenance,
 authenticated deployment ownership, live external-provider proof, recoverable
 workcells, durable storage, and release gates remain unresolved. The next-session
 backlog is `docs/next-session-enhancement-backlog-2026-07-13-v74.md`.
+
+## Seventy-sixth 2026-07-13 review
+
+The Agents SDK worker boundary now requires a Relay-issued short-lived registry
+record. The authority validates a digest-only parent secret, exact run/session/
+workspace/nonce identity, expiry, and a locked bounded call allowance; the
+parent revokes the record after worker exit. The focused Agents SDK smoke proves
+issued use and replay rejection. This is local process hardening, not
+authenticated multi-tenant authorization. Remote revocation, signed
+provenance, durable multi-host capability state, crash recovery, live providers,
+and release gates remain unresolved. The next-session backlog is
+`docs/next-session-enhancement-backlog-2026-07-13-v75.md`.

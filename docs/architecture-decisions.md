@@ -1288,3 +1288,29 @@ deployment ownership, and immutable manifests remain future controls.
 
 Rejected: trusting doctor-only checks, resolving symlinks and executing the
 resolved target, or allowing arbitrary caller-selected child paths.
+
+## ADR-105: Make Agents SDK capabilities short-lived and consumable
+
+Context: Relay's Agents SDK worker capability used a nonce and deterministic
+hash, but the tool authority did not persist issuance or consumption. A copied
+payload could therefore be replayed in another worker process while the nonce
+remained known.
+
+Decision: issue a per-worker registry record containing the run, session,
+workspace, nonce, capability digest, expiry, bounded call allowance, and only a
+digest of a parent-generated secret. Pass the secret to the child worker through
+the bounded environment, validate the registry record at the Relay tool
+authority, increment consumption under a lock, and revoke the record when the
+worker exits. Direct or legacy requests without an issued record fail closed.
+
+Rationale: close the local replay gap while keeping Agents SDK registry and
+Relay policy ownership separate. The registry is an execution-boundary control,
+not a second organizational identity or remote authorization system.
+
+Consequences: direct worker tests must use an issued fixture record; failed or
+denied calls consume allowance, and crashed processes may leave bounded stale
+records until future cleanup. Authenticated multi-host issuance, signed
+provenance, and remote revocation remain future work.
+
+Rejected: trusting a caller-supplied nonce, persisting the raw secret, using an
+unbounded global replay list, or making Paperclip/Hermes a core dependency.

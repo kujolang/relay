@@ -101,7 +101,7 @@ The v64 local hardening adds nonce-bound Agents SDK worker capabilities, fixed
 child-process executable paths, parent-component repository/workspace symlink
 rejection, exit-code evidence, and a more discriminating failure taxonomy.
 These remain local defense-in-depth and evidence improvements; remote identity,
-nonce replay protection, workcell isolation, and durable storage are deferred.
+authenticated caller binding, workcell isolation, and durable storage are deferred.
 
 ## Dependency order
 
@@ -212,3 +212,14 @@ Executable mode/signature provenance, authenticated deployment ownership, live
 external-provider proof, durable workcells, and release gates remain open.
 
 Current follow-on backlog: `docs/next-session-enhancement-backlog-2026-07-13-v74.md`.
+
+The v75 review adds short-lived Agents SDK capability issuance and consumption.
+Relay persists a digest-only registry record bound to run/session/workspace/
+nonce identity, expiry, and a bounded call allowance; each authority call
+consumes one allowance under a lock, and the parent revokes the record after the
+worker exits. Direct legacy or replayed requests fail closed. The Agents SDK
+tool smoke proves issued use, policy denial, and one-time replay rejection.
+Remote authenticated authorization, multi-host storage, and crash-recovery
+reconciliation remain open.
+
+Current follow-on backlog: `docs/next-session-enhancement-backlog-2026-07-13-v75.md`.

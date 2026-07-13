@@ -156,6 +156,14 @@ public run, session, or workspace identifiers; legacy deterministic capability
 requests fail closed. Child processes use a fixed executable `PATH`, and unsafe
 loader, interpreter, Git override, and trust-store environment names are
 dropped before spawn.
+Relay also issues a short-lived registry record per worker session. The record
+stores only a digest of a parent-generated secret, binds the run/session/
+workspace/nonce identity, expires after a bounded interval, and tracks a
+bounded call budget under a lock. The secret crosses only the bounded parent /
+child environment; each worker call consumes one allowance, replayed or delayed
+calls fail closed, and the record is revoked when the worker exits. This closes
+local replay within the capability lifetime but is not an authenticated remote
+authorization system.
 Interactive approvals and authenticated remote invocation are not yet enabled.
 Worker model output, tool output, and worker error text are redacted before the
 summary crosses the bridge; this is a local fail-closed filter, not a

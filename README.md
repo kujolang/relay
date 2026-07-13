@@ -56,6 +56,13 @@ entrypoints to be regular, non-symlinked files before invocation; `doctor` keeps
 the raw configured path in its diagnostic result so unsafe configuration is
 visible without ever being executed.
 
+Agents SDK tool capabilities now use a Relay-owned, short-lived registry record:
+the worker receives a secret only through the bounded parent/child environment,
+the authority checks identity, expiry, and call budget, and each consumption is
+persisted under a lock. Replayed or delayed calls fail closed, and the registry
+record is revoked when the worker exits. This is local process-boundary
+hardening, not authenticated remote tenancy.
+
 ## Enterprise-readiness position
 
 Relay is a strong Kujo showcase and a safe local foundation, not a universal enterprise platform. Enterprise adoption requires environment-specific validation for identity, tenancy, network egress, secret custody, retention, concurrency, disaster recovery, provider SLAs, and approval governance. The current implementation intentionally fails closed for unsafe paths, shell metacharacters, destructive Git operations, unapproved writes, invalid workspaces, missing PackWrite/Agents SDK/AI evidence, and failed ChangeBucket/Eval evidence.
@@ -157,7 +164,7 @@ inventory rejects oversized directories before recursive flattening.
 - `tests/relay_output_budget_smoke.sh`: bounded command evidence and explicit truncation smoke test
 - `tests/relay_watchdog_smoke.sh`: configured Watchdog health/config/request-correlation contract smoke test
 - `tests/relay_watchdog_real_smoke.sh`: actual local Watchdog server, token auth, stub upstream, and correlation smoke test
-- `tests/relay_agents_tool_smoke.sh`: isolated mission, nonce-bound capability and legacy rejection, denied-write approval, direct-worker approval/budget/timeout rejection, worker-output redaction, tampered worker-root rejection, and delegated script-hash preservation
+- `tests/relay_agents_tool_smoke.sh`: isolated mission, issued/expiring capability registry, one-time replay rejection, nonce-bound capability and legacy rejection, denied-write approval, direct-worker approval/budget/timeout rejection, worker-output redaction, tampered worker-root rejection, and delegated script-hash preservation
 - `tests/relay_provider_tool_smoke.sh`: authenticated local Watchdog, bounded multi-turn provider-generated tool planning, typed result persistence, Agents SDK execution, and evidence-backed repository mutation
 - `tests/relay_resume_integrity_smoke.sh`: tampered paused-run workspace and mission-policy rejection before resume
 - `tests/relay_state_store_safety_smoke.sh`: state-root and runs-directory symlink redirection rejection
@@ -184,4 +191,4 @@ The aggregate runner executes the contract suite, all committed `*_smoke.sh`
 tests, the schema smoke, and `git diff --check`, so new smoke coverage is
 automatically included without maintaining a second hand-written test list.
 
-For the full integration evidence boundary and deferred enterprise work, see [`docs/enterprise-readiness-review-2026-07-11.md`](docs/enterprise-readiness-review-2026-07-11.md), [`docs/command-reference.md`](docs/command-reference.md), the machine contracts in [`schemas/`](schemas/), and the current [`docs/next-session-enhancement-backlog-2026-07-13-v74.md`](docs/next-session-enhancement-backlog-2026-07-13-v74.md).
+For the full integration evidence boundary and deferred enterprise work, see [`docs/enterprise-readiness-review-2026-07-11.md`](docs/enterprise-readiness-review-2026-07-11.md), [`docs/command-reference.md`](docs/command-reference.md), the machine contracts in [`schemas/`](schemas/), and the current [`docs/next-session-enhancement-backlog-2026-07-13-v75.md`](docs/next-session-enhancement-backlog-2026-07-13-v75.md).
