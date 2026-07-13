@@ -1,5 +1,5 @@
 from src.common import dict_get_or, env_or, env_bool, safe_env_name, int_or, path_is_symlink_safe, path_has_symlink_component
-from src.adapters import kujo_bin, ai_sdk_root, agents_sdk_root, ai_bridge_path, watchdog_url, run_process
+from src.adapters import kujo_bin, trusted_executable, trusted_file, ai_sdk_root, agents_sdk_root, ai_bridge_path, watchdog_url, run_process
 from src.policy import real_path
 from src.watchdog import health_check, proxy_config_check, route_policy
 from src.registry import agent_catalog, agent_path
@@ -55,7 +55,8 @@ func dependency_hash(label, path, env_name) {
 func doctor() {
     root := env_or("RELAY_ROOT", ".")
     checks := []
-    checks := push(checks, path_check("kujo runtime", kujo_bin(), false, true))
+    configured_kujo_path := env_or("KUJO_BIN", root + "/../kujo/target/release/kujo")
+    checks := push(checks, path_check("kujo runtime", configured_kujo_path, false, true))
     checks := push(checks, path_check("Relay entrypoint", root + "/main.kujo", false, true))
     checks := push(checks, path_check("Relay source tree", root + "/src", true, true))
     store_safe := store_root_safe(root + "/.relay")
@@ -63,14 +64,14 @@ func doctor() {
     checks := push(checks, path_check("Relay launcher", root + "/bin/relay", false, false))
     checks := push(checks, path_check("AI SDK checkout", ai_sdk_root(), true, true))
     checks := push(checks, path_check("Agents SDK checkout", agents_sdk_root(), true, true))
+    packwrite_path := trusted_executable("RELAY_PACKWRITE_BIN", root + "/../packwrite/bin/packwrite")
+    runledger_path := trusted_executable("RELAY_RUNLEDGER_BIN", root + "/../runledger/bin/runledger")
+    changebucket_path := trusted_executable("RELAY_CHANGEBUCKET_BIN", root + "/../changebucket/bin/changebucket")
     checks := push(checks, path_check("PackWrite binary", env_or("RELAY_PACKWRITE_BIN", root + "/../packwrite/bin/packwrite"), false, true))
     checks := push(checks, path_check("RunLedger binary", env_or("RELAY_RUNLEDGER_BIN", root + "/../runledger/bin/runledger"), false, true))
     checks := push(checks, path_check("ChangeBucket binary", env_or("RELAY_CHANGEBUCKET_BIN", root + "/../changebucket/bin/changebucket"), false, true))
     checks := push(checks, path_check("Eval entrypoint", env_or("RELAY_EVAL_ENTRY", root + "/../eval/main.kujo"), false, true))
     checks := push(checks, path_check("Capsule binary", env_or("RELAY_CAPSULE_BIN", root + "/../benchmarks-capsule/bin/capsule"), false, false))
-    packwrite_path := env_or("RELAY_PACKWRITE_BIN", root + "/../packwrite/bin/packwrite")
-    runledger_path := env_or("RELAY_RUNLEDGER_BIN", root + "/../runledger/bin/runledger")
-    changebucket_path := env_or("RELAY_CHANGEBUCKET_BIN", root + "/../changebucket/bin/changebucket")
     checks := push(checks, dependency_version("Kujo runtime version", kujo_bin(), root, ["--version"], {}, true))
     checks := push(checks, dependency_version("PackWrite version", packwrite_path, env_or("RELAY_PACKWRITE_ROOT", root + "/../packwrite"), ["version"], {"KUJO": kujo_bin()}, true))
     checks := push(checks, dependency_version("RunLedger version", runledger_path, env_or("RELAY_RUNLEDGER_ROOT", root + "/../runledger"), ["version"], {"KUJO": kujo_bin()}, true))

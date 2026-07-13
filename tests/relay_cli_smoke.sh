@@ -66,6 +66,33 @@ test "$unsafe_dependency_status" -ne 0
 printf '%s' "$unsafe_dependency_doctor" | jq -e '.ok == false and (.checks | map(select(.name == "kujo runtime"))[0].safe == false) and (.checks | map(select(.name == "kujo runtime"))[0].symlink == true)' >/dev/null
 rm -rf "$doctor_link_root"
 
+packwrite_link_root="/tmp/relay-packwrite-link-$$"
+rm -rf "$packwrite_link_root"
+mkdir -p "$packwrite_link_root"
+ln -s "$ROOT/../packwrite/bin/packwrite" "$packwrite_link_root/packwrite"
+set +e
+unsafe_packwrite_doctor="$(RELAY_PACKWRITE_BIN="$packwrite_link_root/packwrite" "$KUJO" run "$ROOT/main.kujo" -- doctor --json 2>&1)"
+unsafe_packwrite_status=$?
+set -e
+test "$unsafe_packwrite_status" -ne 0
+printf '%s' "$unsafe_packwrite_doctor" | jq -e '.ok == false and (.checks | map(select(.name == "PackWrite binary"))[0].safe == false) and (.checks | map(select(.name == "PackWrite binary"))[0].symlink == true)' >/dev/null
+rm -rf "$packwrite_link_root"
+
+launcher_link_root="/tmp/relay-kujo-launcher-link-$$"
+rm -rf "$launcher_link_root"
+mkdir -p "$launcher_link_root"
+ln -s "$KUJO" "$launcher_link_root/kujo"
+set +e
+unsafe_launcher="$(KUJO="$launcher_link_root/kujo" "$ROOT/bin/relay" help 2>&1)"
+unsafe_launcher_status=$?
+set -e
+test "$unsafe_launcher_status" -ne 0
+case "$unsafe_launcher" in
+  *"refusing symlinked Kujo runtime path"*) ;;
+  *) exit 1 ;;
+esac
+rm -rf "$launcher_link_root"
+
 probe="$($KUJO run "$ROOT/main.kujo" -- models probe fixture-model --fixture --json)"
 case "$probe" in
   *'"ok":true'*'"model":"fixture-model"'*) ;;

@@ -27,7 +27,24 @@ func rooted_path(value) {
     return rooted
 }
 
-func kujo_bin() { return rooted_path(env_or("KUJO_BIN", relay_root() + "/../kujo/target/release/kujo")) }
+func trusted_path(env_name, fallback, regular_file) {
+    raw := env_or(env_name, fallback)
+    candidate := raw
+    if starts_with(candidate, "/") == false { candidate = relay_root() + "/" + candidate }
+    if path_is_symlink_safe(candidate) || path_has_symlink_component(candidate) { return "" }
+    if regular_file && path_is_file(candidate) == false { return "" }
+    if regular_file == false && path_exists(candidate) == false { return "" }
+    resolved := real_path(candidate)
+    if resolved == "" || path_has_symlink_component(resolved) { return "" }
+    if path_is_symlink_safe(resolved) { return "" }
+    if regular_file && path_is_file(resolved) == false { return "" }
+    return resolved
+}
+
+func trusted_executable(env_name, fallback) { return trusted_path(env_name, fallback, true) }
+func trusted_file(env_name, fallback) { return trusted_path(env_name, fallback, true) }
+
+func kujo_bin() { return trusted_executable("KUJO_BIN", relay_root() + "/../kujo/target/release/kujo") }
 func repo_root() { return rooted_path(env_or("RELAY_REPO_ROOT", relay_root() + "/..")) }
 func ai_sdk_root() { return rooted_path(env_or("RELAY_AI_SDK_PATH", relay_root() + "/../ai-sdk")) }
 func agents_sdk_root() { return rooted_path(env_or("RELAY_AGENTS_SDK_PATH", relay_root() + "/../agents-sdk")) }
@@ -355,8 +372,8 @@ func agents_sdk_tool_run(workspace, spec, run_id, session_id) {
 }
 
 func packwrite_generate(run_dir, prompt_path, packet_path) {
-    packwrite := rooted_path(env_or("RELAY_PACKWRITE_BIN", relay_root() + "/../packwrite/bin/packwrite"))
-    fake_file := rooted_path(env_or("RELAY_PACKWRITE_FAKE_RESPONSE", relay_root() + "/examples/packwrite-response.json"))
+    packwrite := trusted_executable("RELAY_PACKWRITE_BIN", relay_root() + "/../packwrite/bin/packwrite")
+    fake_file := trusted_file("RELAY_PACKWRITE_FAKE_RESPONSE", relay_root() + "/examples/packwrite-response.json")
     command := ["/usr/bin/env", "-C", run_dir, packwrite, "init", prompt_path, "--output", "agent", "--overwrite"]
     result := run_process(command, "", {"KUJO": kujo_bin(), "PACKWRITE_FAKE_RESPONSE_FILE": fake_file}, 120000)
     artifact_dir := run_dir + "/agent"
@@ -370,7 +387,7 @@ func packwrite_generate(run_dir, prompt_path, packet_path) {
 
 func runledger_start(run_dir, model, provider, task, repo) {
     ledger := run_dir + "/ledger"
-    command := ["/usr/bin/env", "-C", run_dir, rooted_path(env_or("RELAY_RUNLEDGER_BIN", relay_root() + "/../runledger/bin/runledger")), "start", "--model", model, "--provider", provider, "--task", task, "--repo", repo, "--ledger", ledger]
+    command := ["/usr/bin/env", "-C", run_dir, trusted_executable("RELAY_RUNLEDGER_BIN", relay_root() + "/../runledger/bin/runledger"), "start", "--model", model, "--provider", provider, "--task", task, "--repo", repo, "--ledger", ledger]
     result := run_process(command, "", {"KUJO": kujo_bin()}, 60000)
     output := dict_get_or(result, "stdout", "")
     run_id := ""
@@ -381,13 +398,13 @@ func runledger_start(run_dir, model, provider, task, repo) {
 }
 
 func runledger_finish(run_dir, run_id, status, verdict, notes) {
-    command := ["/usr/bin/env", "-C", run_dir, rooted_path(env_or("RELAY_RUNLEDGER_BIN", relay_root() + "/../runledger/bin/runledger")), "finish", run_id, "--status", status, "--verdict", verdict, "--notes", notes, "--ledger", run_dir + "/ledger"]
+    command := ["/usr/bin/env", "-C", run_dir, trusted_executable("RELAY_RUNLEDGER_BIN", relay_root() + "/../runledger/bin/runledger"), "finish", run_id, "--status", status, "--verdict", verdict, "--notes", notes, "--ledger", run_dir + "/ledger"]
     result := run_process(command, "", {"KUJO": kujo_bin()}, 60000)
     return {"ok": dict_get_or(result, "success", false), "output": dict_get_or(result, "stdout", ""), "error": dict_get_or(result, "stderr", ""), "duration_ms": dict_get_or(result, "duration_ms", 0)}
 }
 
 func changebucket(repo, run_dir) {
-    command := ["/usr/bin/env", rooted_path(env_or("RELAY_CHANGEBUCKET_BIN", relay_root() + "/../changebucket/bin/changebucket")), "--json", "--repo", repo]
+    command := ["/usr/bin/env", trusted_executable("RELAY_CHANGEBUCKET_BIN", relay_root() + "/../changebucket/bin/changebucket"), "--json", "--repo", repo]
     kujo_modules := real_path(relay_root() + "/../kujo/modules")
     if kujo_modules == "" { kujo_modules = relay_root() + "/../kujo/modules" }
     result := run_process(command, run_dir, {"KUJO": kujo_bin(), "KUJO_MODULE_PATH": kujo_modules}, 60000)
@@ -395,18 +412,20 @@ func changebucket(repo, run_dir) {
 }
 
 func eval_run(run_dir, config_path) {
-    command := ["/usr/bin/env", "-C", run_dir, kujo_bin(), "run", rooted_path(env_or("RELAY_EVAL_ENTRY", relay_root() + "/../eval/main.kujo")), "--", "run", config_path, "--json"]
+    command := ["/usr/bin/env", "-C", run_dir, kujo_bin(), "run", trusted_file("RELAY_EVAL_ENTRY", relay_root() + "/../eval/main.kujo"), "--", "run", config_path, "--json"]
     result := run_process(command, "", {}, 120000)
     return {"ok": dict_get_or(result, "success", false), "data": last_json(dict_get_or(result, "stdout", "")), "stdout": dict_get_or(result, "stdout", ""), "stderr": dict_get_or(result, "stderr", ""), "duration_ms": dict_get_or(result, "duration_ms", 0)}
 }
 
 func capsule_run(repo, output_dir) {
-    capsule := rooted_path(env_or("RELAY_CAPSULE_BIN", relay_root() + "/../benchmarks-capsule/bin/capsule"))
+    capsule := trusted_executable("RELAY_CAPSULE_BIN", relay_root() + "/../benchmarks-capsule/bin/capsule")
     result := run_process(["/usr/bin/env", capsule, "make", repo, "--out", output_dir, "--stable"], "", {"KUJO": kujo_bin()}, 120000)
     return {"ok": dict_get_or(result, "success", false), "stdout": dict_get_or(result, "stdout", ""), "stderr": dict_get_or(result, "stderr", ""), "artifacts": output_dir, "duration_ms": dict_get_or(result, "duration_ms", 0)}
 }
 
 export kujo_bin := kujo_bin
+export trusted_executable := trusted_executable
+export trusted_file := trusted_file
 export rooted_path := rooted_path
 export ai_sdk_root := ai_sdk_root
 export agents_sdk_root := agents_sdk_root

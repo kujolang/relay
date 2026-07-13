@@ -1,5 +1,32 @@
 #!/usr/bin/env bash
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-KUJO="${KUJO:-${KUJO_BIN:-$ROOT/../kujo/target/release/kujo}}"
+KUJO="${KUJO:-${KUJO_BIN:-}}"
+if [[ -z "$KUJO" ]] && command -v kujo >/dev/null 2>&1; then
+  KUJO="$(command -v kujo)"
+fi
+if [[ -z "$KUJO" ]]; then
+  KUJO="$ROOT/../kujo/target/release/kujo"
+fi
+if [[ ! -x "$KUJO" ]]; then
+  echo "relay: Kujo runtime not found or not executable: $KUJO" >&2
+  echo "Set KUJO or KUJO_BIN to a trusted Kujo binary." >&2
+  exit 2
+fi
+probe="$KUJO"
+while [[ "$probe" != "/" && -n "$probe" ]]; do
+  if [[ -L "$probe" ]]; then
+    echo "relay: refusing symlinked Kujo runtime path: $KUJO" >&2
+    exit 2
+  fi
+  next="${probe%/*}"
+  if [[ "$next" == "$probe" || -z "$next" ]]; then
+    next="/"
+  fi
+  probe="$next"
+done
+if command -v realpath >/dev/null 2>&1; then
+  KUJO="$(realpath "$KUJO")"
+fi
+export KUJO_BIN="$KUJO"
 exec "$KUJO" run "$ROOT/main.kujo" -- "$@"
