@@ -27,6 +27,17 @@ repair_doctor="$(RELAY_ROOT="$ROOT" "$KUJO" run "$ROOT/main.kujo" -- doctor --re
 printf '%s' "$repair_doctor" | jq -e '(.checks | map(select(.name == "Agents SDK capability registry"))[0].cleaned) >= 1' >/dev/null
 clean_doctor="$(RELAY_ROOT="$ROOT" "$KUJO" run "$ROOT/main.kujo" -- doctor --json)"
 printf '%s' "$clean_doctor" | jq -e '(.checks | map(select(.name == "Agents SDK capability registry"))[0].stale) == 0' >/dev/null
+locked_fixture="$(jq -cn --arg root "$ROOT" '{root:$root,run_id:"relay-doctor-locked",session_id:"relay-doctor-locked-session",workspace:"/tmp",nonce:"relay-doctor-locked-nonce",max_calls:1,ttl_ms:1000}')"
+RELAY_CAPABILITY_FIXTURE="$locked_fixture" "$KUJO" run "$ROOT/tests/relay_capability_fixture.kujo" --interpreter >/dev/null
+locked_path="$ROOT/.relay/capabilities/$(printf '%s' 'relay-doctor-locked|relay-doctor-locked-session' | shasum -a 256 | awk '{print $1}').json"
+mkdir "$locked_path.lock"
+sleep 2
+locked_doctor="$(RELAY_ROOT="$ROOT" "$KUJO" run "$ROOT/main.kujo" -- doctor --repair --json)"
+printf '%s' "$locked_doctor" | jq -e '(.checks | map(select(.name == "Agents SDK capability registry"))[0].locked) >= 1 and (.checks | map(select(.name == "Agents SDK capability registry"))[0].cleaned == 0)' >/dev/null
+test -f "$locked_path"
+rmdir "$locked_path.lock"
+unlocked_doctor="$(RELAY_ROOT="$ROOT" "$KUJO" run "$ROOT/main.kujo" -- doctor --repair --json)"
+printf '%s' "$unlocked_doctor" | jq -e '(.checks | map(select(.name == "Agents SDK capability registry"))[0].cleaned) >= 1' >/dev/null
 normalized_doctor="$(RELAY_OFFLINE_FIXTURE=1 "$KUJO" run "$ROOT/main.kujo" -- doctor --json)"
 printf '%s' "$normalized_doctor" | jq -e '.ok == true and .mode == "fixture"' >/dev/null
 normalized_probe="$(RELAY_OFFLINE_FIXTURE=YES "$KUJO" run "$ROOT/main.kujo" -- models probe fixture-model --json)"

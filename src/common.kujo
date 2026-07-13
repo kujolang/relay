@@ -330,6 +330,7 @@ func capability_registry_posture(root, repair) {
     mut stale := 0
     mut invalid := 0
     mut cleaned := 0
+    mut locked := 0
     for name in names {
         if ends_with(name, ".json") == false { continue }
         path := directory + "/" + name
@@ -339,14 +340,37 @@ func capability_registry_posture(root, repair) {
         records = records + 1
         expired := current_timestamp() > int_or(dict_get_or(record, "expires_at_ms", 0), 0)
         exhausted := int_or(dict_get_or(record, "used_calls", 0), 0) >= int_or(dict_get_or(record, "max_calls", 0), 0)
-        if expired || exhausted {
-            stale = stale + 1
-            if bool_or(repair, false) {
-                try { delete_file(path); cleaned = cleaned + 1 } except err {}
+        if bool_or(repair, false) {
+            lock := path + ".lock"
+            if path_is_symlink_safe(lock) {
+                invalid = invalid + 1
+                continue
             }
+            if path_exists(lock) && path_is_dir(lock) == false {
+                invalid = invalid + 1
+                continue
+            }
+            acquired := false
+            try { create_dir(lock); acquired = true } except err { locked = locked + 1 }
+            if acquired {
+                current := read_json_limited(path, null, 65536)
+                if type(current) != "dict" || to_string(dict_get_or(current, "contract_version", "")) != "relay-agent-capability-v1" {
+                    invalid = invalid + 1
+                } else {
+                    current_expired := current_timestamp() > int_or(dict_get_or(current, "expires_at_ms", 0), 0)
+                    current_exhausted := int_or(dict_get_or(current, "used_calls", 0), 0) >= int_or(dict_get_or(current, "max_calls", 0), 0)
+                    if current_expired || current_exhausted {
+                        stale = stale + 1
+                        try { delete_file(path); cleaned = cleaned + 1 } except err {}
+                    }
+                }
+                if path_is_dir(lock) { os_rmdir(lock) }
+            } else if expired || exhausted { stale = stale + 1 }
+        } else if expired || exhausted {
+            stale = stale + 1
         }
     }
-    return {"ok": invalid == 0, "safe": invalid == 0, "present": true, "records": records, "stale": stale, "invalid": invalid, "cleaned": cleaned, "repair": bool_or(repair, false)}
+    return {"ok": invalid == 0, "safe": invalid == 0, "present": true, "records": records, "stale": stale, "invalid": invalid, "locked": locked, "cleaned": cleaned, "repair": bool_or(repair, false)}
 }
 
 func redact_text(value) {
