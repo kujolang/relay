@@ -162,8 +162,8 @@ func cmd_models(tokens) {
     parsed := parse_tokens(tokens)
     sub := positional(parsed["positionals"], 0, "list")
     models := [
-        {"id": "fixture-model", "provider": "fixture", "capabilities": ["chat", "structured_output"], "offline": true},
-        {"id": env_or("RELAY_MODEL", "gpt-4.1-mini"), "provider": env_or("RELAY_PROVIDER", "openai-compatible"), "capabilities": ["chat", "streaming", "tool_calls"], "offline": false}
+        {"id": "fixture-model", "provider": "fixture", "capabilities": ["chat", "streaming", "structured_output"], "tool_planning": false, "tool_execution": "declared_mission_only", "offline": true, "source": "built_in_fixture"},
+        {"id": env_or("RELAY_MODEL", "gpt-4.1-mini"), "provider": env_or("RELAY_PROVIDER", "openai-compatible"), "capabilities": ["chat", "streaming"], "tool_planning": false, "tool_execution": "declared_mission_only", "offline": false, "source": "environment_profile"}
     ]
     if sub == "inspect" { for model in models { if model["id"] == positional(parsed["positionals"], 1, "") { return {"ok": true, "model": model} } }; return {"ok": false, "error": "unknown model"} }
     if sub == "probe" {
@@ -171,9 +171,9 @@ func cmd_models(tokens) {
         provider := string_or(dict_get_or(parsed["flags"], "provider", env_or("RELAY_PROVIDER", "fixture")), "fixture")
         offline := has_flag(parsed["flags"], "fixture") || has_flag(parsed["flags"], "offline") || env_bool("RELAY_OFFLINE_FIXTURE", true)
         result := ai_chat([{"role": "user", "content": "Reply with exactly: relay-probe-ok"}], model, provider, offline, false)
-        return {"ok": dict_get_or(result, "ok", false), "model": model, "provider": provider, "offline": offline, "result": result}
+        return {"ok": dict_get_or(result, "ok", false), "model": model, "provider": provider, "offline": offline, "routing": {"mode": "explicit_profile", "reason": "model and provider were selected from command flags or environment defaults", "tool_planning": false, "tool_execution": "declared_mission_only"}, "result": result}
     }
-    return {"ok": true, "models": models, "routing": "explicit profile selection; fallback is visible in run evidence"}
+    return {"ok": true, "models": models, "routing": {"mode": "explicit_profile", "reason": "model and provider are selected explicitly; fallback is visible in run evidence", "tool_planning": false, "tool_execution": "declared_mission_only"}}
 }
 
 func cmd_agents(tokens) {

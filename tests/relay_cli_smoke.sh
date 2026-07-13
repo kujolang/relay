@@ -22,6 +22,9 @@ normalized_doctor="$(RELAY_OFFLINE_FIXTURE=1 "$KUJO" run "$ROOT/main.kujo" -- do
 printf '%s' "$normalized_doctor" | jq -e '.ok == true and .mode == "fixture"' >/dev/null
 normalized_probe="$(RELAY_OFFLINE_FIXTURE=YES "$KUJO" run "$ROOT/main.kujo" -- models probe fixture-model --json)"
 printf '%s' "$normalized_probe" | jq -e '.ok == true and .offline == true' >/dev/null
+models="$($KUJO run "$ROOT/main.kujo" -- models list --json)"
+printf '%s' "$models" | jq -e '.ok == true and (.models | all(.tool_planning == false and .tool_execution == "declared_mission_only")) and ((.models[1].capabilities | index("tool_calls")) == null) and (.routing.tool_planning == false)' >/dev/null
+printf '%s' "$normalized_probe" | jq -e '.routing.tool_planning == false and .routing.tool_execution == "declared_mission_only"' >/dev/null
 unsafe_bridge="/tmp/relay-external-ai-bridge-$$.kujo"
 printf '%s' 'print({"ok":true})' > "$unsafe_bridge"
 set +e
