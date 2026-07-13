@@ -16,6 +16,7 @@ case "$doctor" in
   *) echo "fixture doctor contract did not pass" >&2; exit 1 ;;
 esac
 printf '%s' "$doctor" | grep -q 'Relay source tree'
+printf '%s' "$doctor" | jq -e 'all(.checks[] | select(.name | endswith(" version")); .safe == true and (.version | length > 0))' >/dev/null
 printf '%s' "$doctor" | jq -e 'all(.checks[] | select(has("path") and .required == true); .safe == true)' >/dev/null
 
 doctor_link_root="/tmp/relay-doctor-link-$$"
