@@ -60,6 +60,17 @@ set -e
 test "$timeout_exit" -ne 0
 [[ "$timeout_output" == *'tool timeout_ms must be between 1 and 600000'* ]]
 
+secret_failure_payload="$(jq -cn --arg root "$ROOT" --arg kujo "$KUJO" --arg work "$WORK" --arg capability "$direct_capability" '{relay_root:$root,kujo_bin:$kujo,capability:$capability,run_id:"relay-direct-policy",session_id:"relay-direct-policy-session",workspace:$work,approval_approved:false,mission_spec:{allow_writes:false,approval:{approved:false},allowed_commands:["git"],budgets:{max_output_bytes:1048576,max_write_bytes:1048576}},tool_calls:[{name:"relay.run_command",input:{command:"git status --short"}}],output_text:"Authorization: Bearer sk-secret-leak-probe"}')"
+set +e
+secret_failure_output="$(cd "$AGENTS_SDK" && RELAY_AGENT_PAYLOAD="$secret_failure_payload" "$KUJO" run "$ROOT/src/agent_bridge.kujo" --interpreter 2>&1)"
+secret_failure_exit=$?
+set -e
+test "$secret_failure_exit" -eq 0
+if printf '%s' "$secret_failure_output" | grep -q 'sk-secret-leak-probe'; then
+  echo "Agents SDK bridge leaked a credential-shaped output value" >&2
+  exit 1
+fi
+
 budget_payload="$(jq -cn --arg work "$WORK" --arg capability "$direct_capability" '{capability:$capability,run_id:"relay-direct-policy",session_id:"relay-direct-policy-session",workspace:$work,mission_spec:{allow_writes:false,approval:{approved:false},allowed_commands:["git"],budgets:{max_output_bytes:0,max_write_bytes:1048576}},tool_name:"relay.run_command",input:{command:"git status --short"}}')"
 set +e
 budget_output="$(RELAY_TOOL_REQUEST="$budget_payload" RELAY_TOOL_CAPABILITY="$direct_capability" "$KUJO" run "$ROOT/main.kujo" -- tools execute --json 2>&1)"

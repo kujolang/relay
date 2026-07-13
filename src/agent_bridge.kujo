@@ -1,7 +1,7 @@
 # Agents SDK bridge executed with the Agents SDK checkout as its working
 # directory. The SDK owns registry, approval, and runner semantics; Relay owns
 # policy and repository authority through the bounded tools worker callback.
-from src.common import path_is_symlink_safe, path_has_symlink_component
+from src.common import path_is_symlink_safe, path_has_symlink_component, redact_text
 from src.agents.ai.adapter import create_ai_sdk_adapter
 from src.agents.runner import create_agent_runner, run_agent
 from src.agents.core_types import create_agent, create_agent_run_request
@@ -23,6 +23,21 @@ func json_safe(value) {
         safe_items := []
         for item in value { safe_items = push(safe_items, json_safe(item)) }
         return safe_items
+    }
+    return value
+}
+
+func redact_json(value) {
+    if type(value) == "string" { return redact_text(value) }
+    if type(value) == "dict" {
+        redacted := {}
+        for key in keys(value) { redacted[key] := redact_json(value[key]) }
+        return redacted
+    }
+    if type(value) == "array" {
+        redacted_items := []
+        for item in value { redacted_items := push(redacted_items, redact_json(item)) }
+        return redacted_items
     }
     return value
 }
@@ -95,8 +110,8 @@ func call_relay_worker(tool_name, input_payload, context, payload) {
     command := ["/usr/bin/env", "-C", relay_root, kujo_bin, "run", relay_root + "/main.kujo", "--", "tools", "execute", "--json"]
     result := spawn_process(command, process_options({"RELAY_TOOL_REQUEST": to_json(request), "RELAY_TOOL_CAPABILITY": capability}, 120000))
     parsed := last_json(result.stdout)
-    if type(parsed) != "dict" { return {"ok": false, "error": {"message": "Relay tools worker returned no JSON", "stderr": to_string(result.stderr)}} }
-    if result.success == false || get(parsed, "ok", false) == false { return {"ok": false, "error": {"message": get(get(parsed, "error", {}), "message", "Relay tools worker failed"), "worker_success": result.success, "worker_stdout": to_string(result.stdout), "worker_stderr": to_string(result.stderr)}} }
+    if type(parsed) != "dict" { return {"ok": false, "error": {"message": "Relay tools worker returned no JSON", "stderr": redact_text(to_string(result.stderr))}} }
+    if result.success == false || get(parsed, "ok", false) == false { return {"ok": false, "error": {"message": redact_text(get(get(parsed, "error", {}), "message", "Relay tools worker failed")), "worker_success": result.success, "worker_stdout": redact_text(to_string(result.stdout)), "worker_stderr": redact_text(to_string(result.stderr))}} }
     return {"ok": true, "output": get(parsed, "result", {}), "artifacts": get(parsed, "artifacts", [])}
 }
 
@@ -107,10 +122,10 @@ func summarize_agent_result(result) {
     for call in calls {
         call_result := get(call, "result", {})
         call_error := get(call_result, "error", {})
-        summaries = push(summaries, {"tool_name": get(call, "tool_name", ""), "ok": get(call_result, "ok", false), "output": get(call_result, "output", {}), "error_kind": get(call_error, "kind", ""), "error_message": get(call_error, "message", "")})
+        summaries = push(summaries, {"tool_name": get(call, "tool_name", ""), "ok": get(call_result, "ok", false), "output": redact_json(get(call_result, "output", {})), "error_kind": get(call_error, "kind", ""), "error_message": redact_text(get(call_error, "message", ""))})
     }
     error_payload := get(result, "error", {})
-    return {"ok": get(result, "status", "failed") == "completed", "status": get(result, "status", "failed"), "output_text": get(get(result, "output", {}), "text", get(result, "output_text", "")), "tool_calls": summaries, "error_kind": get(error_payload, "kind", "")}
+    return {"ok": get(result, "status", "failed") == "completed", "status": get(result, "status", "failed"), "output_text": redact_text(get(get(result, "output", {}), "text", get(result, "output_text", ""))), "tool_calls": summaries, "error_kind": get(error_payload, "kind", "")}
 }
 
 payload_text := env("RELAY_AGENT_PAYLOAD")
