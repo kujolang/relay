@@ -444,3 +444,12 @@ smoke creates a dangling link and proves fail-closed rejection; source checks,
 contracts, and the CLI/Agents SDK smokes remain passing. This is stronger local
 path authority, not kernel-level no-follow support, authenticated ownership,
 durable storage, or enterprise deployment assurance.
+
+## Forty-fourth 2026-07-12 review
+
+Relay now checks existing parent path components for the state root and runs
+root, rejecting parent-directory symlinks and `..` before evidence/index access.
+The state-store contract covers root, runs-directory, and parent redirection
+shapes. This strengthens local evidence authority but does not provide
+kernel-level no-follow primitives, authenticated ownership, durable storage, or
+enterprise deployment assurance.

@@ -57,7 +57,9 @@ caller-supplied path is treated as unsafe. Symlink metadata is checked before
 ordinary existence semantics so a dangling symlink cannot be misclassified as
 an absent path. This prevents filesystem inspection failures from being
 interpreted as proof that an evidence, workspace, worker, dependency, or
-control path is safe.
+control path is safe. The state store also checks every existing parent path
+component, so a symlinked directory above `.relay` or `.relay/runs` cannot
+redirect evidence while the final path itself remains non-symbolic.
 
 ## Commands
 

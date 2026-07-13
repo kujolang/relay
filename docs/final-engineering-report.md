@@ -442,3 +442,12 @@ dedicated dangling-symlink smoke and a configurable contract probe. The local
 boundary is now safer against broken-link redirection, while kernel no-follow
 primitives, authenticated ownership, durable storage, and enterprise
 deployment attestation remain open.
+
+## Forty-fourth 2026-07-12 review
+
+The state-store safety boundary now walks existing parent components as well as
+`.relay` and `.relay/runs`, rejecting symlinked directories and `..` before
+index or run access. A parent-redirection contract probe was added. This is
+stronger local evidence authority, not kernel-level no-follow support,
+authenticated ownership, durable storage, or enterprise deployment
+attestation.

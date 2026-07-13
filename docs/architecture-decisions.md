@@ -536,3 +536,19 @@ checks. Consequence: dangling links fail closed and missing-path behavior is
 preserved; kernel no-follow primitives and authenticated multi-user ownership
 remain future work. Rejected: existence-first checks, treating broken links as
 missing, or duplicating the ordering logic across callers.
+
+## ADR-062: Reject symlinked state-store parent components
+
+Context: checking only `.relay` and `.relay/runs` protects direct symlink
+redirection but leaves a symlinked existing parent directory able to redirect
+the entire evidence store while the final paths remain ordinary names.
+Decision: walk each path component of the state root and runs root, query
+symlink metadata for every existing component, reject `..`, and fail closed on
+probe errors. Rationale: the state store is Relay's local evidence and control
+authority; parent redirection must be rejected before index or run access.
+Consequence: unusual relative roots containing `..` and symlinked parent
+directories require an explicit safe path, while missing non-symlink components
+remain creatable. Kernel no-follow operations, authenticated ownership, and
+durable multi-host storage remain open. Rejected: validating only the leaf,
+resolving symlinks and trusting the resolved target, or silently canonicalizing
+an operator-supplied path.
