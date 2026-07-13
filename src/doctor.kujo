@@ -26,6 +26,30 @@ func dependency_version(label, path, cwd, args, env_map, required) {
     return {"name": label, "ok": ok, "required": required, "safe": ok, "path": path, "version": version, "error": error, "duration_ms": int_or(dict_get_or(result, "duration_ms", 0), 0)}
 }
 
+func sha256_format(value) {
+    candidate := to_lower(trim(to_string(value)))
+    if len(candidate) != 64 { return false }
+    mut i := 0
+    while i < len(candidate) {
+        if index_of("0123456789abcdef", substring(candidate, i, i + 1)) < 0 { return false }
+        i = i + 1
+    }
+    return true
+}
+
+func dependency_hash(label, path, env_name) {
+    expected := to_lower(trim(to_string(env_or(env_name, ""))))
+    if expected == "" { return {"name": label, "ok": true, "required": false, "safe": true, "configured": false, "matched": null, "path": path} }
+    if sha256_format(expected) == false { return {"name": label, "ok": false, "required": true, "safe": false, "configured": true, "matched": false, "path": path, "error": "invalid_expected_hash"} }
+    if path_is_file(path) == false || path_is_symlink(path) { return {"name": label, "ok": false, "required": true, "safe": false, "configured": true, "matched": false, "path": path, "error": "path_unsafe"} }
+    actual := ""
+    try { actual = to_lower(trim(to_string(sha256_file(path)))) } except err { actual = "" }
+    matched := actual == expected
+    error := "hash_mismatch"
+    if matched { error = "" }
+    return {"name": label, "ok": matched, "required": true, "safe": matched, "configured": true, "matched": matched, "path": path, "expected_sha256": expected, "actual_sha256": actual, "error": error}
+}
+
 func doctor() {
     root := env_or("RELAY_ROOT", ".")
     checks := []
@@ -49,6 +73,10 @@ func doctor() {
     checks := push(checks, dependency_version("PackWrite version", packwrite_path, env_or("RELAY_PACKWRITE_ROOT", root + "/../packwrite"), ["version"], {"KUJO": kujo_bin()}, true))
     checks := push(checks, dependency_version("RunLedger version", runledger_path, env_or("RELAY_RUNLEDGER_ROOT", root + "/../runledger"), ["version"], {"KUJO": kujo_bin()}, true))
     checks := push(checks, dependency_version("ChangeBucket version", changebucket_path, env_or("RELAY_CHANGEBUCKET_ROOT", root + "/../changebucket"), ["version"], {"KUJO": kujo_bin()}, true))
+    checks := push(checks, dependency_hash("Kujo runtime hash", kujo_bin(), "RELAY_KUJO_SHA256"))
+    checks := push(checks, dependency_hash("PackWrite hash", packwrite_path, "RELAY_PACKWRITE_SHA256"))
+    checks := push(checks, dependency_hash("RunLedger hash", runledger_path, "RELAY_RUNLEDGER_SHA256"))
+    checks := push(checks, dependency_hash("ChangeBucket hash", changebucket_path, "RELAY_CHANGEBUCKET_SHA256"))
     agent_errors := []
     for agent in agent_catalog() {
         if path_is_dir(agent_path(agent["id"])) == false { agent_errors := push(agent_errors, agent["id"]) }

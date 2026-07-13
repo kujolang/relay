@@ -18,6 +18,15 @@ esac
 printf '%s' "$doctor" | grep -q 'Relay source tree'
 printf '%s' "$doctor" | jq -e 'all(.checks[] | select(.name | endswith(" version")); .safe == true and (.version | length > 0))' >/dev/null
 printf '%s' "$doctor" | jq -e 'all(.checks[] | select(has("path") and .required == true); .safe == true)' >/dev/null
+runtime_hash="$(shasum -a 256 "$KUJO" | awk '{print $1}')"
+hash_doctor="$(RELAY_KUJO_SHA256="$runtime_hash" "$KUJO" run "$ROOT/main.kujo" -- doctor --json)"
+printf '%s' "$hash_doctor" | jq -e '.ok == true and (.checks | map(select(.name == "Kujo runtime hash"))[0].matched == true)' >/dev/null
+set +e
+wrong_hash_doctor="$(RELAY_KUJO_SHA256="$(printf '%064d' 0)" "$KUJO" run "$ROOT/main.kujo" -- doctor --json 2>&1)"
+wrong_hash_status=$?
+set -e
+test "$wrong_hash_status" -ne 0
+printf '%s' "$wrong_hash_doctor" | jq -e '.ok == false and (.checks | map(select(.name == "Kujo runtime hash"))[0].error == "hash_mismatch")' >/dev/null
 
 doctor_link_root="/tmp/relay-doctor-link-$$"
 rm -rf "$doctor_link_root"
