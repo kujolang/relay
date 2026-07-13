@@ -237,4 +237,10 @@ lock objects fail closed. The repair path re-reads the record after acquiring
 the lock before deciding whether to delete it, closing a local cleanup/worker
 race without adding a second synchronization contract.
 
-Current follow-on backlog: `docs/next-session-enhancement-backlog-2026-07-13-v77.md`.
+The v78 review verifies that authority locks use an exclusive fixed-path native
+`mkdir` operation. Kujo's idempotent `create_dir` is no longer used to acquire
+capability or index locks; contract coverage proves the second acquisition
+fails. This closes the remaining local lock-acquisition race in the Relay
+boundary, not multi-host ownership or crash-lock reconciliation.
+
+Current follow-on backlog: `docs/next-session-enhancement-backlog-2026-07-13-v78.md`.

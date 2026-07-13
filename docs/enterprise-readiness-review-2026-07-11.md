@@ -872,10 +872,12 @@ gates. The next-session backlog is
 
 Capability-registry repair now acquires the same per-record lock used by Agents
 SDK tool consumption, re-reads the record under that lock, and skips active
-records with an explicit `locked` count. Non-directory or symbolic-linked lock
+records with an explicit `locked` count. Lock acquisition uses an exclusive
+fixed-path native `mkdir` operation; non-directory or symbolic-linked lock
 objects fail closed. The CLI smoke proves an expiring locked record survives
-repair and is removed only after the lock is released. This closes a local
-cleanup/worker race but does not provide crash-lock reconciliation, durable
-multi-host locking, authenticated ownership, external-provider proof, or
-enterprise release gates. The next-session backlog is
-`docs/next-session-enhancement-backlog-2026-07-13-v77.md`.
+repair and is removed only after the lock is released, while contract coverage
+proves a second lock acquisition fails. This closes a local cleanup/worker race
+but does not provide crash-lock reconciliation, durable multi-host locking,
+authenticated ownership, external-provider proof, or enterprise release gates.
+The next-session backlog is
+`docs/next-session-enhancement-backlog-2026-07-13-v78.md`.

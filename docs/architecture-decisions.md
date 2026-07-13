@@ -1350,13 +1350,16 @@ That race could invalidate an otherwise authorized call or allow the worker's
 post-consumption write to recreate a record after cleanup.
 
 Decision: `doctor --repair` acquires the existing per-record `.lock` directory
-before re-reading and deleting a stale capability. Active records are skipped
-and counted as `locked`; non-directory lock objects and symbolic links are
-invalid safety failures. The default read-only posture scan does not acquire
-locks or mutate state.
+with an exclusive fixed-path native `mkdir` operation before re-reading and
+deleting a stale capability. Active records are skipped and counted as
+`locked`; non-directory lock objects and symbolic links are invalid safety
+failures. The same exclusive primitive is used by capability consumption and
+the run-index lock. The default read-only posture scan does not acquire locks
+or mutate state.
 
 Rationale: reuse the Agents SDK worker authority's local lock contract instead
-of inventing a second synchronization primitive. Re-reading under the lock
+of inventing a second synchronization primitive, while avoiding Kujo's
+idempotent `create_dir` for authority acquisition. Re-reading under the lock
 ensures cleanup decisions use the latest usage and expiry values.
 
 Consequences: repair is race-safe for the local single-host registry, but a
@@ -1364,5 +1367,6 @@ crashed lock remains conservative until an explicit future reconciliation policy
 can prove ownership. Multi-host locking, authenticated ownership, and durable
 storage remain open.
 
-Rejected: deleting without a lock, force-removing active lock directories, or
-silently treating malformed lock objects as idle records.
+Rejected: deleting without a lock, using idempotent directory creation as an
+exclusive lock, force-removing active lock directories, or silently treating
+malformed lock objects as idle records.

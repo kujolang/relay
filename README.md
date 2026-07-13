@@ -65,11 +65,12 @@ hardening, not authenticated remote tenancy.
 
 `doctor --repair --json` performs an explicit, bounded cleanup pass for expired
 or exhausted capability records. Cleanup takes the same per-record lock used by
-the tool authority and never removes a record while it is being consumed. The
-default `doctor --json` path is read-only; the posture check reports record,
-stale, locked, invalid, and cleaned counts without exposing capability secrets.
-The registry scan is capped at 1024 entries and fails closed on unsafe or
-malformed paths.
+the tool authority and never removes a record while it is being consumed. Lock
+creation uses an exclusive fixed-path OS primitive rather than idempotent
+directory creation. The default `doctor --json` path is read-only; the posture
+check reports record, stale, locked, invalid, and cleaned counts without
+exposing capability secrets. The registry scan is capped at 1024 entries and
+fails closed on unsafe or malformed paths.
 
 ## Enterprise-readiness position
 
@@ -199,4 +200,4 @@ The aggregate runner executes the contract suite, all committed `*_smoke.sh`
 tests, the schema smoke, and `git diff --check`, so new smoke coverage is
 automatically included without maintaining a second hand-written test list.
 
-For the full integration evidence boundary and deferred enterprise work, see [`docs/enterprise-readiness-review-2026-07-11.md`](docs/enterprise-readiness-review-2026-07-11.md), [`docs/command-reference.md`](docs/command-reference.md), the machine contracts in [`schemas/`](schemas/), and the current [`docs/next-session-enhancement-backlog-2026-07-13-v77.md`](docs/next-session-enhancement-backlog-2026-07-13-v77.md).
+For the full integration evidence boundary and deferred enterprise work, see [`docs/enterprise-readiness-review-2026-07-11.md`](docs/enterprise-readiness-review-2026-07-11.md), [`docs/command-reference.md`](docs/command-reference.md), the machine contracts in [`schemas/`](schemas/), and the current [`docs/next-session-enhancement-backlog-2026-07-13-v78.md`](docs/next-session-enhancement-backlog-2026-07-13-v78.md).
