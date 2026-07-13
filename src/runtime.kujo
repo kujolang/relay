@@ -439,7 +439,7 @@ func create_mission(path, output_path) {
     }
     if output_path == "" { output_path = state_root() + "/missions/" + name + ".json" }
     ensure_dir(state_root() + "/missions")
-    write_json(output_path, spec)
+    if write_json(output_path, spec) == false { return {"ok": false, "failure_class": "state_store_failure", "error": "Mission file could not be persisted"} }
     return {"ok": true, "path": output_path, "mission": spec}
 }
 
@@ -597,7 +597,7 @@ func run_mission(path, options) {
     state = save_state(state, run_dir)
     verdict := "Relay run " + state["status"]
     ledger_status := "fail"
-    if type(dict_get_or(state, "completion_candidate", null)) == "dict" { ledger_status = "pass" }
+    if type(dict_get_or(state, "completion_candidate", null)) == "dict" && type(dict_get_or(state, "evidence_failure", null)) != "dict" && state["status"] != "failed" { ledger_status = "pass" }
     ledger_run_id := string_or(dict_get_or(ledger, "run_id", ""), run_key)
     finished := runledger_finish(run_dir, ledger_run_id, ledger_status, verdict, "Evidence in " + run_dir)
     if ledger_status == "pass" && finished["ok"] == false {
@@ -606,16 +606,21 @@ func run_mission(path, options) {
         state := add_event(state, run_dir, "run_failed", "runledger", "relay", state["failure"])
         ledger_status = "fail"
         finished = runledger_finish(run_dir, ledger_run_id, ledger_status, "Relay run failed: RunLedger finish persistence", "Evidence in " + run_dir)
-    } else if ledger_status == "pass" {
-        candidate := dict_get_or(state, "completion_candidate", {})
-        state := add_event(state, run_dir, "run_completed", "verify", "release-verifier", candidate)
     }
     state["runledger_finish"] := finished
     finish_receipt_result := record_receipt(state, run_dir, "runledger", "finish", "relay", run_dir + "/ledger", ledger_status, {"runledger_id": ledger_run_id, "ok": finished["ok"]})
     state = apply_receipt_result(state, finish_receipt_result)
     state = save_state(state, run_dir)
-    completion_pending := ledger_status == "pass"
-    if completion_pending { state["status"] := "completed" }
+    completion_pending := ledger_status == "pass" && finished["ok"] && type(dict_get_or(state, "evidence_failure", null)) != "dict" && state["status"] != "failed"
+    if completion_pending {
+        candidate := dict_get_or(state, "completion_candidate", {})
+        state := add_event(state, run_dir, "run_completed", "verify", "release-verifier", candidate)
+        if type(dict_get_or(state, "evidence_failure", null)) == "dict" {
+            completion_pending = false
+        } else {
+            state["status"] := "completed"
+        }
+    }
     report_result := report(state, run_dir)
     if dict_get_or(report_result, "ok", false) == false && completion_pending {
         state["status"] := "failed"
@@ -781,7 +786,7 @@ func resume_run(run_id) {
     state = save_state(state, record["run_dir"])
     ledger_id := string_or(dict_get_or(dict_get_or(state, "runledger", {}), "run_id", ""), run_id)
     ledger_status := "fail"
-    if type(dict_get_or(state, "completion_candidate", null)) == "dict" { ledger_status = "pass" }
+    if type(dict_get_or(state, "completion_candidate", null)) == "dict" && type(dict_get_or(state, "evidence_failure", null)) != "dict" && state["status"] != "failed" { ledger_status = "pass" }
     finished := runledger_finish(record["run_dir"], ledger_id, ledger_status, "Relay resumed run " + state["status"], "Evidence in " + record["run_dir"])
     if ledger_status == "pass" && finished["ok"] == false {
         state["status"] := "failed"
@@ -789,16 +794,21 @@ func resume_run(run_id) {
         state := add_event(state, record["run_dir"], "run_failed", "runledger", "relay", state["failure"])
         ledger_status = "fail"
         finished = runledger_finish(record["run_dir"], ledger_id, ledger_status, "Relay resumed run failed: RunLedger finish persistence", "Evidence in " + record["run_dir"])
-    } else if ledger_status == "pass" {
-        candidate := dict_get_or(state, "completion_candidate", {})
-        state := add_event(state, record["run_dir"], "run_completed", "resume", "release-verifier", candidate)
     }
     state["runledger_finish"] := finished
     finish_receipt_result := record_receipt(state, record["run_dir"], "runledger", "finish", "relay", record["run_dir"] + "/ledger", ledger_status, {"runledger_id": ledger_id, "ok": state["runledger_finish"]["ok"], "resumed": true})
     state = apply_receipt_result(state, finish_receipt_result)
     state = save_state(state, record["run_dir"])
-    completion_pending := ledger_status == "pass"
-    if completion_pending { state["status"] := "completed" }
+    completion_pending := ledger_status == "pass" && finished["ok"] && type(dict_get_or(state, "evidence_failure", null)) != "dict" && state["status"] != "failed"
+    if completion_pending {
+        candidate := dict_get_or(state, "completion_candidate", {})
+        state := add_event(state, record["run_dir"], "run_completed", "resume", "release-verifier", candidate)
+        if type(dict_get_or(state, "evidence_failure", null)) == "dict" {
+            completion_pending = false
+        } else {
+            state["status"] := "completed"
+        }
+    }
     report_result := report(state, record["run_dir"])
     if dict_get_or(report_result, "ok", false) == false && completion_pending {
         state["status"] := "failed"

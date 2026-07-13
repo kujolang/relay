@@ -33,6 +33,21 @@ test "$unsafe_status" -ne 0
 printf '%s\n' "$unsafe_output" | grep -q "symbolic link"
 rm "$run_dir/unsafe-link"
 
+# A single directory with more entries than the inventory budget is rejected
+# before recursive flattening allocates an unbounded result array.
+overflow="$run_dir/entry-overflow"
+mkdir -p "$overflow"
+for entry in $(seq 1 4097); do
+  : > "$overflow/file-$entry"
+done
+set +e
+overflow_output="$($KUJO run "$ROOT/main.kujo" -- runs sizes "$run_id" --json 2>&1)"
+overflow_status=$?
+set -e
+test "$overflow_status" -ne 0
+printf '%s\n' "$overflow_output" | grep -q 'entry limit'
+rm -rf "$overflow"
+
 # Artifact inventory is bounded by both entry count and directory depth so a
 # hostile run artifact tree cannot consume unbounded recursive work.
 deep="$run_dir/deep"

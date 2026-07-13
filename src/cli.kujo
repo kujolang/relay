@@ -56,6 +56,18 @@ func read_run_artifact_evidence(run_dir, name, expected_type, max_bytes) {
     return {"ok": true, "value": value}
 }
 
+func report_matches_state(report, state, run_id) {
+    if type(report) != "dict" || type(state) != "dict" { return false }
+    if string_or(dict_get_or(report, "run_id", ""), "") != string_or(run_id, "") { return false }
+    if string_or(dict_get_or(report, "mission_id", ""), "") != string_or(dict_get_or(state, "mission_id", ""), "") { return false }
+    return string_or(dict_get_or(report, "status", ""), "") == string_or(dict_get_or(state, "status", ""), "")
+}
+
+func report_markdown_valid(run_dir) {
+    path := run_dir + "/report.md"
+    return path_is_symlink_safe(path) == false && path_exists(path) && path_is_file(path) && file_size(path) <= 8388608
+}
+
 func positional(values, index, fallback) {
     if type(values) != "array" || index < 0 || index >= len(values) { return fallback }
     return values[index]
@@ -210,7 +222,12 @@ func cmd_missions(tokens) {
         state_evidence := read_run_state_evidence(record["run_dir"], id)
         if dict_get_or(state_evidence, "ok", false) == false { return {"ok": false, "failure_class": "evidence_failure", "error": dict_get_or(state_evidence, "error", "run state evidence is invalid")} }
         state := state_evidence["state"]
-        if sub == "report" { return {"ok": true, "report_json": record["run_dir"] + "/report.json", "report_markdown": record["run_dir"] + "/report.md", "status": dict_get_or(state, "status", "unknown")} }
+        if sub == "report" {
+            report_evidence := read_run_artifact_evidence(record["run_dir"], "report.json", "dict", 8388608)
+            report_ok := dict_get_or(report_evidence, "ok", false) && report_matches_state(dict_get_or(report_evidence, "value", {}), state, id) && report_markdown_valid(record["run_dir"])
+            if report_ok == false { return {"ok": false, "failure_class": "evidence_failure", "error": "report evidence is missing, malformed, or does not match authoritative state"} }
+            return {"ok": true, "report_json": record["run_dir"] + "/report.json", "report_markdown": record["run_dir"] + "/report.md", "status": dict_get_or(state, "status", "unknown")}
+        }
         return {"ok": true, "run": state, "run_dir": record["run_dir"]}
     }
     return {"ok": false, "error": "unknown missions command"}
@@ -334,6 +351,7 @@ func artifact_inventory(path, relative, max_entries, depth) {
         mut files := 0
         mut directories := 1
         names := sort(list_dir(path))
+        if len(names) > max_entries { return {"ok": false, "error": "run artifact inventory exceeds the entry limit"} }
         for name in names {
             child := artifact_inventory(path + "/" + name, relative + "/" + name, max_entries, depth + 1)
             if dict_get_or(child, "ok", false) == false { return child }
@@ -403,7 +421,7 @@ func cmd_runs(tokens) {
         report := read_run_artifact_evidence(record["run_dir"], "report.json", "dict", 8388608)
         changes_valid := dict_get_or(changes, "ok", false)
         evaluations_valid := dict_get_or(evaluations, "ok", false)
-        report_valid := dict_get_or(report, "ok", false)
+        report_valid := dict_get_or(report, "ok", false) && report_matches_state(dict_get_or(report, "value", {}), state_evidence["state"], id) && report_markdown_valid(record["run_dir"])
         valid := changes_valid && evaluations_valid && report_valid
         return {"ok": valid, "format": "relay-run-verification-v1", "run_id": id, "status": dict_get_or(state_evidence["state"], "status", "unknown"), "integrity_valid": valid, "state_valid": true, "events_valid": true, "receipts_valid": dict_get_or(events_result, "receipts_valid", false), "receipts_consistent": dict_get_or(events_result, "receipts_consistent", false), "changes_valid": changes_valid, "evaluations_valid": evaluations_valid, "report_valid": report_valid, "errors": [dict_get_or(changes, "error", ""), dict_get_or(evaluations, "error", ""), dict_get_or(report, "error", "")]}
     }
@@ -445,7 +463,7 @@ func cmd_runs(tokens) {
         report_evidence := read_run_artifact_evidence(record["run_dir"], "report.json", "dict", 8388608)
         changes_valid := dict_get_or(changes_evidence, "ok", false)
         evaluations_valid := dict_get_or(evaluations_evidence, "ok", false)
-        report_valid := dict_get_or(report_evidence, "ok", false)
+        report_valid := dict_get_or(report_evidence, "ok", false) && report_matches_state(dict_get_or(report_evidence, "value", {}), state, id) && report_markdown_valid(record["run_dir"])
         if changes_valid == false || evaluations_valid == false || report_valid == false {
             partial_requested := has_flag(parsed["flags"], "partial")
             run_status := string_or(dict_get_or(state, "status", "unknown"), "unknown")

@@ -100,12 +100,55 @@ test "$missing_state_rc" -ne 0
 printf '%s' "$missing_state" | grep -Eq 'unknown run|run state evidence is missing'
 mv "$state_path.missing" "$state_path"
 
+# An index entry with placeholder metadata must not make a run with missing
+# authoritative state appear listable. This guards the cache validation path
+# against accepting its own fallback values as proof of a real state record.
+printf '{"%s":{"run_dir":"%s","mission_id":"","status":"unknown","updated_at":""}}' "$run_id" "$run_dir" > "$ROOT/.relay/index.json"
+mv "$state_path" "$state_path.missing"
+set +e
+missing_index_state="$($KUJO run "$ROOT/main.kujo" -- runs list --json 2>&1)"
+missing_index_state_rc=$?
+set -e
+test "$missing_index_state_rc" -eq 0
+if printf '%s' "$missing_index_state" | jq -e --arg run_id "$run_id" '.runs[$run_id] != null' >/dev/null; then
+  echo "index placeholder entry was accepted without state evidence" >&2
+  exit 1
+fi
+mv "$state_path.missing" "$state_path"
+
 inspected="$($KUJO run "$ROOT/main.kujo" -- runs inspect "$run_id" --json)"
 printf '%s' "$inspected" | jq -e --arg run_id "$run_id" '.ok == true and .run.run_id == $run_id' >/dev/null
 
 verified="$($KUJO run "$ROOT/main.kujo" -- runs verify "$run_id" --json)"
 printf '%s' "$verified" | jq -e --arg run_id "$run_id" '.ok == true and .format == "relay-run-verification-v1" and .run_id == $run_id and .integrity_valid == true and .state_valid == true and .events_valid == true and .receipts_valid == true and .receipts_consistent == true and .changes_valid == true and .evaluations_valid == true' >/dev/null
 printf '%s' "$verified" | jq -e '.report_valid == true' >/dev/null
+
+# A shape-valid report with the wrong run identity is not valid evidence.
+cp "$run_dir/report.json" "$run_dir/report.json.backup"
+ruby -rjson -e 'path=ARGV.fetch(0); report=JSON.parse(File.read(path)); report["run_id"]="other-run"; File.write(path, JSON.generate(report))' "$run_dir/report.json"
+set +e
+tampered_report_verify="$($KUJO run "$ROOT/main.kujo" -- runs verify "$run_id" --json 2>&1)"
+tampered_report_rc=$?
+set -e
+test "$tampered_report_rc" -ne 0
+printf '%s' "$tampered_report_verify" | jq -e '.ok == false and .report_valid == false and .integrity_valid == false' >/dev/null
+set +e
+tampered_report_command="$($KUJO run "$ROOT/main.kujo" -- missions report "$run_id" --json 2>&1)"
+tampered_report_command_rc=$?
+set -e
+test "$tampered_report_command_rc" -ne 0
+printf '%s' "$tampered_report_command" | grep -q 'does not match authoritative state'
+mv "$run_dir/report.json.backup" "$run_dir/report.json"
+
+# The Markdown report is also required evidence for inspection and export.
+mv "$run_dir/report.md" "$run_dir/report.md.missing"
+set +e
+missing_markdown_verify="$($KUJO run "$ROOT/main.kujo" -- runs verify "$run_id" --json 2>&1)"
+missing_markdown_rc=$?
+set -e
+test "$missing_markdown_rc" -ne 0
+printf '%s' "$missing_markdown_verify" | jq -e '.ok == false and .report_valid == false' >/dev/null
+mv "$run_dir/report.md.missing" "$run_dir/report.md"
 
 # Paused/failed runs may intentionally lack post-verification artifacts. A
 # caller must opt into the explicit partial contract; it never claims valid
