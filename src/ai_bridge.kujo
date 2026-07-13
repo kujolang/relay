@@ -24,6 +24,8 @@ for item in get(payload, "messages", []) {
 }
 client := create_client(provider, null)
 options := {"model": model, "max_tokens": get(payload, "max_tokens", 700), "temperature": get(payload, "temperature", 0.2), "max_retries": 1, "offline_fixture": get(payload, "offline_fixture", true), "stream": get(payload, "stream", false)}
+tools := get(payload, "tools", [])
+if type(tools) == "array" && len(tools) > 0 { options["tools"] := tools }
 watchdog_token := env("RELAY_WATCHDOG_PROXY_TOKEN")
 if type(watchdog_token) != "null" && trim(to_string(watchdog_token)) != "" {
     options["headers"] := {"X-Watchdog-Proxy-Token": watchdog_token}

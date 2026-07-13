@@ -1,0 +1,17 @@
+{
+  "version": "0.1.0",
+  "id": "relay-provider-tools-mission",
+  "name": "relay-provider-tools-mission",
+  "goal": "Use provider-generated tool planning to create one bounded repository artifact.",
+  "workflow": "verified-feature",
+  "repository": "/tmp/relay-provider-tools-workspace",
+  "provider": "openai-compatible",
+  "model": "stub-model",
+  "agent_tool_mode": "provider",
+  "agent_tool_allowlist": ["relay.write_file"],
+  "allow_writes": true,
+  "approval": {"approved": true, "actor": "fixture-operator", "reason": "disposable isolated workspace"},
+  "allowed_commands": ["git"],
+  "acceptance_criteria": ["the provider-generated tool-created file exists", "git diff --check passes"],
+  "actions": []
+}

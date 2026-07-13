@@ -83,7 +83,76 @@ func run_process(command, cwd, extra_env, timeout_ms) {
     }
 }
 
-func call_ai(messages, model, provider, base_url, api_key_env, offline, stream, correlation_id) {
+func tool_schema(tool_name) {
+    if tool_name == "relay.write_file" {
+        return {
+            "type": "function",
+            "function": {
+                "name": "relay.write_file",
+                "description": "Write one approved UTF-8 text file inside the isolated mission workspace.",
+                "parameters": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["path", "content"],
+                    "properties": {
+                        "path": {"type": "string", "description": "Workspace-relative file path."},
+                        "content": {"type": "string", "description": "Complete replacement file contents."}
+                    }
+                }
+            }
+        }
+    }
+    if tool_name == "relay.run_command" {
+        return {
+            "type": "function",
+            "function": {
+                "name": "relay.run_command",
+                "description": "Run one explicitly allowlisted read-oriented command in the isolated mission workspace.",
+                "parameters": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["command"],
+                    "properties": {
+                        "command": {"type": "string", "description": "One shell-free allowlisted command."},
+                        "timeout_ms": {"type": "integer", "minimum": 1, "maximum": 600000}
+                    }
+                }
+            }
+        }
+    }
+    return null
+}
+
+func tool_definitions(allowlist) {
+    if type(allowlist) != "array" { return [] }
+    definitions := []
+    for tool_name in allowlist {
+        schema := tool_schema(string_or(tool_name, ""))
+        if type(schema) == "dict" { definitions := push(definitions, schema) }
+    }
+    return definitions
+}
+
+func normalize_provider_tool_calls(raw_calls) {
+    if type(raw_calls) != "array" { return {"ok": false, "error": "provider tool call payload must be an array"} }
+    calls := []
+    for item in raw_calls {
+        if type(item) != "dict" { return {"ok": false, "error": "provider tool call must be an object"} }
+        function := dict_get_or(item, "function", {})
+        if type(function) != "dict" { function = {} }
+        name := string_or(dict_get_or(item, "tool_name", dict_get_or(item, "name", dict_get_or(function, "name", ""))), "")
+        raw_input := dict_get_or(item, "input", dict_get_or(item, "arguments", dict_get_or(function, "arguments", {})))
+        input := raw_input
+        if type(raw_input) == "string" {
+            try { input = parse_json(raw_input) } except err { return {"ok": false, "error": "provider tool arguments are not valid JSON", "tool_name": name} }
+        }
+        if name == "" || type(input) != "dict" { return {"ok": false, "error": "provider tool call is missing a valid name or object input", "tool_name": name} }
+        calls := push(calls, {"name": name, "input": input, "provider_call_id": string_or(dict_get_or(item, "id", ""), "")})
+    }
+    return {"ok": true, "calls": calls}
+}
+
+func call_ai_with_tools(messages, model, provider, base_url, api_key_env, offline, stream, correlation_id, tools) {
     if offline == false && watchdog_url() == "" {
         return {"ok": false, "error": {"code": "watchdog_route_required", "message": "Live AI calls require RELAY_WATCHDOG_URL"}, "relay_telemetry": {"route": "blocked_no_watchdog", "provider": provider, "model": model}}
     }
@@ -109,6 +178,10 @@ func call_ai(messages, model, provider, base_url, api_key_env, offline, stream, 
         "correlation_id": correlation
     }
     if stream { payload["stream"] := true }
+    if type(tools) == "array" && len(tools) > 0 {
+        payload["tools"] := tools
+        payload["tool_choice"] := "auto"
+    }
     env_map := {"RELAY_AI_PAYLOAD": safe_json(payload), "AI_SDK_PATH": ai_sdk_root()}
     watchdog_token := env_or("RELAY_WATCHDOG_PROXY_TOKEN", "")
     if watchdog_token != "" { env_map["RELAY_WATCHDOG_PROXY_TOKEN"] := watchdog_token }
@@ -141,6 +214,10 @@ func call_ai(messages, model, provider, base_url, api_key_env, offline, stream, 
     return parsed
 }
 
+func call_ai(messages, model, provider, base_url, api_key_env, offline, stream, correlation_id) {
+    return call_ai_with_tools(messages, model, provider, base_url, api_key_env, offline, stream, correlation_id, [])
+}
+
 func ai_chat(messages, model, provider, offline, stream) {
     return ai_chat_correlated(messages, model, provider, offline, stream, "")
 }
@@ -171,15 +248,19 @@ func fallback_decision(result, primary_model, fallback_model) {
 }
 
 func ai_chat_correlated(messages, model, provider, offline, stream, correlation_id) {
+    return ai_chat_correlated_with_tools(messages, model, provider, offline, stream, correlation_id, [])
+}
+
+func ai_chat_correlated_with_tools(messages, model, provider, offline, stream, correlation_id, tools) {
     base := watchdog_url()
     if base == "" { base = "https://api.openai.com/v1" }
     api_key_env := env_or("RELAY_API_KEY_ENV", "OPENAI_API_KEY")
-    primary := call_ai(messages, model, provider, base, api_key_env, offline, stream, correlation_id)
+    primary := call_ai_with_tools(messages, model, provider, base, api_key_env, offline, stream, correlation_id, tools)
     fallback_model := env_or("RELAY_FALLBACK_MODEL", "")
     if dict_get_or(primary, "ok", false) == false {
         decision := fallback_decision(primary, model, fallback_model)
         if decision["action"] == "attempt" {
-            fallback := call_ai(messages, fallback_model, provider, base, api_key_env, offline, stream, correlation_id)
+            fallback := call_ai_with_tools(messages, fallback_model, provider, base, api_key_env, offline, stream, correlation_id, tools)
             telemetry := dict_get_or(fallback, "relay_telemetry", {})
             telemetry["fallback_from"] := model
             telemetry["fallback_reason"] := decision["reason"]
@@ -292,6 +373,9 @@ export watchdog_url := watchdog_url
 export watchdog_route_allowed := watchdog_route_allowed
 export ai_chat := ai_chat
 export ai_chat_correlated := ai_chat_correlated
+export ai_chat_correlated_with_tools := ai_chat_correlated_with_tools
+export normalize_provider_tool_calls := normalize_provider_tool_calls
+export tool_definitions := tool_definitions
 export fallback_allowed := fallback_allowed
 export fallback_decision := fallback_decision
 export agents_sdk_smoke := agents_sdk_smoke

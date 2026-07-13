@@ -166,7 +166,7 @@ func cmd_models(tokens) {
     sub := positional(parsed["positionals"], 0, "list")
     models := [
         {"id": "fixture-model", "provider": "fixture", "capabilities": ["chat", "streaming", "structured_output"], "tool_planning": false, "tool_execution": "declared_mission_only", "offline": true, "source": "built_in_fixture"},
-        {"id": env_or("RELAY_MODEL", "gpt-4.1-mini"), "provider": env_or("RELAY_PROVIDER", "openai-compatible"), "capabilities": ["chat", "streaming"], "tool_planning": false, "tool_execution": "declared_mission_only", "offline": false, "source": "environment_profile"}
+        {"id": env_or("RELAY_MODEL", "gpt-4.1-mini"), "provider": env_or("RELAY_PROVIDER", "openai-compatible"), "capabilities": ["chat", "streaming", "provider_tool_planning"], "tool_planning": "opt_in_provider_profile", "tool_execution": "policy_bound_agents_sdk", "offline": false, "source": "environment_profile"}
     ]
     if sub == "inspect" { for model in models { if model["id"] == positional(parsed["positionals"], 1, "") { return {"ok": true, "model": model} } }; return {"ok": false, "error": "unknown model"} }
     if sub == "probe" {

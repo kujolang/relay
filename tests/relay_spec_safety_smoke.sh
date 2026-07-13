@@ -8,8 +8,9 @@ LARGE="/tmp/relay-large-mission.json"
 SYMLINK="/tmp/relay-symlink-mission.json"
 REPO_LINK="/tmp/relay-symlink-repository-$$"
 INVALID_ACTION="/tmp/relay-invalid-action-mission.json"
+INVALID_PROVIDER="/tmp/relay-invalid-provider-tool-mission.json"
 
-rm -rf "$WORK" "$ROOT/.relay" "$LARGE" "$SYMLINK" "$REPO_LINK" "$INVALID_ACTION"
+rm -rf "$WORK" "$ROOT/.relay" "$LARGE" "$SYMLINK" "$REPO_LINK" "$INVALID_ACTION" "$INVALID_PROVIDER"
 mkdir -p "$WORK"
 git init -q "$WORK"
 git -C "$WORK" config user.email relay@example.invalid
@@ -53,5 +54,13 @@ invalid_action_status=$?
 set -e
 test "$invalid_action_status" -ne 0
 printf '%s' "$invalid_action_output" | grep -q 'action type is not supported'
+
+ruby -rjson -e 'path=ARGV.fetch(0); repo=ARGV.fetch(1); File.write(path, JSON.generate({name:"invalid-provider-tools",goal:"must require an allowlist",repository:repo,agent_tool_mode:"provider",actions:[]}))' "$INVALID_PROVIDER" "$WORK"
+set +e
+invalid_provider_output="$($KUJO run "$ROOT/main.kujo" -- missions run "$INVALID_PROVIDER" --fixture --skip-agent-smoke --json 2>&1)"
+invalid_provider_status=$?
+set -e
+test "$invalid_provider_status" -ne 0
+printf '%s' "$invalid_provider_output" | grep -q 'agent_tool_allowlist'
 
 echo "PASS relay spec safety smoke"
