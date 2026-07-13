@@ -46,7 +46,16 @@ The current run engine still accepts explicit action plans, but missions may now
 
 ## 2026-07-11 enterprise-readiness review
 
-The current posture is local-first hardened alpha/showcase, not universal enterprise production. This review added realpath workspace checks, shell/Git command deny rules, explicit write approvals, subprocess redaction, packet digest metadata, unique run suffixes, preflight failure handling, ChangeBucket/Eval completion authority, atomic JSON persistence, efficient JSONL append, generated file-existence acceptance checks, shared Capsule process handling, and a real pause-after-plan/resume checkpoint. See `docs/enterprise-readiness-review-2026-07-11.md` and the current `docs/next-session-enhancement-backlog-2026-07-12-v46.md` for the evidence boundary and prioritized remaining work.
+The current posture is local-first hardened alpha/showcase, not universal enterprise production. This review added realpath workspace checks, shell/Git command deny rules, explicit write approvals, subprocess redaction, packet digest metadata, unique run suffixes, preflight failure handling, ChangeBucket/Eval completion authority, atomic JSON persistence, efficient JSONL append, generated file-existence acceptance checks, shared Capsule process handling, and a real pause-after-plan/resume checkpoint. See `docs/enterprise-readiness-review-2026-07-11.md` and the current `docs/next-session-enhancement-backlog-2026-07-12-v47.md` for the evidence boundary and prioritized remaining work.
+
+## Forty-seventh 2026-07-12 review
+
+Added explicit contract coverage distinguishing safely inspected sibling
+dependency paths such as `./../ai-sdk` from the stricter state-store `..`
+policy. This prevents fail-closed path hardening from regressing normal
+cross-repository composition. Relay remains a local alpha; live provider proof,
+authenticated service ownership, full workcells, durable storage, and release
+gates remain open.
 
 ## Second 2026-07-11 review
 

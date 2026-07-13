@@ -478,3 +478,12 @@ The same review aligned sibling-tool subprocess `PWD` and Kujo module context,
 restoring truthful ChangeBucket version and mission-change evidence from a
 Relay-root launch. This is local composition correctness, not signed
 dependency provenance or enterprise deployment attestation.
+
+## Forty-seventh 2026-07-12 review
+
+Added regression coverage proving the shared symlink walk still accepts a safe
+relative sibling dependency path while `store_root_safe` separately rejects
+parent traversal. Focused Kujo checks and the contract suite pass. This keeps
+local composition usable without weakening state-store authority; enterprise
+identity, live provider evidence, workcell isolation, durable storage, and
+release attestation remain open.

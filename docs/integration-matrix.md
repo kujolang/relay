@@ -61,3 +61,7 @@ Sibling-tool subprocess adapters now align `PWD` with their execution cwd and
 pass the Kujo module path where ChangeBucket requires it. This preserves the
 existing subprocess ownership boundary while making version probes and mission
 change evidence work from Relay's launch context.
+
+The current contract suite also distinguishes safe relative sibling dependency
+paths from strict state-store parent traversal. This prevents a security
+hardening rule from breaking the normal sibling-repository composition path.
