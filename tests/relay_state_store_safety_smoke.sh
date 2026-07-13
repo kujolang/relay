@@ -18,6 +18,12 @@ git -C "$WORK" add README.md
 git -C "$WORK" commit -qm baseline
 
 export RELAY_ROOT="$ROOT"
+capability_fixture="$(jq -cn --arg root "$ROOT" --arg work "$WORK" '{root:$root,run_id:"relay-state-capability",session_id:"relay-state-capability-session",workspace:$work,nonce:"relay-state-capability-nonce",max_calls:1,ttl_ms:180000}')"
+capability_output="$(RELAY_CAPABILITY_FIXTURE="$capability_fixture" "$KUJO" run "$ROOT/tests/relay_capability_fixture.kujo" --interpreter)"
+printf '%s' "$capability_output" | jq -e '.ok == true' >/dev/null
+test -d "$ROOT/.relay/capabilities"
+rm -rf "$ROOT/.relay"
+
 ln -s "$TARGET" "$ROOT/.relay"
 set +e
 root_output="$($KUJO run "$ROOT/main.kujo" -- runs list --json 2>&1)"

@@ -153,16 +153,12 @@ func path_has_parent_component(path) {
 }
 
 func write_text_atomic(path, content) {
-    tmp := path + ".tmp-" + to_string(current_timestamp()) + "-" + to_string(random_int(1000, 999999))
     try {
-        if file_exists(tmp) { delete_file(tmp) }
-        write_file(tmp, to_string(content))
-        rename_file(tmp, path)
-        return true
-    } except err {
-        if file_exists(tmp) { delete_file(tmp) }
-        return false
-    }
+        # Kujo's native atomic writer uses an O_EXCL temporary inode, fsync,
+        # and atomic rename. Keep this wrapper so Relay callers retain one
+        # boolean contract while avoiding predictable temp-file races.
+        return write_file_atomic(path, to_string(content), true)
+    } except err { return false }
 }
 
 func create_exclusive_dir(path) {
@@ -175,6 +171,29 @@ func create_exclusive_dir(path) {
         result := spawn_process(["/bin/mkdir", candidate], process_options({}, 2000, 4096))
         return result.success && result.exitcode == 0 && path_is_dir(candidate) && path_is_symlink_safe(candidate) == false
     } except err { return false }
+}
+
+func ensure_safe_directory(path) {
+    candidate := trim(to_string(path))
+    if candidate == "" || candidate == "." { return true }
+    if path_is_symlink_safe(candidate) || path_has_symlink_component(candidate) { return false }
+    if path_is_dir(candidate) { return true }
+    parts := split(candidate, "/")
+    mut current := ""
+    if starts_with(candidate, "/") { current = "/" }
+    mut i := 0
+    while i < len(parts) {
+        part := parts[i]
+        if part != "" && part != "." {
+            if current == "/" { current = "/" + part } else if current == "" { current = part } else { current = current + "/" + part }
+            if path_is_symlink_safe(current) || path_has_symlink_component(current) { return false }
+            if path_is_dir(current) == false {
+                if create_exclusive_dir(current) == false && (path_is_symlink_safe(current) || path_is_dir(current) == false) { return false }
+            }
+        }
+        i = i + 1
+    }
+    return path_is_dir(candidate) && path_is_symlink_safe(candidate) == false && path_has_symlink_component(candidate) == false
 }
 
 func safe_process_path() {
@@ -276,10 +295,7 @@ func issue_agent_capability(root, run_id, session_id, workspace, nonce, max_call
     if path == "" { return {"ok": false, "error": {"code": "capability_registry_unsafe", "message": "Capability registry root is unsafe"}} }
     directory := root + "/.relay/capabilities"
     if path_is_symlink_safe(directory) || path_has_symlink_component(directory) { return {"ok": false, "error": {"code": "capability_registry_unsafe", "message": "Capability registry directory is unsafe"}} }
-    try {
-        if path_is_dir(root + "/.relay") == false { create_dir(root + "/.relay") }
-        if path_is_dir(directory) == false { create_dir(directory) }
-    } except err { return {"ok": false, "error": {"code": "capability_registry_unavailable", "message": "Capability registry directory could not be created"}} }
+    if ensure_safe_directory(directory) == false { return {"ok": false, "error": {"code": "capability_registry_unavailable", "message": "Capability registry directory could not be created safely"}} }
     calls := int_or(max_calls, 4)
     if calls < 1 { calls = 1 }
     if calls > 16 { calls = 16 }
@@ -444,6 +460,7 @@ export path_has_symlink_component := path_has_symlink_component
 export path_has_parent_component := path_has_parent_component
 export write_text_atomic := write_text_atomic
 export create_exclusive_dir := create_exclusive_dir
+export ensure_safe_directory := ensure_safe_directory
 export safe_process_path := safe_process_path
 export process_options := process_options
 export process_options_with_cancel := process_options_with_cancel
