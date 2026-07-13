@@ -271,3 +271,12 @@ boolean result instead of unconditionally claiming success after invoking the
 write. The contract suite proves a missing-parent creation failure is reported
 as false. This closes a local evidence-reporting gap; it does not add durable
 transactions, append serialization, or multi-host storage.
+
+## v85 delivered — truthful run-index persistence
+
+The locked index rebuild now returns a structured persistence result internally,
+checks the native write result, reads the cache back, and validates it against
+authoritative run state before reporting success. `runs rebuild --json` exposes
+failure instead of returning `ok: true` when `index.json` cannot be written or
+verified. Contract and store-smoke coverage exercise a directory at the index
+path. The cache remains rebuildable local state, not durable multi-host storage.

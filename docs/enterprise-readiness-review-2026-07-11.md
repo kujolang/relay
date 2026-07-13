@@ -954,3 +954,17 @@ and release-gate evidence remain open.
 
 The current follow-on backlog is
 `docs/next-session-enhancement-backlog-2026-07-13-v84.md`.
+
+## Eighty-fifth review — truthful run-index persistence
+
+The locked run-index rebuild now checks the native write result, reads the
+cache back, and validates it against authoritative run directories before
+returning success. The CLI reports a state-store failure when `index.json` is a
+directory or otherwise cannot be verified; contract and store smokes prove
+that boundary. Relay remains a hardened local alpha, not enterprise-production
+ready or universally useful. Durable transactional storage, multi-host
+coordination, live provider evidence, authenticated tenancy, recoverable
+workcells, and release gates remain open.
+
+The current follow-on backlog is
+`docs/next-session-enhancement-backlog-2026-07-13-v85.md`.

@@ -1519,3 +1519,29 @@ and multi-host evidence ownership remain deferred.
 
 Rejected: trusting pre-write metadata, treating a missing parent as success,
 or adding a new evidence database solely to compensate for the ignored result.
+
+## ADR-114: Verify run-index persistence before reporting rebuild success
+
+Context: the rebuildable index path already serialized writers and rebuilt from
+authoritative per-run state, but it ignored the native `write_json` result. The
+CLI could therefore return `ok: true` after an index write failed, while the
+caller had no machine-readable indication that the cache was unavailable.
+
+Decision: keep the existing exclusive lock, rebuild once, require the native
+write to succeed, read the cache back, and validate its records against the
+authoritative run directories before returning a successful persistence result.
+`runs rebuild --json` surfaces a bounded state-store failure when any step
+fails. Compatibility wrappers retain their existing index-dictionary return
+shape for internal callers.
+
+Rationale: machine callers need truthful persistence status, and read-back
+verification catches malformed or incomplete cache output without introducing
+a second store. The implementation remains composed from existing Kujo
+filesystem and Relay cache contracts.
+
+Consequences: failed cache writes are visible and fail closed at the CLI
+boundary. The local cache still lacks transactions, retention, crash recovery,
+multi-host coordination, and signed export.
+
+Rejected: ignoring write status, trusting an in-memory rebuild as persisted, or
+introducing a new database solely to mask this local reporting defect.

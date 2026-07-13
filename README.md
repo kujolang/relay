@@ -36,6 +36,12 @@ than being reported as successful; the contract suite covers a missing-parent
 creation failure. This improves local evidence truthfulness but does not prove
 durable multi-host storage or enterprise readiness.
 
+The v85 review makes `runs rebuild --json` fail closed when the authoritative
+index cannot be written or read back safely. The store verifies the persisted
+cache under its existing lock, and the contract plus store smokes cover a
+directory-at-index-path failure. This improves operational truthfulness but
+does not turn the rebuildable cache into a durable multi-host store.
+
 The v67 review adds a hard provider request boundary below the bridge transport
 ceiling, a 1 MiB provider-response bound, duplicate/oversized provider-tool
 argument rejection, proxy-environment denial at child-process boundaries, and
@@ -213,4 +219,4 @@ The aggregate runner executes the contract suite, all committed `*_smoke.sh`
 tests, the schema smoke, and `git diff --check`, so new smoke coverage is
 automatically included without maintaining a second hand-written test list.
 
-For the full integration evidence boundary and deferred enterprise work, see [`docs/enterprise-readiness-review-2026-07-11.md`](docs/enterprise-readiness-review-2026-07-11.md), [`docs/command-reference.md`](docs/command-reference.md), the machine contracts in [`schemas/`](schemas/), and the current [`docs/next-session-enhancement-backlog-2026-07-13-v84.md`](docs/next-session-enhancement-backlog-2026-07-13-v84.md).
+For the full integration evidence boundary and deferred enterprise work, see [`docs/enterprise-readiness-review-2026-07-11.md`](docs/enterprise-readiness-review-2026-07-11.md), [`docs/command-reference.md`](docs/command-reference.md), the machine contracts in [`schemas/`](schemas/), and the current [`docs/next-session-enhancement-backlog-2026-07-13-v85.md`](docs/next-session-enhancement-backlog-2026-07-13-v85.md).

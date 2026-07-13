@@ -931,3 +931,10 @@ durable storage or multi-host authority was introduced. Relay remains a
 hardened local alpha; the external provider, authenticated tenancy, workcell
 recovery, durable store, and release-gate items remain deferred in the v84
 backlog.
+
+The v85 review closes the matching run-index false-success path. The locked
+rebuild now verifies write, read-back, and authoritative cache consistency, and
+`runs rebuild --json` returns a state-store failure when persistence cannot be
+completed. Contract and store smokes cover the failure. This is local cache
+truthfulness, not evidence of durable transactions, multi-host authority, or
+enterprise readiness; those remain in the v85 backlog.

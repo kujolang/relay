@@ -157,3 +157,9 @@ results. A missing-parent creation failure is now surfaced as false by the
 contract suite, preventing a successful-looking event/receipt persistence
 path when no file was created. Durable transactional evidence storage remains
 outside Relay's current ownership.
+
+The v85 review applies the same truthfulness boundary to the rebuildable run
+index. The locked persistence path now checks write, read-back, and cache
+consistency results; `runs rebuild --json` reports a state-store failure when
+`index.json` is a directory or otherwise cannot be verified. This remains a
+single-host rebuildable cache, not a durable multi-host owner.
