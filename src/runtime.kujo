@@ -100,9 +100,10 @@ func add_event(state, run_dir, kind, step_id, agent_id, payload) {
 }
 
 func register_run(state, run_dir) {
-    index := rebuild_run_index(state_root())
-    index[state["run_id"]] := {"run_dir": run_dir, "mission_id": state["mission_id"], "status": state["status"]}
-    persist_run_index(state_root(), index)
+    # The per-run state is authoritative. Let the locked persistence path
+    # rebuild once from those state files instead of scanning the run tree
+    # here and then scanning it again while persisting the cache.
+    persist_run_index(state_root(), {})
 }
 
 func expected_budget(spec, key, fallback) {

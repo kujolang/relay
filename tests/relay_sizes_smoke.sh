@@ -33,4 +33,19 @@ test "$unsafe_status" -ne 0
 printf '%s\n' "$unsafe_output" | grep -q "symbolic link"
 rm "$run_dir/unsafe-link"
 
+# Artifact inventory is bounded by both entry count and directory depth so a
+# hostile run artifact tree cannot consume unbounded recursive work.
+deep="$run_dir/deep"
+mkdir -p "$deep"
+for depth in $(seq 1 17); do
+  deep="$deep/level-$depth"
+  mkdir "$deep"
+done
+set +e
+deep_output="$($KUJO run "$ROOT/main.kujo" -- runs sizes "$run_id" --json 2>&1)"
+deep_status=$?
+set -e
+test "$deep_status" -ne 0
+printf '%s\n' "$deep_output" | grep -q '16-level directory depth limit'
+
 echo "PASS relay sizes smoke"

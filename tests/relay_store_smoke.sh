@@ -25,6 +25,7 @@ printf '%s' '{"attacker":{"run_dir":"/etc","status":"completed"}}' > "$ROOT/.rel
 listed="$($KUJO run "$ROOT/main.kujo" -- runs list --json)"
 printf '%s' "$listed" | grep -q "\"$run_id\""
 printf '%s' "$listed" | grep -q '"index_source":"validated_cache_or_rebuild"'
+printf '%s' "$listed" | jq -e --arg run_id "$run_id" '.runs[$run_id].updated_at != null and .runs[$run_id].updated_at != ""' >/dev/null
 if printf '%s' "$listed" | grep -q 'attacker'; then
   echo "tampered index entry was trusted" >&2
   exit 1

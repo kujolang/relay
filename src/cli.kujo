@@ -325,7 +325,8 @@ func watch_run_events(record, flags) {
     return {"ok": false, "_streamed": true}
 }
 
-func artifact_inventory(path, relative, max_entries) {
+func artifact_inventory(path, relative, max_entries, depth) {
+    if depth > 16 { return {"ok": false, "error": "run artifact inventory exceeds the 16-level directory depth limit"} }
     if path_is_symlink_safe(path) { return {"ok": false, "error": "run artifact inventory encountered a symbolic link: " + relative} }
     if path_is_dir(path) {
         mut entries := []
@@ -334,7 +335,7 @@ func artifact_inventory(path, relative, max_entries) {
         mut directories := 1
         names := sort(list_dir(path))
         for name in names {
-            child := artifact_inventory(path + "/" + name, relative + "/" + name, max_entries)
+            child := artifact_inventory(path + "/" + name, relative + "/" + name, max_entries, depth + 1)
             if dict_get_or(child, "ok", false) == false { return child }
             child_entries := dict_get_or(child, "entries", [])
             if type(child_entries) == "array" {
@@ -363,7 +364,7 @@ func run_artifact_sizes(record, run_id) {
         if name == "workspace" {
             continue
         }
-        child := artifact_inventory(run_dir + "/" + name, name, 4096)
+        child := artifact_inventory(run_dir + "/" + name, name, 4096, 0)
         if dict_get_or(child, "ok", false) == false { return child }
         child_entries := dict_get_or(child, "entries", [])
         if type(child_entries) == "array" {
