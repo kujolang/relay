@@ -390,3 +390,12 @@ integration remains contract-first: the current Redact CLI does not accept
 JSON machine artifacts, so Relay does not claim an unsafe adapter; the local
 redactor remains the persisted-evidence boundary until a structured Redact
 contract exists.
+
+## Thirty-eighth 2026-07-12 review
+
+Relay now adds sealed execution context metadata to every runtime receipt:
+workflow, model, provider, packet revision, attempt, repair attempt, RunLedger,
+and AI correlation identifiers. Contract and mission evidence pass. This is a
+stronger local machine-consumption boundary, not a replacement for signed
+exports, durable retention, tenant-aware secret custody, or typed repair
+receipts.

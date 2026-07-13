@@ -444,3 +444,18 @@ watching fails closed on deletion, while authenticated remote subscriptions,
 durable event ownership, and no-follow kernel primitives remain deferred.
 Rejected: treating deletion as an empty stream, trusting the cached events, or
 hashing the full history on every idle poll.
+
+## ADR-056: Seal execution context into every Relay receipt
+
+Context: Relay receipts already named the artifact kind, run, step, agent, and
+artifact reference, but machine consumers still had to reconstruct workflow,
+model, provider, packet, attempt, repair, RunLedger, and AI-correlation context
+from state or neighboring events. Decision: attach the available execution
+context metadata to every receipt and include that metadata in its SHA-256
+integrity input. Rationale: make each receipt independently useful for
+inspection, export, Paperclip/Hermes adapters, and incident analysis without
+duplicating upstream artifact ownership. Consequence: older receipts without
+metadata remain readable only under their existing contract, while signed
+exports, typed retry/repair IDs, and durable retention remain deferred.
+Rejected: trusting event adjacency, copying full run state into each receipt,
+or adding a second telemetry store.

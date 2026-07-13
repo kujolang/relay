@@ -391,3 +391,12 @@ current CLI MVP is text/Markdown-oriented and rejects `.json` input, so a safe
 structured-artifact adapter cannot yet be claimed. Relay keeps its local
 fail-closed redactor and records a contract-first Redact follow-up rather than
 passing machine-readable evidence through an unproven text sanitizer.
+
+## Thirty-eighth 2026-07-12 review
+
+Relay receipts now seal execution context metadata for workflow, model,
+provider, packet revision, attempt, repair attempt, RunLedger, and AI
+correlation identifiers. Contract and mission smokes pass, so machine callers
+can inspect a receipt without reconstructing context from neighboring events.
+This improves local evidence usability but does not provide signed export,
+typed retry/repair receipts, tenant-aware custody, or durable storage.

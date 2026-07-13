@@ -88,8 +88,11 @@ Event metadata includes the workflow, model, provider, packet revision, and
 RunLedger run ID associated with the emission. A completed mission also writes
 `receipts.json`, containing versioned SHA-256-sealed `RelayReceipt` references
 for PackWrite, Agents SDK, model, tool, ChangeBucket, Eval, and RunLedger
-artifacts. Receipt IDs are included in the lifecycle events that create or
-complete those artifacts; upstream tools remain the canonical artifact owners.
+artifacts. Each receipt also seals a context metadata object containing the
+workflow, model, provider, packet revision, attempt, repair attempt, RunLedger
+run ID, and AI correlation ID available at emission time. Receipt IDs are
+included in the lifecycle events that create or complete those artifacts;
+upstream tools remain the canonical artifact owners.
 
 AI telemetry and bounded adapter/action results include non-negative
 `duration_ms` values. These are elapsed local measurements for the bridge or
