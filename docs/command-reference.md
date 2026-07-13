@@ -100,14 +100,15 @@ relay benchmark run <repository> [--json]
 ```
 
 `models list --json` and `models probe --json` expose a routing object with the
-selection reason, `tool_planning: false`, and `tool_execution:
-"declared_mission_only"`. Model profiles do not advertise provider-generated
-tool calls until that path is implemented and evaluated; callers can therefore
-distinguish model capability from Relay orchestration capability.
+selection reason. The environment profile advertises
+`tool_planning: "opt_in_provider_profile"` and
+`tool_execution: "policy_bound_agents_sdk"`; fixture mode remains declared
+mission-only. Provider-generated planning is opt-in per mission and remains
+bounded by the explicit tool allowlist and Agents SDK policy worker.
 
 ## Mission contract
 
-Mission specs are JSON objects with `name`, `goal`, a Git `repository`, `actions`, and optional `workflow`, `model`, `provider`, `allow_writes`, `approval`, `allowed_commands`, `acceptance_criteria`, `budgets`, and bounded `agent_tools` fields. Supported actions are deliberately narrow:
+Mission specs are JSON objects with `name`, `goal`, a Git `repository`, `actions`, and optional `workflow`, `model`, `provider`, `allow_writes`, `approval`, `allowed_commands`, `acceptance_criteria`, `budgets`, bounded `agent_tools`, `agent_tool_mode`, and `agent_tool_allowlist` fields. Supported actions are deliberately narrow:
 
 - `write_file`: relative path, only with `allow_writes: true` and `approval.approved: true`.
 - `run_command`: read-oriented `git`, `kujo`, `bash scripts/`, or `sh scripts/` commands that pass policy. Commands are tokenized and executed as direct argv; shell pipelines, substitutions, globbing, tabs, and quoting expressions are rejected.
@@ -142,6 +143,15 @@ the deferred Redact integration. The worker
 also ignores or rejects payload-selected `relay_root` and `kujo_bin` values
 unless they exactly match the trusted process environment, and refuses a
 symbolic-linked or missing trusted Relay root.
+
+Set `agent_tool_mode: "provider"` with a non-empty
+`agent_tool_allowlist` to let the selected OpenAI-compatible provider propose
+bounded calls. Relay sends only the allowlisted tool schemas through the
+Watchdog → AI SDK path, normalizes function arguments, records a
+`tool_plan_resolved` event, and hands the normalized calls to the existing
+Agents SDK registry. Malformed arguments, unsupported tools, and tool-call
+budget violations fail closed. Provider-generated planning is not enabled by
+default.
 
 Budget fields are non-negative integers: `max_steps`, `max_repairs`, and `max_tokens`; `max_tool_calls`, `max_output_bytes`, and `max_write_bytes` must be positive. Agents SDK tool calls are capped at 16 per mission and the configured `max_tool_calls` limit is enforced inside the worker. Output and write budgets are capped at 8 MiB per mission; command timeouts must be between 1 ms and 10 minutes. A budget failure is recorded as a failed run with a typed failure class; it is never reported as completed.
 

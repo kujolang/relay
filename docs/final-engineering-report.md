@@ -702,3 +702,19 @@ runs.
 This is a local response-performance improvement and does not claim durable
 concurrent storage, remote subscriptions, authenticated callers, or enterprise
 readiness.
+
+## Sixty-sixth 2026-07-13 review
+
+Provider-generated tool planning is now available as an explicit mission mode.
+`agent_tool_mode: "provider"` requires `agent_tool_allowlist`; the selected
+tool schemas are sent through Watchdog and the AI SDK, normalized into the
+Agents SDK call shape, and executed by the existing nonce-bound policy worker.
+The path records provider-generated plans as typed receipts and events and is
+covered by a local authenticated Watchdog/stub-provider end-to-end mission
+that mutates a fixture repository and passes ChangeBucket, Eval, and RunLedger
+completion checks.
+
+The implementation remains a hardened local alpha/showcase. It does not claim
+real Ollama Cloud or independent-provider credentials, multi-turn provider
+tool loops, authenticated machine adapters, full workcell recovery, durable
+concurrent storage, signed export, or release-gate completion.

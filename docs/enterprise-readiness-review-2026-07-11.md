@@ -715,3 +715,19 @@ This improves response transfer and test isolation, not durable storage or
 multi-host consistency. Relay remains a hardened local alpha; live providers,
 authenticated adapters, provider-generated tools, full workcells, durable
 storage, signed export, and release gates remain open.
+
+## Sixty-sixth 2026-07-13 review
+
+Relay now supports opt-in provider-generated Agents SDK tool planning. A mission
+sets `agent_tool_mode: "provider"` and an explicit allowlist; Relay sends only
+those schemas through the normal Watchdog → AI SDK path, normalizes provider
+function arguments, records a `tool_plan_resolved` receipt/event, and executes
+the calls through the existing Agents SDK approval provider and Relay policy
+worker. Malformed arguments, unsupported tool names, and tool budgets fail
+closed. The provider-tool smoke proves a local Watchdog server with a stub
+OpenAI-compatible upstream, authenticated route verification, a real provider
+tool response, repository mutation, ChangeBucket, Eval, and RunLedger evidence.
+
+This closes a local functionality gap but is not live Ollama Cloud proof or a
+multi-turn tool loop. Authenticated remote callers, full workcells, durable
+storage, signed export, and release gates remain open.
