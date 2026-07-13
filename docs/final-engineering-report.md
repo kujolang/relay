@@ -805,3 +805,17 @@ model rerouting. Live providers, provider dialects, recoverable workcells,
 authenticated adapters, durable storage, and release gates remain open. The
 next-session work is tracked in
 `docs/next-session-enhancement-backlog-2026-07-13-v71.md`.
+
+## Seventy-third 2026-07-13 review
+
+This review closes a mission-budget enforcement gap. Relay now requires a
+positive `max_tokens` mission budget, caps it at 16,384, passes it to the AI
+SDK/Watchdog request, and reduces every provider-tool follow-up to the
+remaining budget. Negative provider usage cannot create budget credit. Generic
+child-process environment overrides also reject caller-supplied `PWD`; only a
+trusted adapter working directory is restored. Contract, spec-safety, low
+budget fixture, repair, and mission smokes passed. This improves local cost,
+latency, and environment authority but does not prove provider billing
+reconciliation, live-provider compatibility, durable workcells, authenticated
+tenancy, or release readiness. The next-session work is tracked in
+`docs/next-session-enhancement-backlog-2026-07-13-v72.md`.

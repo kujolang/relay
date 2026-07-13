@@ -10,6 +10,11 @@ The schemas are intentionally forward-compatible: unknown fields are allowed
 so upstream evidence can be carried without Relay silently dropping it. The
 `format` and `contract_version` fields identify the owning boundary.
 
+`mission.schema.json` bounds model output budgets to positive values up to
+16,384 tokens. Relay passes the remaining mission budget to each provider
+request rather than silently using an unbounded caller-controlled completion
+limit.
+
 | Schema | Boundary |
 | --- | --- |
 | `mission.schema.json` | `missions create` / `missions run` input |

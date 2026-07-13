@@ -1210,3 +1210,28 @@ typed receipts, and zero-budget denial.
 
 Rejected: silently retrying failed missions, replaying policy/evidence failures,
 or allowing unbounded caller-selected repair counts.
+
+## ADR-102: Enforce mission token budgets at the provider boundary
+
+Context: Relay recorded provider usage and checked `used_tokens` after the
+model call, but the adapter always requested 700 completion tokens. A mission
+with a smaller budget could therefore spend more than its declared limit before
+failing, while negative provider usage could reduce the recorded total.
+
+Decision: require positive `max_tokens` values, cap them at 16,384, pass the
+mission budget to the AI SDK bridge, reduce each follow-up request to the
+remaining budget, and normalize negative usage to zero before accounting.
+Drop caller-supplied `PWD` from generic child environment overrides and restore
+only the trusted adapter working-directory value.
+
+Rationale: enforce cost and latency limits before provider work begins and
+close an environment-metadata injection path without changing AI SDK ownership
+or inventing a second usage contract.
+
+Consequences: zero-token missions are rejected during validation; provider
+responses that claim negative usage no longer create budget credit; live
+provider billing still requires external reconciliation. Existing chat keeps
+its bounded 700-token default, while mission calls use their explicit budget.
+
+Rejected: relying only on post-call usage checks, silently clamping an exhausted
+mission to one token, or allowing arbitrary environment `PWD` values.

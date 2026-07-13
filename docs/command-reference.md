@@ -179,7 +179,18 @@ correlated. Persisted `events.jsonl` and `receipts.json` evidence are each
 capped at 8 MiB; exceeding a cap fails the run's evidence boundary rather than
 creating an apparently complete but unreadable run.
 
-Budget fields are non-negative integers: `max_steps`, `max_repairs`, and `max_tokens`; `max_tool_calls`, `max_tool_turns`, `max_output_bytes`, and `max_write_bytes` must be positive. `max_repairs` is capped at 4, `max_tool_calls` at 16, and `max_tool_turns` at 4 per mission; the configured limits are enforced before every provider-generated tool execution, follow-up request, or explicit repair replay. Output and write budgets are capped at 8 MiB per mission; command timeouts must be between 1 ms and 10 minutes. A budget failure is recorded as a failed run with a typed failure class; it is never reported as completed. Provider request/response and evidence-file ceilings are fixed Relay safety boundaries rather than caller-widenable mission budgets.
+`max_steps` and `max_repairs` are non-negative integers; `max_tokens`,
+`max_tool_calls`, `max_tool_turns`, `max_output_bytes`, and `max_write_bytes`
+must be positive. `max_tokens` is capped at 16,384, `max_repairs` at 4,
+`max_tool_calls` at 16, and `max_tool_turns` at 4 per mission. Relay passes
+the remaining token budget to every provider request and follow-up, so a low
+mission budget cannot silently turn into the default 700-token provider
+request. Negative provider usage is treated as zero for accounting. Output
+and write budgets are capped at 8 MiB per mission; command timeouts must be
+between 1 ms and 10 minutes. A budget failure is recorded as a failed run with
+a typed failure class; it is never reported as completed. Provider
+request/response and evidence-file ceilings are fixed Relay safety boundaries
+rather than caller-widenable mission budgets.
 
 ## JSON evidence
 

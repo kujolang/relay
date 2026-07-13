@@ -803,3 +803,17 @@ replay primitive, not adaptive self-healing. Live provider and dialect
 compatibility, authenticated tenancy, recoverable workcells, durable storage,
 signed provenance, and release gates remain unresolved. The next-session
 backlog is `docs/next-session-enhancement-backlog-2026-07-13-v71.md`.
+
+## Seventy-third 2026-07-13 review
+
+Relay now enforces model-output budgets before provider work: `max_tokens` is
+positive and capped at 16,384, initial requests receive the mission budget,
+and provider-tool follow-ups receive only the remaining amount. Negative
+reported usage is normalized to zero. Generic subprocess environment overrides
+also reject caller-controlled `PWD`; the adapter restores only its trusted cwd.
+The contract, spec-safety, low-budget fixture, repair, and mission checks pass.
+This is local authority and cost-boundary evidence, not provider billing
+reconciliation or live-provider compatibility proof. Durable workcells,
+authenticated tenancy, signed provenance, durable storage, and release gates
+remain unresolved. The next-session backlog is
+`docs/next-session-enhancement-backlog-2026-07-13-v72.md`.
