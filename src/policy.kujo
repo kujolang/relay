@@ -1,4 +1,4 @@
-from src.common import command_args, contains_any, dict_get_or, string_or, process_options
+from src.common import command_args, contains_any, dict_get_or, string_or, process_options, path_is_symlink_safe, path_has_symlink_component
 
 func classify_failure(code) {
     normalized := to_lower(trim(to_string(code)))
@@ -112,10 +112,16 @@ func git_read_argv_allowed(argv) {
     return true
 }
 
-func script_argv_allowed(argv, interpreter) {
+func script_argv_allowed(argv, interpreter, policy) {
     if type(argv) != "array" || len(argv) != 2 || argv[0] != interpreter { return false }
     target := string_or(argv[1], "")
-    return starts_with(target, "scripts/") && ends_with(target, ".sh") && path_is_safe(".", target)
+    workspace := string_or(dict_get_or(policy, "workspace", "."), ".")
+    if starts_with(target, "scripts/") == false || ends_with(target, ".sh") == false || path_is_safe(workspace, target) == false { return false }
+    script_path := workspace + "/" + target
+    if path_is_symlink_safe(script_path) || path_has_symlink_component(script_path) || path_is_file(script_path) == false { return false }
+    expected_hash := string_or(dict_get_or(dict_get_or(policy, "allowed_script_hashes", {}), target, ""), "")
+    if len(expected_hash) != 64 { return false }
+    return to_lower(expected_hash) == to_lower(to_string(sha256_file(script_path)))
 }
 
 func command_is_allowed(command, policy) {
@@ -140,8 +146,8 @@ func command_is_allowed(command, policy) {
             if ends_with(target, ".kujo") && path_is_safe(dict_get_or(policy, "workspace", "."), target) { return true }
             return false
         }
-        if prefix == "bash" && script_argv_allowed(argv, "bash") { return true }
-        if prefix == "sh" && script_argv_allowed(argv, "sh") { return true }
+        if prefix == "bash" && script_argv_allowed(argv, "bash", policy) { return true }
+        if prefix == "sh" && script_argv_allowed(argv, "sh", policy) { return true }
     }
     return false
 }

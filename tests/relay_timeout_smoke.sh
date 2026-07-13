@@ -18,9 +18,10 @@ chmod +x "$WORK/scripts/slow.sh"
 touch "$WORK/README.md"
 git -C "$WORK" add README.md scripts/slow.sh
 git -C "$WORK" commit -qm baseline
+script_sha="$(ruby -rdigest -e 'print Digest::SHA256.file(ARGV.fetch(0)).hexdigest' "$WORK/scripts/slow.sh")"
 
 cat > "$SPEC" <<EOF
-{"name":"timeout-smoke","goal":"bounded timeout","repository":"$WORK","actions":[{"type":"run_command","command":"bash scripts/slow.sh","timeout_ms":1000}],"allowed_commands":["bash"],"budgets":{"max_steps":2,"max_output_bytes":1048576,"max_write_bytes":1048576}}
+{"name":"timeout-smoke","goal":"bounded timeout","repository":"$WORK","actions":[{"type":"run_command","command":"bash scripts/slow.sh","timeout_ms":1000}],"allowed_commands":["bash"],"allowed_script_hashes":{"scripts/slow.sh":"$script_sha"},"budgets":{"max_steps":2,"max_output_bytes":1048576,"max_write_bytes":1048576}}
 EOF
 
 started_wait="$(date +%s)"

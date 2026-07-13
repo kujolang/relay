@@ -346,7 +346,14 @@ func load_spec(path) {
     if repository == "" || path_is_dir(repository) == false || path_is_symlink_safe(repository) || path_has_symlink_component(repository) { return {"ok": false, "error": "Mission repository must be an existing non-symlink directory"} }
     if path_exists(repository + "/.git") == false { return {"ok": false, "error": "Mission repository must be a Git workspace"} }
     if path_is_symlink_safe(repository + "/.git") || path_has_symlink_component(repository + "/.git") { return {"ok": false, "error": "Mission Git metadata must not be a symbolic link"} }
-    action_policy := {"workspace": repository, "allow_writes": bool_or(dict_get_or(spec, "allow_writes", false), false), "allowed_commands": allowed_commands}
+    allowed_script_hashes := dict_get_or(spec, "allowed_script_hashes", {})
+    if type(allowed_script_hashes) != "dict" { return {"ok": false, "error": "Mission allowed_script_hashes must be an object"} }
+    if len(keys(allowed_script_hashes)) > 16 { return {"ok": false, "error": "Mission allowed_script_hashes exceeds the 16-entry safety limit"} }
+    for script_path in keys(allowed_script_hashes) {
+        expected_hash := string_or(dict_get_or(allowed_script_hashes, script_path, ""), "")
+        if starts_with(script_path, "scripts/") == false || ends_with(script_path, ".sh") == false || path_is_safe(repository, script_path) == false || len(expected_hash) != 64 || regex_match(to_lower(expected_hash), "^[0-9a-f]{64}$") == false { return {"ok": false, "error": "Mission allowed_script_hashes contains an invalid scripts path or SHA-256"} }
+    }
+    action_policy := {"workspace": repository, "allow_writes": bool_or(dict_get_or(spec, "allow_writes", false), false), "allowed_commands": allowed_commands, "allowed_script_hashes": allowed_script_hashes}
     for action in actions {
         if dict_get_or(action, "type", "") == "run_command" && command_is_allowed(dict_get_or(action, "command", ""), action_policy) == false {
             return {"ok": false, "error": "Mission run_command is not permitted by the declared command policy"}
@@ -382,7 +389,8 @@ func execute_action(action, spec, state, run_dir) {
     policy := {
         "workspace": repo,
         "allow_writes": bool_or(dict_get_or(spec, "allow_writes", false), false),
-        "allowed_commands": dict_get_or(spec, "allowed_commands", ["git", "kujo"])
+        "allowed_commands": dict_get_or(spec, "allowed_commands", ["git", "kujo"]),
+        "allowed_script_hashes": dict_get_or(spec, "allowed_script_hashes", {})
     }
     if kind == "write_file" {
         decision := tool_decision("write_file", action, policy)

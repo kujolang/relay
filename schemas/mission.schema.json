@@ -18,6 +18,7 @@
     "model": {"type": "string"},
     "provider": {"type": "string"},
     "allowed_commands": {"type": "array", "items": {"type": "string"}, "maxItems": 16},
+    "allowed_script_hashes": {"type": "object", "maxProperties": 16, "patternProperties": {"^scripts/[A-Za-z0-9._/-]+\\.sh$": {"type": "string", "pattern": "^[0-9a-fA-F]{64}$"}}, "additionalProperties": false},
     "acceptance_criteria": {"type": "array", "items": {"type": "string"}, "maxItems": 64},
     "budgets": {
       "type": "object",

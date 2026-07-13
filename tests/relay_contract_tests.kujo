@@ -54,6 +54,18 @@ failed = failed + check("workspace containment", path_is_within_workspace(".", "
 failed = failed + check("safe command", command_is_allowed("git status", {"allowed_commands": ["git"]}))
 failed = failed + check("safe Git status option", command_is_allowed("git status --porcelain", {"allowed_commands": ["git"]}))
 failed = failed + check("safe Git diff check", command_is_allowed("git diff --check", {"allowed_commands": ["git"]}))
+script_workspace := "/tmp/relay-script-policy-" + to_string(current_timestamp())
+create_dir(script_workspace)
+create_dir(script_workspace + "/scripts")
+script_path := script_workspace + "/scripts/check.sh"
+write_file(script_path, "#!/bin/sh\nprintf safe\n")
+script_policy := {"workspace": script_workspace, "allowed_commands": ["bash"], "allowed_script_hashes": {"scripts/check.sh": sha256_file(script_path)}}
+failed = failed + check("script execution requires an exact hash", command_is_allowed("bash scripts/check.sh", script_policy))
+write_file_atomic(script_path, "#!/bin/sh\nprintf changed\n", true)
+failed = failed + check("script hash mismatch denied", command_is_allowed("bash scripts/check.sh", script_policy) == false)
+delete_file(script_path)
+os_rmdir(script_workspace + "/scripts")
+os_rmdir(script_workspace)
 failed = failed + check("Git pathspec denied", command_is_allowed("git diff /etc/passwd", {"allowed_commands": ["git"]}) == false)
 failed = failed + check("Git unknown subcommand denied", command_is_allowed("git status-malicious", {"allowed_commands": ["git"]}) == false)
 failed = failed + check("unsafe git command", command_is_allowed("git commit -am unsafe", {"allowed_commands": ["git"]}) == false)
