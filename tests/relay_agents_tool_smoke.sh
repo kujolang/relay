@@ -7,6 +7,8 @@ AGENTS_SDK="${RELAY_AGENTS_SDK_PATH:-$ROOT/../agents-sdk}"
 WORK="/tmp/relay-agents-sdk-tools-workspace"
 
 rm -rf "$WORK"
+rm -rf "$ROOT/.relay/capabilities"
+trap 'rm -rf "$ROOT/.relay/capabilities"' EXIT
 mkdir -p "$WORK"
 git init -q "$WORK"
 git -C "$WORK" config user.email relay@example.invalid

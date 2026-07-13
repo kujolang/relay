@@ -1,7 +1,7 @@
 from src.contracts import event, event_integrity_valid, event_chain_integrity_valid, event_sequence_matches_state, receipt, receipt_integrity_valid, receipt_sequence_valid, receipt_sequence_matches_state, state_integrity_input, state_integrity_valid, run_state, agent_profile, RELAY_VERSION, EVENT_CONTRACT, RECEIPT_CONTRACT
 from src.policy import classify_failure, repair_allowed, path_is_safe, path_is_within_workspace, command_is_allowed, tool_decision
 from src.runtime import resume_state_safe, cleanup_state_safe, control_state_safe, save_state, mark_evidence_failure, cancellation_request, cancellation_integrity_input, persist_required_json, report
-from src.common import safe_id, redact_text, shell_quote_single, command_args, process_options, process_options_with_cancel, safe_process_path, safe_env_name, path_is_symlink_safe, path_has_symlink_component, path_has_parent_component, read_json_limited, append_jsonl, append_jsonl_bounded, write_json, write_text_atomic, create_exclusive_dir, dict_get_or, bool_or, safe_json
+from src.common import safe_id, redact_text, shell_quote_single, command_args, process_options, process_options_with_cancel, safe_process_path, safe_env_name, path_is_symlink_safe, path_has_symlink_component, path_has_parent_component, read_json_limited, append_jsonl, append_jsonl_bounded, write_json, write_text_atomic, create_exclusive_dir, dict_get_or, bool_or, string_or, safe_json, issue_agent_capability, revoke_agent_capability
 from src.adapters import fallback_allowed, fallback_decision, watchdog_route_allowed, tool_definitions, normalize_provider_tool_calls, provider_payload_size, provider_payload_allowed, bounded_max_tokens
 from src.store import safe_run_key, store_root_safe, acquire_index_lock, acquire_index_lock_retry, release_index_lock, rebuild_and_persist_run_index
 from src.watchdog import safe_base, safe_correlation_id, route_policy, usage_reconciliation
@@ -246,6 +246,18 @@ os_rmdir(refresh_root + "/runs/refresh-run")
 os_rmdir(refresh_root + "/runs")
 delete_file(refresh_root + "/index.json")
 os_rmdir(refresh_root)
+revoke_root := tmp_base + "/relay-contract-capability-revoke-" + to_string(current_timestamp())
+create_dir(revoke_root)
+revoke_issued := issue_agent_capability(revoke_root, "revoke-run", "revoke-session", ".", "revoke-nonce", 1, 180000)
+revoke_path := string_or(dict_get_or(revoke_issued, "path", ""), "")
+revoke_lock := revoke_path + ".lock"
+revoke_lock_created := create_exclusive_dir(revoke_lock)
+failed = failed + check("capability revoke respects active lock", revoke_issued["ok"] && revoke_lock_created && revoke_agent_capability(revoke_root, "revoke-run", "revoke-session") == false && path_exists(revoke_path))
+if path_is_dir(revoke_lock) { os_rmdir(revoke_lock) }
+failed = failed + check("capability revoke removes locked record", revoke_agent_capability(revoke_root, "revoke-run", "revoke-session") && path_exists(revoke_path) == false)
+if path_is_dir(revoke_root + "/.relay/capabilities") { os_rmdir(revoke_root + "/.relay/capabilities") }
+if path_is_dir(revoke_root + "/.relay") { os_rmdir(revoke_root + "/.relay") }
+if path_is_dir(revoke_root) { os_rmdir(revoke_root) }
 exclusive_root := tmp_base + "/relay-contract-exclusive-dir-" + to_string(current_timestamp())
 create_dir(exclusive_root)
 exclusive_path := exclusive_root + "/lock"

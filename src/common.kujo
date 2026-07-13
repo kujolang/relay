@@ -368,8 +368,35 @@ func consume_agent_capability(root, request, supplied_secret) {
 func revoke_agent_capability(root, run_id, session_id) {
     path := capability_registry_path(root, run_id, session_id)
     if path == "" || path_is_symlink_safe(path) { return false }
-    if path_exists(path) == false { return true }
-    try { delete_file(path); return true } except err { return false }
+    lock := path + ".lock"
+    if path_is_symlink_safe(lock) { return false }
+    mut acquired := false
+    mut attempt := 1
+    while attempt <= 4 {
+        if path_exists(lock) {
+            if path_is_dir(lock) {
+                if attempt < 4 { sleep(20 * attempt); attempt = attempt + 1; continue }
+                return false
+            }
+            return false
+        }
+        if create_exclusive_dir(lock) { acquired = true; break }
+        if path_exists(lock) && path_is_dir(lock) {
+            if attempt < 4 { sleep(20 * attempt); attempt = attempt + 1; continue }
+            return false
+        }
+        return false
+    }
+    if acquired == false { return false }
+    mut removed := true
+    try {
+        if path_exists(path) {
+            if path_is_symlink_safe(path) || path_is_file(path) == false { removed = false }
+            else { delete_file(path) }
+        }
+    } except err { removed = false }
+    if path_is_dir(lock) { os_rmdir(lock) }
+    return removed
 }
 
 func capability_registry_posture(root, repair) {
