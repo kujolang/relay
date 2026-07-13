@@ -48,6 +48,12 @@ socket transport rather than an unbounded environment variable.
 
 Run `relay doctor --json` before a live or CI invocation. Fixture mode does not require Watchdog or credentials; live mode fails closed when either is absent.
 
+`relay doctor --repair --json` explicitly removes expired or exhausted Agents
+SDK capability records from the local registry. The default doctor command is
+read-only. Both modes report bounded registry posture counts and never emit
+capability secrets; the scan is limited to 1024 records and fails closed on
+unsafe or malformed registry paths.
+
 Provider credential environment names also reject dynamic-loader, interpreter
 injection, Git override, and trust-store override variables such as
 `LD_PRELOAD`, `DYLD_INSERT_LIBRARIES`, `PYTHONPATH`, `BASH_ENV`,
@@ -94,7 +100,7 @@ avoid repeating the same filesystem lookup.
 ## Commands
 
 ```text
-relay doctor [--json]
+relay doctor [--repair] [--json]
 relay chat <prompt> [--model <id>] [--provider <id>] [--fixture] [--stream] [--json]
 relay models list [--json]
 relay models inspect <model> [--json]

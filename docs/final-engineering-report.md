@@ -856,3 +856,15 @@ tool smoke proves issued capability use and replay rejection. This closes a
 local replay gap but does not provide authenticated remote tenancy, signed
 provenance, multi-host revocation, or crash-recovery reconciliation. The next
 session backlog is `docs/next-session-enhancement-backlog-2026-07-13-v75.md`.
+
+## Seventy-seventh 2026-07-13 review
+
+Relay adds bounded capability-registry posture and explicit stale-record
+repair. `doctor --json` remains read-only and reports record, stale, invalid,
+and cleaned counts; `doctor --repair --json` removes only expired or exhausted
+Agents SDK records. The scan is limited to 1024 records and fails closed on
+unsafe or malformed paths. The CLI smoke proves expiry detection, explicit
+repair, and a clean subsequent scan. This is local lifecycle hygiene only;
+durable multi-host reconciliation, authenticated ownership, signed provenance,
+live-provider proof, and release gates remain open. The next session backlog is
+`docs/next-session-enhancement-backlog-2026-07-13-v76.md`.

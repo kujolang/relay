@@ -854,3 +854,16 @@ authenticated multi-tenant authorization. Remote revocation, signed
 provenance, durable multi-host capability state, crash recovery, live providers,
 and release gates remain unresolved. The next-session backlog is
 `docs/next-session-enhancement-backlog-2026-07-13-v75.md`.
+
+## Seventy-seventh 2026-07-13 review
+
+Relay now exposes bounded Agents SDK capability-registry posture through
+`doctor --json`. Expired or exhausted records are reported without mutation;
+`doctor --repair --json` is the explicit cleanup mode and reports the number
+of records removed. The scan is capped at 1024 entries and fails closed on
+unsafe or malformed registry paths. The CLI smoke proves stale detection,
+repair, and a clean follow-up scan. This improves local crash-leftover hygiene
+but does not provide durable multi-host reconciliation, authenticated
+ownership, signed provenance, external-provider proof, or enterprise release
+gates. The next-session backlog is
+`docs/next-session-enhancement-backlog-2026-07-13-v76.md`.

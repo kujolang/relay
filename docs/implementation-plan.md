@@ -223,3 +223,12 @@ Remote authenticated authorization, multi-host storage, and crash-recovery
 reconciliation remain open.
 
 Current follow-on backlog: `docs/next-session-enhancement-backlog-2026-07-13-v75.md`.
+
+The v76 review adds bounded capability-registry posture and explicit repair.
+Doctor now reports stale and invalid Agents SDK records, while
+`doctor --repair` removes only expired or exhausted records. Ordinary doctor
+execution remains read-only, the scan is capped at 1024 records, and unsafe or
+malformed registry paths fail closed. This closes local crash-leftover hygiene,
+not durable multi-host authorization or enterprise retention.
+
+Current follow-on backlog: `docs/next-session-enhancement-backlog-2026-07-13-v76.md`.

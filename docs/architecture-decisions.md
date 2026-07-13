@@ -1314,3 +1314,30 @@ provenance, and remote revocation remain future work.
 
 Rejected: trusting a caller-supplied nonce, persisting the raw secret, using an
 unbounded global replay list, or making Paperclip/Hermes a core dependency.
+
+## ADR-106: Make capability-registry cleanup explicit and bounded
+
+Context: short-lived Agents SDK capability records are revoked on normal worker
+exit, but a crashed worker can leave expired or exhausted local records. An
+unbounded cleanup pass would create a new denial-of-service and filesystem
+authority surface, while silently mutating state during a readiness check would
+make operator behavior difficult to audit.
+
+Decision: expose capability-registry posture through `doctor`, scan at most 1024
+JSON records, fail closed on unsafe directories or malformed entries, and keep
+the default command read-only. Add `doctor --repair` as the explicit mutation
+mode; it removes only records that are expired or have exhausted their bounded
+call allowance and reports `records`, `stale`, `invalid`, and `cleaned` counts.
+
+Rationale: close the local stale-record hygiene gap without duplicating the
+Agents SDK registry or introducing a background daemon. The explicit flag
+preserves operator intent, while the fixed scan bound limits cleanup cost.
+
+Consequences: local crash leftovers can be repaired deterministically, but
+multi-host reconciliation, authenticated ownership, signed provenance, and
+retention remain future concerns. A malformed or unsafe registry still blocks
+readiness rather than being deleted.
+
+Rejected: deleting stale records during ordinary doctor execution, scanning an
+unbounded directory, persisting raw capability secrets, or creating a second
+capability service.
