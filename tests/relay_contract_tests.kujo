@@ -1,6 +1,6 @@
 from src.contracts import event, event_integrity_valid, event_chain_integrity_valid, event_sequence_matches_state, receipt, receipt_integrity_valid, receipt_sequence_valid, receipt_sequence_matches_state, run_state, agent_profile, RELAY_VERSION, EVENT_CONTRACT, RECEIPT_CONTRACT
 from src.policy import classify_failure, path_is_safe, path_is_within_workspace, command_is_allowed, tool_decision
-from src.runtime import resume_state_safe, cleanup_state_safe, control_state_safe, save_state, mark_evidence_failure, cancellation_request
+from src.runtime import resume_state_safe, cleanup_state_safe, control_state_safe, save_state, mark_evidence_failure, cancellation_request, persist_required_json, report
 from src.common import safe_id, redact_text, shell_quote_single, command_args, process_options, process_options_with_cancel, safe_env_name, path_is_symlink_safe, path_has_symlink_component, path_has_parent_component, read_json_limited, append_jsonl, dict_get_or, bool_or, safe_json
 from src.adapters import fallback_allowed, watchdog_route_allowed
 from src.store import safe_run_key, store_root_safe, acquire_index_lock, acquire_index_lock_retry, release_index_lock
@@ -179,4 +179,19 @@ persist_failure := save_state({"status": "completed"}, evidence_root)
 failed = failed + check("state persistence failure fails closed", persist_failure["status"] == "failed" && dict_get_or(persist_failure, "evidence_failure", {})["class"] == "evidence_failure")
 os_rmdir(evidence_root + "/state.json")
 os_rmdir(evidence_root)
+artifact_root := "/tmp/relay-contract-required-artifact-" + to_string(current_timestamp())
+create_dir(artifact_root)
+create_dir(artifact_root + "/changes.json")
+required_write_failure := persist_required_json(artifact_root + "/changes.json", {"ok": true}, "dict", "ChangeBucket")
+failed = failed + check("required artifact write failure fails closed", required_write_failure["ok"] == false)
+os_rmdir(artifact_root + "/changes.json")
+required_write_success := persist_required_json(artifact_root + "/evaluations.json", [], "array", "Eval")
+failed = failed + check("required artifact persistence verifies shape", required_write_success["ok"] == true)
+delete_file(artifact_root + "/evaluations.json")
+create_dir(artifact_root + "/report.json")
+report_failure := report({"mission_id": "m1", "run_id": "r1", "status": "completed", "current_step": "", "workflow": "verified-feature", "repository": ".", "failure": {}}, artifact_root)
+failed = failed + check("report persistence failure fails closed", report_failure["ok"] == false)
+os_rmdir(artifact_root + "/report.json")
+delete_file(artifact_root + "/report.md")
+os_rmdir(artifact_root)
 exit(failed)
