@@ -274,9 +274,8 @@ func append_jsonl_bounded(path, value, max_bytes) {
         if path_exists(path) {
             if path_is_file(path) == false { return false }
             if file_size(path) + len(line) > limit { return false }
-            append_file(path, line)
-        } else { write_file(path, line) }
-        return true
+            return append_file(path, line) == true
+        } else { return write_file(path, line) == true }
     } except err { return false }
 }
 

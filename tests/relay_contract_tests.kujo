@@ -160,6 +160,8 @@ bounded_jsonl_path := "/tmp/relay-contract-bounded-jsonl-" + to_string(current_t
 write_file(bounded_jsonl_path, "123456789\n")
 failed = failed + check("bounded JSONL append rejects oversized evidence", append_jsonl_bounded(bounded_jsonl_path, {"more": true}, 12) == false)
 delete_file(bounded_jsonl_path)
+missing_parent_jsonl_path := "/tmp/relay-contract-missing-parent-" + to_string(current_timestamp()) + "/events.jsonl"
+failed = failed + check("JSONL append reports failed file creation", append_jsonl(missing_parent_jsonl_path, {"probe": true}) == false)
 failed = failed + check("fallback allows timeout", fallback_allowed({"error": {"code": "timeout"}}))
 failed = failed + check("fallback allows rate limit", fallback_allowed({"error": {"code": "rate_limit"}}))
 failed = failed + check("fallback allows unavailable provider", fallback_allowed({"error": {"code": "provider_unavailable"}}))
