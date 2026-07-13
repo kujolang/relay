@@ -749,3 +749,16 @@ evidence truthfulness; they do not complete live provider verification,
 authenticated tenancy, durable storage, recoverable workcells, or release
 gates. The next work is recorded in
 `docs/next-session-enhancement-backlog-2026-07-13-v67.md`.
+
+## Sixty-ninth 2026-07-13 review
+
+Provider-generated tool execution is now part of the read-side completion
+boundary. When state records provider tools, `runs verify` and valid
+`runs export` require `tool-results.json`, validate its
+`relay-tool-result-bundle-v1` contract and run identity, compare its SHA-256 to
+the authoritative state record, and include the verified bundle in exports.
+The provider-tool smoke proves both a valid result and a tampered-result
+failure. This closes a local evidence gap but does not establish live provider
+dialect compatibility, durable storage, authenticated tenancy, or enterprise
+production readiness. The next-session work is tracked in
+`docs/next-session-enhancement-backlog-2026-07-13-v68.md`.

@@ -27,7 +27,7 @@
 | Worktree cleanup authority | Relay runtime + Git worktree contract | confirmed cleanup revalidates policy digest, run-owned worktree path, source repository, Git metadata, event chain, and receipts before `git worktree remove --force` | signed state, authenticated ownership, rollback, and crash recovery remain open | worktree tamper smoke plus cleanup contract | high |
 | Control-plane mutation authority | Relay runtime + checkpoint contract | `pause` and `cancel` revalidate checkpoint state before mutating a non-terminal run | signed state, authenticated ownership, and distributed control remain open | contract and cancellation/resume smokes | high |
 | Evidence persistence authority | Relay common/runtime contracts | state, receipt, event, ChangeBucket, Eval, report, and RunLedger finish write failures mark `evidence_failure`, force failed status before final reporting, and read boundaries require persisted receipt/state evidence; report readers also verify identity/status and Markdown presence instead of accepting shape-only or index fallback data | durable append-only storage, fsync semantics, crash recovery, and signed provenance remain open | contract failure injection, required-artifact/report identity/Markdown failure probes, missing receipt/state probes, and full mission evidence | high |
-| Run verification | Relay CLI + existing evidence contracts | `runs verify` aggregates authoritative state, complete events, persisted receipts, ChangeBucket, Eval, and report shape checks into `relay-run-verification-v1`; valid export fails closed and explicit partial export is versioned separately | signed manifests, upstream correlation IDs, durable storage, and authenticated partial-export authorization remain open | store smoke positive verdict plus missing changes/evaluations/export-report and paused partial-export cases | medium |
+| Run verification | Relay CLI + existing evidence contracts | `runs verify` aggregates authoritative state, complete events, persisted receipts, ChangeBucket, Eval, report identity, and required provider-generated tool-result integrity into `relay-run-verification-v1`; valid export fails closed and explicit partial export is versioned separately | signed manifests, upstream correlation IDs, durable storage, and authenticated partial-export authorization remain open | store smoke plus provider-tool smoke prove positive and tampered `tool-results.json` verdicts | medium |
 | State-store path authority | Relay store/runtime/CLI/doctor boundaries | reject symbolic-linked `.relay`, `.relay/runs`, and existing parent path components before state, index, mission, or operator-control access; dangling links and probe errors fail closed | no-follow kernel primitives, authenticated ownership, and durable multi-host storage remain open | state-store root/runs/parent redirection smoke, contract probe, and doctor posture | high |
 | Repository changes | ChangeBucket | `--json --repo` | workcell orchestration pending; mission budgets bound action count | added-file change report and budget failure smoke | low |
 | Evaluation | Eval | generated `eval.json`, run command | richer multi-step suites pending | passing `git diff --check` | low |
@@ -95,3 +95,11 @@ write ceilings. PackWrite integration now verifies a safe generated
 mission, Agents SDK, and input-boundary smokes provide local evidence; live
 provider compatibility, durable retention, and authenticated ownership remain
 deferred.
+
+The v68 review closes a read-side evidence gap for provider-generated tools.
+`runs verify` and valid `runs export` now require the persisted
+`relay-tool-result-bundle-v1` artifact when state says provider tools ran, check
+its run identity and SHA-256 against authoritative state, and include it in
+machine-readable exports. The provider-tool smoke proves a valid bundle and a
+tampered bundle failure; this remains local evidence rather than live-provider
+dialect or enterprise-storage proof.

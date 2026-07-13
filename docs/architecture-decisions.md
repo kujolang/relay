@@ -1080,3 +1080,29 @@ Rejected: silently truncating provider messages or evidence, allowing arbitrary
 proxy variables for convenience, accepting duplicate IDs and guessing result
 order, or treating a successful PackWrite process exit as proof that a usable
 packet exists.
+
+## ADR-097: Make provider-generated tool results part of the verified run boundary
+
+Context: the bounded provider-tool loop persisted a redacted
+`relay-tool-result-bundle-v1`, but read-side verification could still report a
+run as valid after that artifact was deleted or modified. This left a gap
+between tool execution evidence and the machine-facing completion verdict.
+
+Decision: when authoritative run state says provider-generated Agents SDK tools
+were used, `runs verify` and valid `runs export` require `tool-results.json`,
+validate its contract and run identity, recompute its SHA-256, compare it with
+the state-recorded artifact digest, and include the verified bundle in exports.
+Runs without provider-generated tools retain the existing optional-artifact
+behavior.
+
+Rationale: close the evidence gap at the existing CLI read boundary without
+creating a second tool-result store or changing the Agents SDK/AI SDK owners.
+The provider-tool smoke proves both the valid and tampered cases.
+
+Consequences: provider-generated runs fail closed if tool results are missing,
+malformed, or tampered; partial exports expose their tool-result presence and
+error. Signed manifests, durable retention, and authenticated ownership remain
+future work.
+
+Rejected: trusting the state copy of tool results, treating the artifact as
+informational only, or inventing a second receipt/database authority.

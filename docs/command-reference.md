@@ -275,6 +275,13 @@ Each AgentEvent-compatible JSONL record includes a deterministic `integrity_sha2
 the expected shapes and identity. A missing, mismatched, or incomplete result
 or report is an incomplete export, not an empty successful field.
 
+When authoritative run state records provider-generated Agents SDK tools,
+`runs verify` and valid `runs export` additionally require `tool-results.json`
+to be present, bounded, regular, a `relay-tool-result-bundle-v1` object for the
+same run, and byte-for-byte consistent with the state-recorded SHA-256.
+Tampering or deletion therefore invalidates the machine-facing verdict instead
+of leaving tool execution as an unverified side artifact.
+
 For a paused or failed run whose post-verification artifacts were never
 supposed to exist, `runs export <run-id> --partial` returns the explicit
 `relay-run-export-partial-v1` contract. It reports `completeness: "partial"`,
@@ -292,7 +299,8 @@ memory-safe. Machine callers may request a verified bounded window with
 `--after`; the complete chain is still verified before slicing and paged
 responses omit the redundant JSONL string.
 `runs export` emits a versioned JSON bundle containing run state, verified
-events, receipts, changes, evaluations, and the final report; it refuses to
+events, receipts, changes, evaluations, the final report, and provider tool
+results when present; it refuses to
 export tampered, inconsistent, malformed, symbolic-linked, or non-regular
 event/receipt evidence. Run JSON reads and event appends also reject symbolic
 links rather than following them into another filesystem location.
