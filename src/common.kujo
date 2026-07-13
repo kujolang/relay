@@ -253,6 +253,72 @@ func append_jsonl(path, value) {
     return append_jsonl_bounded(path, value, 8388608)
 }
 
+func capability_registry_path(root, run_id, session_id) {
+    base := trim(to_string(root))
+    if base == "" || path_is_symlink_safe(base) || path_has_symlink_component(base) { return "" }
+    return base + "/.relay/capabilities/" + sha256(to_string(run_id) + "|" + to_string(session_id)) + ".json"
+}
+
+func issue_agent_capability(root, run_id, session_id, workspace, nonce, max_calls, ttl_ms) {
+    path := capability_registry_path(root, run_id, session_id)
+    if path == "" { return {"ok": false, "error": {"code": "capability_registry_unsafe", "message": "Capability registry root is unsafe"}} }
+    directory := root + "/.relay/capabilities"
+    if path_is_symlink_safe(directory) || path_has_symlink_component(directory) { return {"ok": false, "error": {"code": "capability_registry_unsafe", "message": "Capability registry directory is unsafe"}} }
+    try {
+        if path_is_dir(root + "/.relay") == false { create_dir(root + "/.relay") }
+        if path_is_dir(directory) == false { create_dir(directory) }
+    } except err { return {"ok": false, "error": {"code": "capability_registry_unavailable", "message": "Capability registry directory could not be created"}} }
+    calls := int_or(max_calls, 4)
+    if calls < 1 { calls = 1 }
+    if calls > 16 { calls = 16 }
+    lifetime := int_or(ttl_ms, 180000)
+    if lifetime < 1000 { lifetime = 1000 }
+    if lifetime > 600000 { lifetime = 600000 }
+    secret := sha256(to_string(run_id) + "|" + to_string(session_id) + "|" + to_string(nonce) + "|" + to_string(current_timestamp()) + "|" + to_string(random_int(1000, 999999)))
+    record := {"contract_version": "relay-agent-capability-v1", "run_id": to_string(run_id), "session_id": to_string(session_id), "workspace": to_string(workspace), "nonce": to_string(nonce), "capability": sha256(to_string(run_id) + "|" + to_string(session_id) + "|" + to_string(workspace) + "|" + to_string(nonce) + "|relay-agent-tools"), "secret_digest": sha256(secret), "issued_at_ms": current_timestamp(), "expires_at_ms": current_timestamp() + lifetime, "max_calls": calls, "used_calls": 0}
+    if write_json(path, record) == false { return {"ok": false, "error": {"code": "capability_registry_write_failed", "message": "Capability registry record could not be persisted"}} }
+    return {"ok": true, "secret": secret, "path": path, "expires_at_ms": record["expires_at_ms"], "max_calls": calls}
+}
+
+func consume_agent_capability(root, request, supplied_secret) {
+    if type(request) != "dict" { return {"ok": false, "error": {"code": "capability_invalid", "message": "Capability request must be an object"}} }
+    run_id := to_string(dict_get_or(request, "run_id", ""))
+    session_id := to_string(dict_get_or(request, "session_id", ""))
+    path := capability_registry_path(root, run_id, session_id)
+    if path == "" || path_is_symlink_safe(path) || path_exists(path) == false { return {"ok": false, "error": {"code": "capability_not_registered", "message": "Tool capability is not registered"}} }
+    lock := path + ".lock"
+    if path_is_symlink_safe(lock) { return {"ok": false, "error": {"code": "capability_lock_unsafe", "message": "Tool capability lock is unsafe"}} }
+    try { create_dir(lock) } except err { return {"ok": false, "error": {"code": "capability_busy", "message": "Tool capability is already being consumed"}} }
+    mut result := {"ok": false, "error": {"code": "capability_invalid", "message": "Tool capability is invalid"}}
+    try {
+        record := read_json_limited(path, null, 65536)
+        if type(record) != "dict" { result = {"ok": false, "error": {"code": "capability_invalid", "message": "Tool capability record is invalid"}} }
+        else if to_string(dict_get_or(record, "run_id", "")) != run_id || to_string(dict_get_or(record, "session_id", "")) != session_id || to_string(dict_get_or(record, "workspace", "")) != to_string(dict_get_or(request, "workspace", "")) || to_string(dict_get_or(record, "nonce", "")) != to_string(dict_get_or(request, "capability_nonce", "")) || to_string(dict_get_or(record, "capability", "")) != to_string(dict_get_or(request, "capability", "")) { result = {"ok": false, "error": {"code": "capability_invalid", "message": "Tool capability identity does not match"}} }
+        else if sha256(to_string(supplied_secret)) != to_string(dict_get_or(record, "secret_digest", "")) { result = {"ok": false, "error": {"code": "capability_invalid", "message": "Tool capability secret is invalid"}} }
+        else if current_timestamp() > int_or(dict_get_or(record, "expires_at_ms", 0), 0) { result = {"ok": false, "error": {"code": "capability_expired", "message": "Tool capability has expired"}} }
+        else {
+            used := int_or(dict_get_or(record, "used_calls", 0), 0)
+            maximum := int_or(dict_get_or(record, "max_calls", 0), 0)
+            if maximum < 1 || used >= maximum { result = {"ok": false, "error": {"code": "capability_replay_detected", "message": "Tool capability call budget is exhausted"}} }
+            else {
+                record["used_calls"] := used + 1
+                record["last_used_at_ms"] := current_timestamp()
+                if write_json(path, record) == false { result = {"ok": false, "error": {"code": "capability_registry_write_failed", "message": "Tool capability usage could not be persisted"}} }
+                else { result = {"ok": true, "used_calls": used + 1, "remaining_calls": maximum - used - 1, "expires_at_ms": record["expires_at_ms"]} }
+            }
+        }
+    } except err { result = {"ok": false, "error": {"code": "capability_invalid", "message": "Tool capability could not be verified"}} }
+    if path_is_dir(lock) { os_rmdir(lock) }
+    return result
+}
+
+func revoke_agent_capability(root, run_id, session_id) {
+    path := capability_registry_path(root, run_id, session_id)
+    if path == "" || path_is_symlink_safe(path) { return false }
+    if path_exists(path) == false { return true }
+    try { delete_file(path); return true } except err { return false }
+}
+
 func redact_text(value) {
     text := to_string(value)
     text := replace(text, "Authorization: Bearer ", "Authorization: Bearer [REDACTED]")
@@ -310,5 +376,9 @@ export read_json_limited := read_json_limited
 export write_json := write_json
 export append_jsonl_bounded := append_jsonl_bounded
 export append_jsonl := append_jsonl
+export capability_registry_path := capability_registry_path
+export issue_agent_capability := issue_agent_capability
+export consume_agent_capability := consume_agent_capability
+export revoke_agent_capability := revoke_agent_capability
 export contains_any := contains_any
 export redact_text := redact_text

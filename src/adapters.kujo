@@ -1,4 +1,4 @@
-from src.common import dict_get_or, env_or, env_bool, string_or, bool_or, int_or, safe_json, read_json_or, redact_text, process_options, safe_env_name, contains_any, path_is_symlink_safe, path_has_symlink_component
+from src.common import dict_get_or, env_or, env_bool, string_or, bool_or, int_or, safe_json, read_json_or, redact_text, process_options, safe_env_name, contains_any, path_is_symlink_safe, path_has_symlink_component, issue_agent_capability, revoke_agent_capability
 from src.policy import real_path, path_is_within_root
 from src.watchdog import watchdog_verify, safe_base, route_policy, safe_correlation_id
 
@@ -346,11 +346,18 @@ func agents_sdk_tool_run(workspace, spec, run_id, session_id) {
     # worker receives this nonce only through the short-lived parent/child
     # environment boundary and Relay verifies it again at the tool authority.
     capability_nonce := sha256(run_id + "|" + session_id + "|" + workspace + "|" + to_string(current_timestamp()) + "|" + to_string(random_int(1000, 999999)))
+    tool_budgets := dict_get_or(spec, "budgets", {})
+    max_tool_calls := int_or(dict_get_or(tool_budgets, "max_tool_calls", 4), 4)
+    if max_tool_calls < 1 { max_tool_calls = 1 }
+    if max_tool_calls > 16 { max_tool_calls = 16 }
+    issued := issue_agent_capability(relay_root(), run_id, session_id, workspace, capability_nonce, max_tool_calls, 180000)
+    if dict_get_or(issued, "ok", false) == false { return {"ok": false, "data": {"ok": false, "error": dict_get_or(issued, "error", {"code": "capability_registry_unavailable"})}, "stdout": "", "stderr": "capability registry unavailable", "duration_ms": 0} }
     payload := {
         "relay_root": relay_root(),
         "kujo_bin": kujo_bin(),
         "capability": sha256(run_id + "|" + session_id + "|" + workspace + "|" + capability_nonce + "|relay-agent-tools"),
         "capability_nonce": capability_nonce,
+        "capability_secret": dict_get_or(issued, "secret", ""),
         "run_id": run_id,
         "session_id": session_id,
         "workspace": workspace,
@@ -365,6 +372,7 @@ func agents_sdk_tool_run(workspace, spec, run_id, session_id) {
     env_map := {"RELAY_AGENT_PAYLOAD": safe_json(payload), "RELAY_ROOT": relay_root(), "KUJO_BIN": kujo_bin()}
     command := ["/usr/bin/env", "-C", agents_sdk_root(), kujo_bin(), "run", relay_root() + "/src/agent_bridge.kujo", "--interpreter"]
     result := run_process(command, "", env_map, 120000)
+    revoke_agent_capability(relay_root(), run_id, session_id)
     parsed := last_json(dict_get_or(result, "stdout", ""))
     ok := dict_get_or(result, "success", false)
     if type(parsed) != "dict" || dict_get_or(parsed, "ok", false) == false { ok = false }

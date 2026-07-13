@@ -116,7 +116,7 @@ func call_relay_worker(tool_name, input_payload, context, payload) {
     }
     payload["tool_call_count"] := call_count + 1
     command := ["/usr/bin/env", "-C", relay_root, kujo_bin, "run", relay_root + "/main.kujo", "--", "tools", "execute", "--json"]
-    result := spawn_process(command, process_options({"RELAY_TOOL_REQUEST": to_json(request), "RELAY_TOOL_CAPABILITY": capability}, 120000))
+    result := spawn_process(command, process_options({"RELAY_TOOL_REQUEST": to_json(request), "RELAY_TOOL_CAPABILITY": capability, "RELAY_TOOL_CAPABILITY_SECRET": get(payload, "capability_secret", "")}, 120000))
     parsed := last_json(result.stdout)
     if type(parsed) != "dict" { return {"ok": false, "error": {"message": "Relay tools worker returned no JSON", "stderr": redact_text(to_string(result.stderr))}} }
     if result.success == false || get(parsed, "ok", false) == false { return {"ok": false, "error": {"message": redact_text(get(get(parsed, "error", {}), "message", "Relay tools worker failed")), "worker_success": result.success, "worker_stdout": redact_text(to_string(result.stdout)), "worker_stderr": redact_text(to_string(result.stderr))}} }

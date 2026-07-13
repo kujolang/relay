@@ -1,0 +1,17 @@
+from src.common import dict_get_or, issue_agent_capability, env_or, int_or
+
+raw := env_or("RELAY_CAPABILITY_FIXTURE", "")
+payload := null
+try { payload = parse_json(raw) } except err { print(to_json({"ok": false, "error": "invalid capability fixture"})); exit(1) }
+if type(payload) != "dict" { print(to_json({"ok": false, "error": "invalid capability fixture"})); exit(1) }
+result := issue_agent_capability(
+    to_string(dict_get_or(payload, "root", "")),
+    to_string(dict_get_or(payload, "run_id", "")),
+    to_string(dict_get_or(payload, "session_id", "")),
+    to_string(dict_get_or(payload, "workspace", "")),
+    to_string(dict_get_or(payload, "nonce", "")),
+    int_or(dict_get_or(payload, "max_calls", 4), 4),
+    int_or(dict_get_or(payload, "ttl_ms", 180000), 180000)
+)
+print(to_json(result))
+if dict_get_or(result, "ok", false) == false { exit(1) }
