@@ -61,6 +61,16 @@ alpha/showcase; live provider proof, provider-generated tools, workcell crash
 recovery, authenticated machine mode, durable storage, and signed export remain
 open.
 
+## Fifty-sixth 2026-07-13 review
+
+Relay now revalidates approval, timeout, and byte-budget policy inside the
+capability-bound Agents SDK worker, and `runs watch` reads terminal state through
+the same identity-checked authoritative evidence boundary used by inspection
+and export. Direct-worker, watcher-integrity, mission, store, and CLI smokes
+pass. This strengthens local authority and failure detection but does not claim
+provider-generated tool planning, authenticated machine invocation, workcell
+crash recovery, durable storage, or enterprise readiness.
+
 ## Fifty-third 2026-07-13 review
 
 This review added two bounded local improvements. `runs sizes` now rejects

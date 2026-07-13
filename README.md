@@ -115,7 +115,7 @@ inventory rejects oversized directories before recursive flattening.
 - `tests/relay_output_budget_smoke.sh`: bounded command evidence and explicit truncation smoke test
 - `tests/relay_watchdog_smoke.sh`: configured Watchdog health/config/request-correlation contract smoke test
 - `tests/relay_watchdog_real_smoke.sh`: actual local Watchdog server, token auth, stub upstream, and correlation smoke test
-- `tests/relay_agents_tool_smoke.sh`: isolated mission, denied-write approval, and tampered worker-root rejection
+- `tests/relay_agents_tool_smoke.sh`: isolated mission, denied-write approval, direct-worker approval/budget/timeout rejection, and tampered worker-root rejection
 - `tests/relay_resume_integrity_smoke.sh`: tampered paused-run workspace and mission-policy rejection before resume
 - `tests/relay_state_store_safety_smoke.sh`: state-root and runs-directory symlink redirection rejection
 - `tests/relay_symlink_probe_smoke.sh`: dangling-symlink and probe-error rejection at the shared filesystem boundary
@@ -154,4 +154,4 @@ bash tests/relay_symlink_probe_smoke.sh
 git diff --check
 ```
 
-For the full integration evidence boundary and deferred enterprise work, see [`docs/enterprise-readiness-review-2026-07-11.md`](docs/enterprise-readiness-review-2026-07-11.md), [`docs/command-reference.md`](docs/command-reference.md), and the current [`docs/next-session-enhancement-backlog-2026-07-13-v55.md`](docs/next-session-enhancement-backlog-2026-07-13-v55.md).
+For the full integration evidence boundary and deferred enterprise work, see [`docs/enterprise-readiness-review-2026-07-11.md`](docs/enterprise-readiness-review-2026-07-11.md), [`docs/command-reference.md`](docs/command-reference.md), and the current [`docs/next-session-enhancement-backlog-2026-07-13-v56.md`](docs/next-session-enhancement-backlog-2026-07-13-v56.md).

@@ -577,3 +577,14 @@ flattening. Store, sizes, mission, watch, and resume-integrity smokes pass.
 Relay remains a hardened local alpha/showcase; live provider proof,
 provider-generated tools, workcell crash recovery, authenticated machine mode,
 durable storage, and signed export remain open.
+
+## Fifty-sixth 2026-07-13 review
+
+The internal Agents SDK worker now rechecks write approval, command timeout,
+and output/write byte budgets at the Relay execution boundary. `runs watch`
+also uses the identity-checked authoritative state reader and fails immediately
+on a symlinked state artifact instead of waiting for a misleading timeout.
+Direct-worker policy and watcher-integrity smokes pass. These are local defense-
+in-depth improvements; provider-generated tools, authenticated machine access,
+workcell crash recovery, durable storage, and enterprise deployment evidence
+remain open.

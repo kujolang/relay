@@ -769,3 +769,29 @@ artifact directories fail with a clear bound; the index remains a rebuildable
 cache and durable multi-host storage remains deferred. Rejected: treating
 placeholder metadata as valid, or flattening unbounded directories before
 checking limits.
+
+## ADR-076: Revalidate worker-tool policy at the execution boundary
+
+Context: the Agents SDK bridge already applies an approval provider and a
+capability-bound worker, but a direct internal worker request could otherwise
+reach `execute_action` with caller-supplied write approval or unbounded timeout
+and byte-budget values. Decision: recheck `approval.approved`, command timeout,
+and output/write byte bounds inside the Relay worker immediately before action
+execution. Rationale: every authority boundary must remain safe if an upstream
+adapter is bypassed, malformed, or later replaced. Consequence: duplicate
+validation is intentional defense in depth and the existing Agents SDK contract
+remains compatible; authenticated machine invocation is still deferred.
+Rejected: trusting the bridge-only approval decision or treating the capability
+hash as caller authentication.
+
+## ADR-077: Watch terminal state through the authoritative evidence reader
+
+Context: `runs watch` validated the event log and receipts but read terminal
+state through a generic JSON fallback. A symlinked or malformed state file could
+therefore be treated as a non-terminal empty state and cause a misleading
+timeout. Decision: pass the requested run ID into the watcher and use the same
+identity-checked, regular-file state reader as other read boundaries. Rationale:
+watch is a machine-facing evidence interface and must fail immediately on
+unsafe state rather than waiting. Consequence: state-link and missing-state
+failures are explicit; the bounded local watcher remains non-durable and
+single-host. Rejected: raw state fallback or timeout-based detection.

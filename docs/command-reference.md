@@ -110,8 +110,10 @@ its authority through Git's option surface.
 `relay.write_file` and `relay.run_command`. The Agents SDK Tool Registry and
 approval provider run in `src/agent_bridge.kujo`; a capability-bound worker then
 delegates to Relay's policy executor. It does not grant the Agents SDK direct
-filesystem or shell authority. Provider-generated tool planning, interactive
-approvals, and authenticated remote invocation are not yet enabled. The worker
+filesystem or shell authority. The worker rechecks write approval, command
+timeout, and byte-budget bounds instead of trusting only the Agents SDK caller.
+Provider-generated tool planning, interactive approvals, and authenticated
+remote invocation are not yet enabled. The worker
 also ignores or rejects payload-selected `relay_root` and `kujo_bin` values
 unless they exactly match the trusted process environment, and refuses a
 symbolic-linked or missing trusted Relay root.
@@ -229,7 +231,7 @@ links rather than following them into another filesystem location.
 as a JSONL record while the run is active. Polling is bounded to 1–1000 ms and
 the watch timeout to 1–600000 ms. The watcher verifies the event chain on every
 poll, tolerates the short final state/file persistence race, and fails closed
-on malformed, oversized, or terminally inconsistent evidence.
+on malformed, oversized, symlinked state, or terminally inconsistent evidence.
 
 `runs sizes <run-id>` returns a versioned, read-only inventory of files and
 directories under the run artifact directory, including total byte/file counts

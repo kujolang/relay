@@ -55,15 +55,16 @@
 - Bounded `runs sizes` recursion to 16 directory levels and removed a redundant run-tree scan during index registration; cache records now preserve `updated_at`, avoiding needless rebuilds on subsequent reads.
 - Required mission completion to verify persisted ChangeBucket, Eval, Markdown/JSON report, and RunLedger finish artifacts; injected artifact-write failures now fail closed with typed evidence failures and focused contract coverage.
 - Hardened read-side evidence authority: `runs verify`, `runs export`, and `missions report` now require report identity/status agreement and a bounded regular Markdown report; the run index rejects placeholder records when authoritative state is absent; artifact inventory rejects oversized single directories before recursive flattening.
+- Revalidated the internal Agents SDK worker boundary for write approval, command timeout, and output/write byte budgets; `runs watch` now reads terminal state through the identity-checked authoritative evidence reader and fails closed on unsafe state links.
 
 ## Deferred
 
  Live Ollama Cloud proof, a live Watchdog-backed mission against a real external provider, provider-driven model tool planning, richer Agents SDK runner/tool-result artifact integration, Dispatch workflow import, dynamic agent discovery, full workcell isolation/rollback/recovery, CaseFile failure bundles, full Redact integration, MCP adapter, adaptive routing, Capsule A/B scoring, durable concurrent storage, signed export, richer retry/repair/cancellation receipts, remote event sinks, aggregate metrics, artifact retention/compaction, crash recovery, and ShipCheck/Concord release gates. Local real-Watchdog/stub-provider correlation, one fixture mission through the Agents SDK Tool Registry, complete event-sequence and receipt verification, exact Git argv policy, bounded lock backoff, incremental bounded live event watch, bounded duration evidence, bounded artifact size inventory with depth denial, cooperative cancellation, symlink-safe evidence access including parent-component store checks, bounded mission-spec input, bounded persisted JSON parsing, required persisted receipt/state read boundaries, failure-aware fallback, trusted worker-root binding, bounded bridge payloads, validated live Watchdog routes, HTTPS enforcement for non-loopback routes, secret-safe doctor route posture, route telemetry non-disclosure, endpoint-independent Watchdog diagnostics, integrity-bound resume checkpoints, integrity-bound worktree cleanup, integrity-bound pause/cancel controls, structured local credential/token/private-key redaction, dependency-integrity doctor checks, deterministic upstream version probes, optional SHA-256 dependency pinning, credential-environment injection deny rules, fail-closed symlink probe errors and dangling-symlink detection, explicit cancellation/timeout action classes, descendant-safe timeout termination evidence, PackWrite atomic pack writes, fail-closed evidence persistence including required ChangeBucket/Eval/report artifacts and RunLedger finish, state-store symlink rejection, sealed receipt execution context, the read-only `runs verify` contract, complete export artifact checks, explicit non-valid partial export checks, cache-consistent index metadata, and single-scan registration are proven. See `docs/next-session-enhancement-backlog-2026-07-13-v54.md`.
 
-Current follow-on backlog: `docs/next-session-enhancement-backlog-2026-07-13-v55.md`.
+Current follow-on backlog: `docs/next-session-enhancement-backlog-2026-07-13-v56.md`.
 
-The v55 handoff supersedes the earlier v54 review backlog after the read-side
-evidence and artifact-inventory hardening delivered in this session.
+The v56 handoff supersedes the earlier v55 review backlog after the worker
+boundary and watcher-state hardening delivered in this session.
 
 ## Dependency order
 
