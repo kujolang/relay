@@ -9,8 +9,9 @@ SYMLINK="/tmp/relay-symlink-mission.json"
 REPO_LINK="/tmp/relay-symlink-repository-$$"
 INVALID_ACTION="/tmp/relay-invalid-action-mission.json"
 INVALID_PROVIDER="/tmp/relay-invalid-provider-tool-mission.json"
+INVALID_TURNS="/tmp/relay-invalid-tool-turns-mission.json"
 
-rm -rf "$WORK" "$ROOT/.relay" "$LARGE" "$SYMLINK" "$REPO_LINK" "$INVALID_ACTION" "$INVALID_PROVIDER"
+rm -rf "$WORK" "$ROOT/.relay" "$LARGE" "$SYMLINK" "$REPO_LINK" "$INVALID_ACTION" "$INVALID_PROVIDER" "$INVALID_TURNS"
 mkdir -p "$WORK"
 git init -q "$WORK"
 git -C "$WORK" config user.email relay@example.invalid
@@ -62,5 +63,13 @@ invalid_provider_status=$?
 set -e
 test "$invalid_provider_status" -ne 0
 printf '%s' "$invalid_provider_output" | grep -q 'agent_tool_allowlist'
+
+ruby -rjson -e 'path=ARGV.fetch(0); repo=ARGV.fetch(1); File.write(path, JSON.generate({name:"invalid-tool-turns",goal:"must reject unbounded turns",repository:repo,budgets:{max_tool_turns:5},actions:[]}))' "$INVALID_TURNS" "$WORK"
+set +e
+invalid_turns_output="$($KUJO run "$ROOT/main.kujo" -- missions run "$INVALID_TURNS" --fixture --skip-agent-smoke --json 2>&1)"
+invalid_turns_status=$?
+set -e
+test "$invalid_turns_status" -ne 0
+printf '%s' "$invalid_turns_output" | grep -q 'max_tool_turns'
 
 echo "PASS relay spec safety smoke"

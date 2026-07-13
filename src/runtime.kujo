@@ -131,6 +131,58 @@ func persist_required_json(path, value, expected_type, label) {
     return {"ok": true, "path": path}
 }
 
+func provider_assistant_tool_calls(calls) {
+    messages := []
+    if type(calls) != "array" { return messages }
+    for call in calls {
+        messages := push(messages, {"id": string_or(dict_get_or(call, "provider_call_id", ""), ""), "type": "function", "function": {"name": string_or(dict_get_or(call, "name", ""), ""), "arguments": safe_json(dict_get_or(call, "input", {}))}})
+    }
+    return messages
+}
+
+func provider_tool_result_messages(calls, agent_sdk_tools, turn) {
+    messages := []
+    results := []
+    data := dict_get_or(agent_sdk_tools, "data", {})
+    summaries := dict_get_or(data, "tool_calls", [])
+    mut index := 0
+    if type(calls) != "array" { return {"messages": messages, "results": results} }
+    for call in calls {
+        summary := {}
+        if type(summaries) == "array" && index < len(summaries) && type(summaries[index]) == "dict" { summary = summaries[index] }
+        result := {"ok": bool_or(dict_get_or(summary, "ok", false), false), "tool_name": string_or(dict_get_or(call, "name", ""), ""), "output": dict_get_or(summary, "output", {}), "error": {"kind": string_or(dict_get_or(summary, "error_kind", ""), ""), "message": redact_text(string_or(dict_get_or(summary, "error_message", ""), ""))}}
+        message := {"role": "tool", "tool_call_id": string_or(dict_get_or(call, "provider_call_id", ""), ""), "name": string_or(dict_get_or(call, "name", ""), ""), "content": safe_json(result)}
+        messages := push(messages, message)
+        results := push(results, {"turn": turn, "provider_call_id": message["tool_call_id"], "tool_name": message["name"], "result": result})
+        index = index + 1
+    }
+    return {"messages": messages, "results": results}
+}
+
+func persist_provider_tool_results(run_dir, state, results) {
+    bundle := {"contract_version": "relay-tool-result-bundle-v1", "run_id": state["run_id"], "results": results}
+    persisted := persist_required_json(run_dir + "/tool-results.json", bundle, "dict", "Provider tool-result bundle")
+    if dict_get_or(persisted, "ok", false) == false { return persisted }
+    persisted["integrity_sha256"] := sha256_file(run_dir + "/tool-results.json")
+    return persisted
+}
+
+func record_model_fallback(state, run_dir, telemetry, step_id) {
+    decision := dict_get_or(telemetry, "fallback_decision", null)
+    if type(decision) != "dict" || string_or(dict_get_or(decision, "action", "none"), "none") == "none" { return state }
+    state["retry_id"] := "retry-model-fallback-" + to_string(current_timestamp()) + "-" + to_string(random_int(1000, 999999))
+    fallback_action := string_or(dict_get_or(decision, "action", "skipped"), "skipped")
+    fallback_status := "skipped"
+    fallback_kind := "model_fallback_skipped"
+    if fallback_action == "attempt" { fallback_status = "completed"; fallback_kind = "model_fallback_selected" }
+    fallback_payload := {"decision": decision, "telemetry": telemetry, "retry_id": state["retry_id"]}
+    fallback_receipt_result := record_receipt(state, run_dir, "fallback", step_id, "planner", "model/fallback", fallback_status, fallback_payload)
+    state = apply_receipt_result(state, fallback_receipt_result)
+    fallback_receipt := fallback_receipt_result["receipt"]
+    state := add_event(state, run_dir, fallback_kind, step_id, "planner", {"decision": decision, "retry_id": state["retry_id"], "receipt_id": fallback_receipt["receipt_id"]})
+    return state
+}
+
 func register_run(state, run_dir) {
     # The per-run state is authoritative. Let the locked persistence path
     # rebuild once from those state files instead of scanning the run tree
@@ -170,7 +222,7 @@ func resume_state_safe(state, run_id, run_dir) {
     } else { return {"ok": false, "error": "run workspace mode is invalid"} }
     state_budgets := dict_get_or(state, "budgets", {})
     if type(state_budgets) != "dict" { return {"ok": false, "error": "run budget state is missing"} }
-    defaults := {"max_steps": 8, "max_repairs": 1, "max_tokens": 4000, "max_tool_calls": 4, "max_output_bytes": 1048576, "max_write_bytes": 1048576}
+    defaults := {"max_steps": 8, "max_repairs": 1, "max_tokens": 4000, "max_tool_calls": 4, "max_tool_turns": 2, "max_output_bytes": 1048576, "max_write_bytes": 1048576}
     for key in keys(defaults) {
         if int_or(dict_get_or(state_budgets, key, -1), -1) != expected_budget(spec, key, defaults[key]) { return {"ok": false, "error": "run budget integrity verification failed"} }
     }
@@ -223,12 +275,13 @@ func load_spec(path) {
     if len(actions) > 32 { return {"ok": false, "error": "Mission exceeds the 32-action safety limit"} }
     budgets := dict_get_or(spec, "budgets", {})
     if type(budgets) != "dict" { return {"ok": false, "error": "Mission budgets must be an object"} }
-    for key in ["max_steps", "max_repairs", "max_tokens", "max_tool_calls", "max_output_bytes", "max_write_bytes"] {
+    for key in ["max_steps", "max_repairs", "max_tokens", "max_tool_calls", "max_tool_turns", "max_output_bytes", "max_write_bytes"] {
         if has_key(budgets, key) {
             value := int_or(budgets[key], -1)
             if value < 0 { return {"ok": false, "error": "Mission budget " + key + " must be a non-negative integer"} }
             if (key == "max_tool_calls" || key == "max_output_bytes" || key == "max_write_bytes") && value == 0 { return {"ok": false, "error": "Mission budget " + key + " must be greater than zero"} }
             if key == "max_tool_calls" && value > 16 { return {"ok": false, "error": "Mission budget max_tool_calls exceeds the 16-call safety limit"} }
+            if key == "max_tool_turns" && (value == 0 || value > 4) { return {"ok": false, "error": "Mission budget max_tool_turns must be between 1 and 4"} }
             if (key == "max_output_bytes" || key == "max_write_bytes") && value > 8388608 { return {"ok": false, "error": "Mission budget " + key + " exceeds the 8 MiB safety limit"} }
         }
     }
@@ -544,7 +597,7 @@ func run_mission(path, options) {
     state["provider"] := string_or(dict_get_or(spec, "provider", "fixture"), "fixture")
     configured_budgets := dict_get_or(spec, "budgets", {})
     budgets := state["budgets"]
-    for key in ["max_steps", "max_repairs", "max_tokens", "max_tool_calls", "max_output_bytes", "max_write_bytes"] {
+    for key in ["max_steps", "max_repairs", "max_tokens", "max_tool_calls", "max_tool_turns", "max_output_bytes", "max_write_bytes"] {
         if has_key(configured_budgets, key) { budgets[key] := int_or(configured_budgets[key], budgets[key]) }
     }
     state["budgets"] := budgets
@@ -596,47 +649,108 @@ func run_mission(path, options) {
     planner := find_agent("planner")
     planning_tools := []
     if agent_tool_mode == "provider" { planning_tools = tool_definitions(dict_get_or(spec, "agent_tool_allowlist", [])) }
-    model_result := ai_chat_correlated_with_tools([{"role": "system", "content": planner["mandate"]}, {"role": "user", "content": to_string(spec["goal"])}], string_or(dict_get_or(spec, "model", "fixture-model"), "fixture-model"), string_or(dict_get_or(spec, "provider", "fixture"), "fixture"), bool_or(dict_get_or(options, "offline_fixture", true), true), bool_or(dict_get_or(options, "stream", false), false), state["run_id"], planning_tools)
+    provider_messages := [{"role": "system", "content": planner["mandate"]}, {"role": "user", "content": to_string(spec["goal"])}]
+    model_result := ai_chat_correlated_with_tools(provider_messages, string_or(dict_get_or(spec, "model", "fixture-model"), "fixture-model"), string_or(dict_get_or(spec, "provider", "fixture"), "fixture"), bool_or(dict_get_or(options, "offline_fixture", true), true), bool_or(dict_get_or(options, "stream", false), false), state["run_id"], planning_tools)
     state["telemetry"] := dict_get_or(model_result, "relay_telemetry", {})
-    fallback_decision := dict_get_or(state["telemetry"], "fallback_decision", null)
-    if type(fallback_decision) == "dict" && string_or(dict_get_or(fallback_decision, "action", "none"), "none") != "none" {
-        state["retry_id"] := "retry-model-fallback-" + to_string(current_timestamp()) + "-" + to_string(random_int(1000, 999999))
-        fallback_action := string_or(dict_get_or(fallback_decision, "action", "skipped"), "skipped")
-        fallback_status := "skipped"
-        fallback_kind := "model_fallback_skipped"
-        if fallback_action == "attempt" {
-            fallback_status = "completed"
-            fallback_kind = "model_fallback_selected"
-        }
-        fallback_payload := {
-            "decision": fallback_decision,
-            "telemetry": state["telemetry"],
-            "retry_id": state["retry_id"]
-        }
-        fallback_receipt_result := record_receipt(state, run_dir, "fallback", "plan", "planner", "model/fallback", fallback_status, fallback_payload)
-        state = apply_receipt_result(state, fallback_receipt_result)
-        fallback_receipt := fallback_receipt_result["receipt"]
-        state := add_event(state, run_dir, fallback_kind, "plan", "planner", {"decision": fallback_decision, "retry_id": state["retry_id"], "receipt_id": fallback_receipt["receipt_id"]})
-    }
+    if agent_tool_mode != "provider" { state = record_model_fallback(state, run_dir, state["telemetry"], "plan") }
+    usage := dict_get_or(model_result, "usage", {})
+    used_tokens := int_or(dict_get_or(usage, "total_tokens", 0), 0)
     if agent_tool_mode == "provider" {
-        if dict_get_or(model_result, "ok", false) == false {
-            agent_sdk_tools = {"ok": false, "provider_generated": true, "error": "provider tool planning did not complete"}
-        } else {
+        max_tool_calls := int_or(dict_get_or(dict_get_or(spec, "budgets", {}), "max_tool_calls", 4), 4)
+        max_tool_turns := int_or(dict_get_or(dict_get_or(spec, "budgets", {}), "max_tool_turns", 2), 2)
+        tool_calls_accumulated := []
+        tool_results_accumulated := []
+        tool_result_artifact := {}
+        mut tool_turns := 0
+        mut provider_loop_ok := true
+        mut provider_loop_complete := false
+        while tool_turns < max_tool_turns {
+            tool_turns = tool_turns + 1
+            state["provider_tool_turn"] := tool_turns
+            state["telemetry"] := dict_get_or(model_result, "relay_telemetry", state["telemetry"])
+            state = record_model_fallback(state, run_dir, state["telemetry"], "plan-tool-turn-" + to_string(tool_turns))
+            if dict_get_or(model_result, "ok", false) == false {
+                provider_loop_ok = false
+                break
+            }
             normalized_tools := normalize_provider_tool_calls(dict_get_or(model_result, "tool_calls", []))
             if dict_get_or(normalized_tools, "ok", false) == false {
-                agent_sdk_tools = {"ok": false, "provider_generated": true, "error": dict_get_or(normalized_tools, "error", "provider tool call is malformed")}
-            } else if len(dict_get_or(normalized_tools, "calls", [])) > int_or(dict_get_or(dict_get_or(spec, "budgets", {}), "max_tool_calls", 4), 4) {
-                agent_sdk_tools = {"ok": false, "provider_generated": true, "error": "provider tool-call budget exceeded"}
-            } else if len(dict_get_or(normalized_tools, "calls", [])) == 0 {
-                agent_sdk_tools = {"ok": true, "provider_generated": true, "skipped": true, "reason": "provider returned no tool calls", "calls": []}
-            } else {
-                planned_spec := parse_json(safe_json(spec))
-                planned_spec["agent_tools"] := normalized_tools["calls"]
-                agent_sdk_tools = agents_sdk_tool_run(repo, planned_spec, state["run_id"], state["run_id"] + "-session")
-                agent_sdk_tools["provider_generated"] := true
-                agent_sdk_tools["calls"] := normalized_tools["calls"]
+                provider_loop_ok = false
+                agent_sdk_tools["error"] := dict_get_or(normalized_tools, "error", "provider tool call is malformed")
+                break
             }
+            calls := dict_get_or(normalized_tools, "calls", [])
+            if len(calls) == 0 {
+                provider_loop_complete = true
+                break
+            }
+            if len(tool_calls_accumulated) + len(calls) > max_tool_calls {
+                provider_loop_ok = false
+                agent_sdk_tools["error"] := "provider tool-call budget exceeded"
+                break
+            }
+            cancellation := cancellation_request(run_dir, state["run_id"])
+            if dict_get_or(cancellation, "ok", false) == false {
+                provider_loop_ok = false
+                agent_sdk_tools["error"] := dict_get_or(cancellation, "error", "cancellation request is invalid")
+                break
+            }
+            if bool_or(dict_get_or(cancellation, "requested", false), false) {
+                provider_loop_ok = false
+                agent_sdk_tools["cancelled"] := true
+                agent_sdk_tools["error"] := "mission cancellation requested during provider tool planning"
+                break
+            }
+            for call in calls { tool_calls_accumulated := push(tool_calls_accumulated, call) }
+            planned_spec := parse_json(safe_json(spec))
+            planned_spec["agent_tools"] := calls
+            execution := agents_sdk_tool_run(repo, planned_spec, state["run_id"], state["run_id"] + "-session-" + to_string(tool_turns))
+            execution["provider_generated"] := true
+            execution["calls"] := calls
+            agent_sdk_tools := execution
+            result_messages := provider_tool_result_messages(calls, execution, tool_turns)
+            for result_item in dict_get_or(result_messages, "results", []) { tool_results_accumulated := push(tool_results_accumulated, result_item) }
+            tool_result_artifact = persist_provider_tool_results(run_dir, state, tool_results_accumulated)
+            if dict_get_or(tool_result_artifact, "ok", false) == false {
+                provider_loop_ok = false
+                agent_sdk_tools["error"] := dict_get_or(tool_result_artifact, "error", "provider tool-result artifact persistence failed")
+                break
+            }
+            state["tool_results"] := tool_results_accumulated
+            state["tool_result_artifact"] := tool_result_artifact
+            state["agent_sdk_tools"] := agent_sdk_tools
+            tool_round_receipt_result := record_receipt(state, run_dir, "tool", "agent-sdk-tools-turn-" + to_string(tool_turns), "core-developer", run_dir + "/tool-results.json", evidence_status(execution["ok"]), {"kind": "provider_generated_tool_result", "turn": tool_turns, "calls": calls, "artifact": tool_result_artifact})
+            state = apply_receipt_result(state, tool_round_receipt_result)
+            tool_round_receipt := tool_round_receipt_result["receipt"]
+            state := add_event(state, run_dir, "tool_result_persisted", "agent-sdk-tools", "core-developer", {"turn": tool_turns, "ok": execution["ok"], "calls": calls, "artifact": tool_result_artifact, "receipt_id": tool_round_receipt["receipt_id"]})
+            state = save_state(state, run_dir)
+            if dict_get_or(execution, "ok", false) == false {
+                provider_loop_ok = false
+                break
+            }
+            if tool_turns >= max_tool_turns {
+                provider_loop_ok = false
+                agent_sdk_tools["error"] := "provider tool-turn budget exceeded"
+                break
+            }
+            provider_messages := push(provider_messages, {"role": "assistant", "content": string_or(dict_get_or(model_result, "output_text", ""), ""), "tool_calls": provider_assistant_tool_calls(calls)})
+            for message in dict_get_or(result_messages, "messages", []) { provider_messages := push(provider_messages, message) }
+            model_result = ai_chat_correlated_with_tools(provider_messages, string_or(dict_get_or(spec, "model", "fixture-model"), "fixture-model"), string_or(dict_get_or(spec, "provider", "fixture"), "fixture"), bool_or(dict_get_or(options, "offline_fixture", true), true), bool_or(dict_get_or(options, "stream", false), false), state["run_id"], planning_tools)
+            next_usage := dict_get_or(model_result, "usage", {})
+            used_tokens = used_tokens + int_or(dict_get_or(next_usage, "total_tokens", 0), 0)
         }
+        agent_sdk_tools["provider_generated"] := true
+        agent_sdk_tools["calls"] := tool_calls_accumulated
+        agent_sdk_tools["results"] := tool_results_accumulated
+        agent_sdk_tools["turns"] := tool_turns
+        agent_sdk_tools["tool_result_artifact"] := tool_result_artifact
+        agent_sdk_tools["ok"] := provider_loop_ok && provider_loop_complete
+        if agent_sdk_tools["ok"] == false && string_or(dict_get_or(agent_sdk_tools, "error", ""), "") == "" { agent_sdk_tools["error"] := "provider tool planning did not complete" }
+        if dict_get_or(tool_result_artifact, "ok", false) {
+            state["artifacts"] := push(dict_get_or(state, "artifacts", []), {"kind": "provider_tool_result_bundle", "path": run_dir + "/tool-results.json", "integrity_sha256": dict_get_or(tool_result_artifact, "integrity_sha256", ""), "turns": tool_turns})
+        }
+        state["provider_tool_turns"] := tool_turns
+        state["provider_tool_calls"] := len(tool_calls_accumulated)
         state["agent_sdk_tools"] := agent_sdk_tools
         provider_tool_receipt_result := record_receipt(state, run_dir, "tool", "agent-sdk-tools", "core-developer", "agent_sdk_tools", evidence_status(agent_sdk_tools["ok"]), {"kind": "provider_generated_tool_plan", "ok": agent_sdk_tools["ok"], "provider_generated": true, "calls": dict_get_or(agent_sdk_tools, "calls", [])})
         state = apply_receipt_result(state, provider_tool_receipt_result)
@@ -644,7 +758,13 @@ func run_mission(path, options) {
         state := add_event(state, run_dir, "tool_plan_resolved", "agent-sdk-tools", "planner", {"kind": "provider_generated_tool_plan", "ok": agent_sdk_tools["ok"], "provider_generated": true, "calls": dict_get_or(agent_sdk_tools, "calls", []), "receipt_id": provider_tool_receipt["receipt_id"]})
     }
     usage := dict_get_or(model_result, "usage", {})
-    used_tokens := int_or(dict_get_or(usage, "total_tokens", 0), 0)
+    if agent_tool_mode == "provider" {
+        usage["relay_total_tokens"] := used_tokens
+        final_telemetry := dict_get_or(state, "telemetry", {})
+        final_telemetry["provider_tool_turns"] := int_or(dict_get_or(state, "provider_tool_turns", 0), 0)
+        final_telemetry["provider_tool_calls"] := int_or(dict_get_or(state, "provider_tool_calls", 0), 0)
+        state["telemetry"] := final_telemetry
+    }
     budgets := dict_get_or(state, "budgets", {})
     budgets["used_tokens"] := used_tokens
     state["budgets"] := budgets

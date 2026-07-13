@@ -197,7 +197,7 @@ failed = failed + check("safe Watchdog URL", safe_base("http://127.0.0.1:7700"))
 failed = failed + check("Watchdog URL with embedded credentials denied", safe_base("http://user:secret@127.0.0.1:7700") == false)
 failed = failed + check("Watchdog URL with unsupported scheme denied", safe_base("file:///tmp/watchdog") == false)
 resume_spec := {"repository": ".", "workspace_mode": "provided", "budgets": {"max_steps": 8}}
-resume_state := {"run_id": "resume-contract", "mission_spec": resume_spec, "mission_spec_integrity_sha256": sha256(safe_json(resume_spec)), "events": [], "receipts": [], "repository": ".", "workspace": {"mode": "provided", "source_repository": ".", "path": "."}, "budgets": {"max_steps": 8, "max_repairs": 1, "max_tokens": 4000, "max_tool_calls": 4, "max_output_bytes": 1048576, "max_write_bytes": 1048576}, "attempt": 0}
+resume_state := {"run_id": "resume-contract", "mission_spec": resume_spec, "mission_spec_integrity_sha256": sha256(safe_json(resume_spec)), "events": [], "receipts": [], "repository": ".", "workspace": {"mode": "provided", "source_repository": ".", "path": "."}, "budgets": {"max_steps": 8, "max_repairs": 1, "max_tokens": 4000, "max_tool_calls": 4, "max_tool_turns": 2, "max_output_bytes": 1048576, "max_write_bytes": 1048576}, "attempt": 0}
 resume_state["integrity_sha256"] := sha256(state_integrity_input(resume_state))
 failed = failed + check("state integrity seal", state_integrity_valid(resume_state))
 failed = failed + check("resume state integrity accepts matching state", resume_state_safe(resume_state, "resume-contract", "/tmp/relay-contract-run") ["ok"])

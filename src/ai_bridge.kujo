@@ -20,7 +20,13 @@ model := get(payload, "model", "fixture-model")
 provider := custom_openai_compatible_provider(base_url, api_env, model)
 messages := []
 for item in get(payload, "messages", []) {
-    if type(item) == "dict" { messages := push(messages, create_message(get(item, "role", "user"), get(item, "content", ""))) }
+    if type(item) == "dict" {
+        message := create_message(get(item, "role", "user"), get(item, "content", ""))
+        for key in ["name", "tool_call_id", "tool_calls"] {
+            if has_key(item, key) { message[key] := item[key] }
+        }
+        messages := push(messages, message)
+    }
 }
 client := create_client(provider, null)
 options := {"model": model, "max_tokens": get(payload, "max_tokens", 700), "temperature": get(payload, "temperature", 0.2), "max_retries": 1, "offline_fixture": get(payload, "offline_fixture", true), "stream": get(payload, "stream", false)}

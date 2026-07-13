@@ -159,7 +159,7 @@ func run_state(mission_id, workflow, repo, run_id) {
         "updated_at": now_iso(),
         "current_step": "",
         "attempt": 0,
-        "budgets": {"max_steps": 8, "max_repairs": 1, "max_tokens": 4000, "max_tool_calls": 4, "max_output_bytes": 1048576, "max_write_bytes": 1048576, "used_tokens": 0},
+        "budgets": {"max_steps": 8, "max_repairs": 1, "max_tokens": 4000, "max_tool_calls": 4, "max_tool_turns": 2, "max_output_bytes": 1048576, "max_write_bytes": 1048576, "used_tokens": 0},
         "model": "",
         "provider": "",
         "packet_revision": 0,

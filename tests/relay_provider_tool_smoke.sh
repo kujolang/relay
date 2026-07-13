@@ -57,13 +57,15 @@ export OPENAI_API_KEY=relay-stub-provider-key
 export KUJO_AI_SDK_ALLOW_INSECURE_LOCALHOST=true
 
 result="$($KUJO run "$ROOT/main.kujo" -- missions run "$MISSION" --skip-agent-smoke --json)"
-printf '%s' "$result" | jq -e '.ok == true and .run.status == "completed" and .run.agent_sdk_tools.provider_generated == true and (.run.agent_sdk_tools.calls | length) == 1 and (.run.telemetry.correlation_id | length) > 0' >/dev/null
+printf '%s' "$result" | jq -e '.ok == true and .run.status == "completed" and .run.agent_sdk_tools.provider_generated == true and (.run.agent_sdk_tools.calls | length) == 1 and .run.agent_sdk_tools.turns == 2 and (.run.telemetry.correlation_id | length) > 0' >/dev/null
 run_id="$(printf '%s' "$result" | jq -r '.run.run_id')"
 test -f "$WORK/PROVIDER_TOOL_OUTPUT.txt"
 grep -q 'provider-generated tool call' "$WORK/PROVIDER_TOOL_OUTPUT.txt"
+test -f "$ROOT/.relay/runs/$run_id/tool-results.json"
+jq -e --arg run_id "$run_id" '.contract_version == "relay-tool-result-bundle-v1" and .run_id == $run_id and (.results | length) == 1 and .results[0].result.ok == true' "$ROOT/.relay/runs/$run_id/tool-results.json" >/dev/null
 
 events="$($KUJO run "$ROOT/main.kujo" -- runs events "$run_id" --json)"
-printf '%s' "$events" | jq -e '.ok == true and any(.events[]; .kind == "tool_plan_resolved" and .payload.provider_generated == true)' >/dev/null
+printf '%s' "$events" | jq -e '.ok == true and any(.events[]; .kind == "tool_plan_resolved" and .payload.provider_generated == true) and any(.events[]; .kind == "tool_result_persisted")' >/dev/null
 if printf '%s' "$result" | grep -q 'relay-proxy-token\|relay-api-token\|relay-stub-provider-key'; then
   echo "provider tool smoke leaked a credential" >&2
   exit 1

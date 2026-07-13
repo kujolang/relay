@@ -38,6 +38,17 @@ server := server.route("POST", "/v1/chat/completions", func(req) {
             payload := parse_json(body)
             tools := dict_get_or(payload, "tools", [])
             if type(tools) == "array" && len(tools) > 0 {
+                messages := dict_get_or(payload, "messages", [])
+                has_tool_result := false
+                if type(messages) == "array" {
+                    for message in messages {
+                        if type(message) == "dict" && dict_get_or(message, "role", "") == "tool" { has_tool_result = true }
+                    }
+                }
+                if has_tool_result {
+                    response := {"id": "stub-tool-final", "model": "stub-model", "choices": [{"message": {"content": "Provider tool result accepted."}, "finish_reason": "stop"}], "usage": {"prompt_tokens": 8, "completion_tokens": 4, "total_tokens": 12}}
+                    return http_response(200, safe_json(response))
+                }
                 arguments := safe_json({"path": "PROVIDER_TOOL_OUTPUT.txt", "content": "Created from a provider-generated tool call.\n"})
                 response := {"id": "stub-tool-request", "model": "stub-model", "choices": [{"message": {"tool_calls": [{"id": "call-relay-write", "type": "function", "function": {"name": "relay.write_file", "arguments": arguments}}]}, "finish_reason": "tool_calls"}], "usage": {"prompt_tokens": 4, "completion_tokens": 6, "total_tokens": 10}}
                 return http_response(200, safe_json(response))

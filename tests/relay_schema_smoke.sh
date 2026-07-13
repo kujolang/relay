@@ -15,6 +15,7 @@ schemas=(
   doctor
   probe
   tool-result
+  tool-result-bundle
 )
 for name in "${schemas[@]}"; do
   path="$ROOT/schemas/$name.schema.json"

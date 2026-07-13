@@ -19,7 +19,19 @@
     "provider": {"type": "string"},
     "allowed_commands": {"type": "array", "items": {"type": "string"}, "maxItems": 16},
     "acceptance_criteria": {"type": "array", "items": {"type": "string"}, "maxItems": 64},
-    "budgets": {"type": "object"},
+    "budgets": {
+      "type": "object",
+      "properties": {
+        "max_steps": {"type": "integer", "minimum": 0},
+        "max_repairs": {"type": "integer", "minimum": 0},
+        "max_tokens": {"type": "integer", "minimum": 0},
+        "max_tool_calls": {"type": "integer", "minimum": 1, "maximum": 16},
+        "max_tool_turns": {"type": "integer", "minimum": 1, "maximum": 4},
+        "max_output_bytes": {"type": "integer", "minimum": 1, "maximum": 8388608},
+        "max_write_bytes": {"type": "integer", "minimum": 1, "maximum": 8388608}
+      },
+      "additionalProperties": true
+    },
     "agent_tools": {"type": "array", "maxItems": 16},
     "agent_tool_mode": {"enum": ["declared", "provider"]},
     "agent_tool_allowlist": {"type": "array", "items": {"enum": ["relay.write_file", "relay.run_command"]}, "maxItems": 2, "uniqueItems": true},
