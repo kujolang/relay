@@ -258,8 +258,9 @@ directories under the run artifact directory, including total byte/file counts
 and per-file sizes. The repository `workspace` subtree is always excluded and
 reported in `excluded`; this prevents a large checkout from dominating an
 artifact inspection. The inventory fails closed on symbolic links, unsupported
-paths, more than 4096 artifact files, or directory nesting deeper than 16
-levels. It does not delete, compact, rotate, or retain artifacts, and its byte
+paths, more than 4096 artifact files, directory nesting deeper than 16 levels,
+or more than 8 MiB of total artifact bytes. It does not delete, compact, rotate,
+or retain artifacts, and its byte
 counts are local filesystem sizes rather than storage-billing or transfer
 metrics.
 
@@ -271,6 +272,11 @@ failures, overload, or a missing primary model. Authentication, policy,
 Watchdog-route, malformed-bridge, and other non-retryable failures do not
 trigger a second provider call; the skipped reason remains visible in
 `relay_telemetry`.
+
+Mission planning also persists a `model_fallback_selected` or
+`model_fallback_skipped` event and a typed `fallback` receipt when a configured
+fallback policy is considered. This exposes the decision and retry ID without
+replacing Watchdog or AI SDK telemetry.
 
 Live AI calls also validate `RELAY_WATCHDOG_URL` before invoking the AI SDK. It
 must be an `http://` or `https://` URL without embedded credentials; invalid

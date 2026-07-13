@@ -632,3 +632,18 @@ surface easier for adopters and machine callers to reproduce. Live external
 provider proof, provider-generated tool planning, full workcells,
 authenticated machine mode, durable storage, signed export, and release gates
 remain deliberately deferred.
+
+## Sixty-second 2026-07-13 review
+
+The adapter now returns a normalized fallback decision for non-successful
+primary model calls. Mission planning records a selected or skipped decision
+as a sealed `RelayReceipt` and AgentEvent with a retry ID, while preserving
+Watchdog/AI SDK telemetry as the call authority. A deterministic mission smoke
+proves a non-retryable Watchdog-route failure is not retried and is visible in
+run evidence. `runs sizes` also has a complete 8 MiB artifact-byte bound, with
+entry and depth limits retained.
+
+Newly built behavior is local policy/evidence composition only. It does not
+complete external provider validation, provider-generated tool planning,
+authenticated machine adapters, workcell crash recovery, durable transactional
+storage, signed export, or enterprise readiness.

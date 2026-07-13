@@ -646,3 +646,19 @@ the Kujo contract suite, every committed smoke test, schema checks, and
 local alpha/showcase; live external-provider proof, provider-generated tools,
 full workcells, authenticated machine mode, durable storage, signed export,
 and release gates remain open.
+
+## Sixty-second 2026-07-13 review
+
+Mission planning now centralizes fallback classification and persists a typed
+`fallback` receipt plus `model_fallback_selected` or
+`model_fallback_skipped` event whenever a configured fallback policy is
+considered. The AI SDK/Watchdog adapter remains authoritative for the actual
+model call; this makes retry policy inspectable in mission evidence without
+claiming live-provider proof. The focused contract and mission smoke cover a
+skipped non-retryable fallback.
+
+`runs sizes` now rejects an artifact tree above 8 MiB in total, in addition to
+the existing entry and directory-depth bounds. The sizes smoke covers the
+total-byte denial. Relay remains a hardened local alpha; external provider
+evidence, provider-generated tools, full workcells, authenticated machine
+mode, durable storage, signed export, and release gates remain open.

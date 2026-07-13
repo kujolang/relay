@@ -896,3 +896,31 @@ store. Consequence: empty retry/repair fields are explicit until their owning
 policy is implemented; typed retry receipts and provider-generated tool loops
 remain deferred. Rejected: requiring downstream consumers to parse every
 payload shape or duplicating Watchdog/RunLedger stores.
+
+## ADR-085: Persist typed model-fallback decisions at mission boundaries
+
+Context: the AI adapter restricted fallback to transient or explicit capability
+failures and exposed the decision in telemetry, but a mission run had no
+first-class event/receipt for a selected or skipped fallback. Decision:
+centralize fallback classification in the adapter and persist a
+`model_fallback_selected` or `model_fallback_skipped` AgentEvent plus a typed
+`fallback` RelayReceipt when mission planning returns a non-primary decision.
+Rationale: machine callers need to distinguish a primary model result from a
+retry policy outcome without parsing telemetry alone. AI SDK and Watchdog
+remain authoritative for the actual model call and observation. Consequence:
+local mission evidence is more explicit, while provider-specific taxonomy,
+adaptive routing, signed provenance, and distributed retry ownership remain
+deferred. Rejected: silently changing models or retrying non-retryable
+policy/authentication failures.
+
+## ADR-086: Bound artifact inventory by total bytes
+
+Context: `runs sizes` capped entries and recursion depth, but many individually
+small files could still force an oversized flattened JSON response. Decision:
+cap each complete artifact inventory at 8 MiB in addition to the existing
+4096-entry and 16-level bounds. Rationale: the inspection result is itself a
+machine-facing in-memory artifact; a total-byte ceiling keeps the diagnostic
+path bounded without adding retention authority. Consequence: oversized
+evidence is reported as invalid and requires a future compaction/retention
+owner; workspace bytes remain excluded. Rejected: silently truncating
+inventories or following links.
