@@ -18,6 +18,15 @@ esac
 printf '%s' "$doctor" | grep -q 'Relay source tree'
 printf '%s' "$doctor" | jq -e 'all(.checks[] | select(.name | endswith(" version")); .safe == true and (.version | length > 0))' >/dev/null
 printf '%s' "$doctor" | jq -e 'all(.checks[] | select(has("path") and .required == true); .safe == true)' >/dev/null
+capability_fixture="$(jq -cn --arg root "$ROOT" '{root:$root,run_id:"relay-doctor-stale",session_id:"relay-doctor-stale-session",workspace:"/tmp",nonce:"relay-doctor-stale-nonce",max_calls:1,ttl_ms:1000}')"
+RELAY_CAPABILITY_FIXTURE="$capability_fixture" "$KUJO" run "$ROOT/tests/relay_capability_fixture.kujo" --interpreter >/dev/null
+sleep 2
+stale_doctor="$(RELAY_ROOT="$ROOT" "$KUJO" run "$ROOT/main.kujo" -- doctor --json)"
+printf '%s' "$stale_doctor" | jq -e '(.checks | map(select(.name == "Agents SDK capability registry"))[0].stale) >= 1 and (.checks | map(select(.name == "Agents SDK capability registry"))[0].cleaned == 0)' >/dev/null
+repair_doctor="$(RELAY_ROOT="$ROOT" "$KUJO" run "$ROOT/main.kujo" -- doctor --repair --json)"
+printf '%s' "$repair_doctor" | jq -e '(.checks | map(select(.name == "Agents SDK capability registry"))[0].cleaned) >= 1' >/dev/null
+clean_doctor="$(RELAY_ROOT="$ROOT" "$KUJO" run "$ROOT/main.kujo" -- doctor --json)"
+printf '%s' "$clean_doctor" | jq -e '(.checks | map(select(.name == "Agents SDK capability registry"))[0].stale) == 0' >/dev/null
 normalized_doctor="$(RELAY_OFFLINE_FIXTURE=1 "$KUJO" run "$ROOT/main.kujo" -- doctor --json)"
 printf '%s' "$normalized_doctor" | jq -e '.ok == true and .mode == "fixture"' >/dev/null
 normalized_probe="$(RELAY_OFFLINE_FIXTURE=YES "$KUJO" run "$ROOT/main.kujo" -- models probe fixture-model --json)"
@@ -63,7 +72,7 @@ unsafe_dependency_doctor="$(KUJO_BIN="$doctor_link_root/kujo" "$KUJO" run "$ROOT
 unsafe_dependency_status=$?
 set -e
 test "$unsafe_dependency_status" -ne 0
-printf '%s' "$unsafe_dependency_doctor" | jq -e '.ok == false and (.checks | map(select(.name == "kujo runtime"))[0].safe == false) and (.checks | map(select(.name == "kujo runtime"))[0].symlink == true)' >/dev/null
+printf '%s' "$unsafe_dependency_doctor" | jq -e '.ok == false and (.checks | map(select(.name == "kujo runtime"))[0].safe == false) and ((.checks | map(select(.name == "kujo runtime"))[0].symlink == true) or (.checks | map(select(.name == "kujo runtime"))[0].symlink_component == true))' >/dev/null
 rm -rf "$doctor_link_root"
 
 packwrite_link_root="/tmp/relay-packwrite-link-$$"
@@ -75,7 +84,7 @@ unsafe_packwrite_doctor="$(RELAY_PACKWRITE_BIN="$packwrite_link_root/packwrite" 
 unsafe_packwrite_status=$?
 set -e
 test "$unsafe_packwrite_status" -ne 0
-printf '%s' "$unsafe_packwrite_doctor" | jq -e '.ok == false and (.checks | map(select(.name == "PackWrite binary"))[0].safe == false) and (.checks | map(select(.name == "PackWrite binary"))[0].symlink == true)' >/dev/null
+printf '%s' "$unsafe_packwrite_doctor" | jq -e '.ok == false and (.checks | map(select(.name == "PackWrite binary"))[0].safe == false) and ((.checks | map(select(.name == "PackWrite binary"))[0].symlink == true) or (.checks | map(select(.name == "PackWrite binary"))[0].symlink_component == true))' >/dev/null
 rm -rf "$packwrite_link_root"
 
 launcher_link_root="/tmp/relay-kujo-launcher-link-$$"

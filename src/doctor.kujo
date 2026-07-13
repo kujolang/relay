@@ -1,4 +1,4 @@
-from src.common import dict_get_or, env_or, env_bool, safe_env_name, int_or, path_is_symlink_safe, path_has_symlink_component
+from src.common import dict_get_or, env_or, env_bool, bool_or, safe_env_name, int_or, path_is_symlink_safe, path_has_symlink_component, capability_registry_posture
 from src.adapters import kujo_bin, trusted_executable, trusted_file, ai_sdk_root, agents_sdk_root, ai_bridge_path, watchdog_url, run_process
 from src.policy import real_path
 from src.watchdog import health_check, proxy_config_check, route_policy
@@ -52,7 +52,7 @@ func dependency_hash(label, path, env_name) {
     return {"name": label, "ok": matched, "required": true, "safe": matched, "configured": true, "matched": matched, "path": path, "expected_sha256": expected, "actual_sha256": actual, "error": error}
 }
 
-func doctor() {
+func doctor(repair) {
     root := env_or("RELAY_ROOT", ".")
     checks := []
     configured_kujo_path := env_or("KUJO_BIN", root + "/../kujo/target/release/kujo")
@@ -61,6 +61,8 @@ func doctor() {
     checks := push(checks, path_check("Relay source tree", root + "/src", true, true))
     store_safe := store_root_safe(root + "/.relay")
     checks := push(checks, {"name": "Relay evidence store", "ok": store_safe, "required": true, "path": root + "/.relay", "safe": store_safe, "reason": "state root and runs directory must not be symbolic links"})
+    capability_posture := capability_registry_posture(root, repair)
+    checks := push(checks, {"name": "Agents SDK capability registry", "ok": dict_get_or(capability_posture, "ok", false), "required": true, "safe": dict_get_or(capability_posture, "safe", false), "records": int_or(dict_get_or(capability_posture, "records", 0), 0), "stale": int_or(dict_get_or(capability_posture, "stale", 0), 0), "invalid": int_or(dict_get_or(capability_posture, "invalid", 0), 0), "cleaned": int_or(dict_get_or(capability_posture, "cleaned", 0), 0), "repair": bool_or(repair, false), "error": dict_get_or(capability_posture, "error", "")})
     checks := push(checks, path_check("Relay launcher", root + "/bin/relay", false, false))
     checks := push(checks, path_check("AI SDK checkout", ai_sdk_root(), true, true))
     checks := push(checks, path_check("Agents SDK checkout", agents_sdk_root(), true, true))

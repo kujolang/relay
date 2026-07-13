@@ -140,7 +140,7 @@ func help_text() {
         "  chat <prompt> [--model <id>] [--provider <id>] [--fixture] [--stream] [--json]\n" +
         "  models list|inspect <model>|probe <model> [--fixture]\n" +
         "  agents list|inspect <agent>|validate\n" +
-        "  doctor [--json]\n" +
+        "  doctor [--repair] [--json]\n" +
         "  missions create [spec.json] [--output path]\n" +
         "  missions run <spec.json> [--fixture] [--pause-after-plan] [--skip-agent-smoke] [--json]\n" +
         "  missions inspect <run-id>|pause <run-id>|resume <run-id>|repair <run-id>|cancel <run-id>|cleanup <run-id> --confirm|report <run-id>\n" +
@@ -694,7 +694,7 @@ export func main(argv) {
     else if command == "runs" { result = cmd_runs(rest) }
     else if command == "tools" { result = cmd_tools(rest) }
     else if command == "benchmark" { result = cmd_benchmark(rest) }
-    else if command == "doctor" { result = doctor() }
+    else if command == "doctor" { result = doctor(has_flag(parsed["flags"], "repair")) }
     else { print(help_text()); return 2 }
     output(result, json_mode)
     if type(result) == "dict" && dict_get_or(result, "ok", true) == false { return 1 }

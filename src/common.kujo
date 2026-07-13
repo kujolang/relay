@@ -319,6 +319,36 @@ func revoke_agent_capability(root, run_id, session_id) {
     try { delete_file(path); return true } except err { return false }
 }
 
+func capability_registry_posture(root, repair) {
+    directory := trim(to_string(root)) + "/.relay/capabilities"
+    if path_is_symlink_safe(directory) || path_has_symlink_component(directory) { return {"ok": false, "safe": false, "present": true, "records": 0, "stale": 0, "invalid": 1, "cleaned": 0, "error": "capability registry path is unsafe"} }
+    if path_exists(directory) == false { return {"ok": true, "safe": true, "present": false, "records": 0, "stale": 0, "invalid": 0, "cleaned": 0} }
+    if path_is_dir(directory) == false { return {"ok": false, "safe": false, "present": true, "records": 0, "stale": 0, "invalid": 1, "cleaned": 0, "error": "capability registry path is not a directory"} }
+    names := list_dir(directory)
+    if len(names) > 1024 { return {"ok": false, "safe": false, "present": true, "records": 0, "stale": 0, "invalid": 1, "cleaned": 0, "error": "capability registry exceeds the 1024-entry limit"} }
+    mut records := 0
+    mut stale := 0
+    mut invalid := 0
+    mut cleaned := 0
+    for name in names {
+        if ends_with(name, ".json") == false { continue }
+        path := directory + "/" + name
+        if path_is_symlink_safe(path) || path_is_file(path) == false { invalid = invalid + 1; continue }
+        record := read_json_limited(path, null, 65536)
+        if type(record) != "dict" || to_string(dict_get_or(record, "contract_version", "")) != "relay-agent-capability-v1" { invalid = invalid + 1; continue }
+        records = records + 1
+        expired := current_timestamp() > int_or(dict_get_or(record, "expires_at_ms", 0), 0)
+        exhausted := int_or(dict_get_or(record, "used_calls", 0), 0) >= int_or(dict_get_or(record, "max_calls", 0), 0)
+        if expired || exhausted {
+            stale = stale + 1
+            if bool_or(repair, false) {
+                try { delete_file(path); cleaned = cleaned + 1 } except err {}
+            }
+        }
+    }
+    return {"ok": invalid == 0, "safe": invalid == 0, "present": true, "records": records, "stale": stale, "invalid": invalid, "cleaned": cleaned, "repair": bool_or(repair, false)}
+}
+
 func redact_text(value) {
     text := to_string(value)
     text := replace(text, "Authorization: Bearer ", "Authorization: Bearer [REDACTED]")
@@ -380,5 +410,6 @@ export capability_registry_path := capability_registry_path
 export issue_agent_capability := issue_agent_capability
 export consume_agent_capability := consume_agent_capability
 export revoke_agent_capability := revoke_agent_capability
+export capability_registry_posture := capability_registry_posture
 export contains_any := contains_any
 export redact_text := redact_text
