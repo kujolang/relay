@@ -135,11 +135,11 @@ public run, session, or workspace identifiers; legacy deterministic capability
 requests fail closed. Child processes use a fixed executable `PATH`, and unsafe
 loader, interpreter, Git override, and trust-store environment names are
 dropped before spawn.
-Provider-generated tool planning, interactive approvals, and authenticated
-remote invocation are not yet enabled. Worker model output, tool output, and
-worker error text are redacted before the summary crosses the bridge; this is a
-local fail-closed filter, not a substitute for provider-native classification or
-the deferred Redact integration. The worker
+Interactive approvals and authenticated remote invocation are not yet enabled.
+Worker model output, tool output, and worker error text are redacted before the
+summary crosses the bridge; this is a local fail-closed filter, not a
+substitute for provider-native classification or the deferred Redact
+integration. The worker
 also ignores or rejects payload-selected `relay_root` and `kujo_bin` values
 unless they exactly match the trusted process environment, and refuses a
 symbolic-linked or missing trusted Relay root.
@@ -149,11 +149,14 @@ Set `agent_tool_mode: "provider"` with a non-empty
 bounded calls. Relay sends only the allowlisted tool schemas through the
 Watchdog → AI SDK path, normalizes function arguments, records a
 `tool_plan_resolved` event, and hands the normalized calls to the existing
-Agents SDK registry. Malformed arguments, unsupported tools, and tool-call
-budget violations fail closed. Provider-generated planning is not enabled by
-default.
+Agents SDK registry. A bounded `max_tool_turns` budget permits follow-up
+requests containing the assistant tool call and typed `role: tool` results;
+the verified bundle is persisted as `tool-results.json` and described by
+`tool-result-bundle.schema.json`. Cancellation, malformed arguments,
+unsupported tools, approval failures, tool-call limits, and tool-turn limits
+fail closed. Provider-generated planning is not enabled by default.
 
-Budget fields are non-negative integers: `max_steps`, `max_repairs`, and `max_tokens`; `max_tool_calls`, `max_output_bytes`, and `max_write_bytes` must be positive. Agents SDK tool calls are capped at 16 per mission and the configured `max_tool_calls` limit is enforced inside the worker. Output and write budgets are capped at 8 MiB per mission; command timeouts must be between 1 ms and 10 minutes. A budget failure is recorded as a failed run with a typed failure class; it is never reported as completed.
+Budget fields are non-negative integers: `max_steps`, `max_repairs`, and `max_tokens`; `max_tool_calls`, `max_tool_turns`, `max_output_bytes`, and `max_write_bytes` must be positive. `max_tool_calls` is capped at 16 and `max_tool_turns` at 4 per mission; the configured limits are enforced before every provider-generated tool execution and follow-up request. Output and write budgets are capped at 8 MiB per mission; command timeouts must be between 1 ms and 10 minutes. A budget failure is recorded as a failed run with a typed failure class; it is never reported as completed.
 
 ## JSON evidence
 
@@ -167,7 +170,10 @@ artifacts. Each receipt also seals a context metadata object containing the
 workflow, model, provider, packet revision, attempt, repair attempt, RunLedger
 run ID, and AI correlation ID available at emission time. Receipt IDs are
 included in the lifecycle events that create or complete those artifacts;
-upstream tools remain the canonical artifact owners.
+upstream tools remain the canonical artifact owners. Provider-generated
+multi-turn missions additionally persist `tool-results.json`, a bounded
+`relay-tool-result-bundle-v1` artifact containing redacted per-turn results,
+provider call IDs, tool names, and the receipt-linked result payloads.
 
 AI telemetry and bounded adapter/action results include non-negative
 `duration_ms` values. These are elapsed local measurements for the bridge or

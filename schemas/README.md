@@ -22,3 +22,4 @@ so upstream evidence can be carried without Relay silently dropping it. The
 | `doctor.schema.json` | `doctor --json` |
 | `probe.schema.json` | `models probe --json` |
 | `tool-result.schema.json` | bounded `tools execute --json` result |
+| `tool-result-bundle.schema.json` | persisted provider-generated tool results for a bounded multi-turn mission |

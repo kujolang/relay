@@ -1030,3 +1030,20 @@ response optimization, not retention, remote subscription, or concurrent-store
 support; cursors are invalidated by missing IDs or index changes. Rejected:
 returning arbitrary dict iteration order, slicing an unvalidated cache, or
 silently truncating the legacy response.
+
+## ADR-095: Bound provider tool loops and persist typed tool results
+
+Context: v65 connected one provider-generated tool plan to the Agents SDK
+registry, but a model could not receive the result of an approved call and
+continue its response. Decision: provider mode now permits a bounded
+`max_tool_turns` loop, carries assistant tool-call and `role: tool` messages
+through the existing AI SDK bridge, rechecks cancellation and call budgets at
+each turn, and persists redacted results as a sealed `relay-tool-result-bundle-v1`
+artifact. Rationale: make provider-driven missions useful for real work while
+preserving one policy/approval authority and making intermediate results
+resumable and inspectable. Consequences: provider mode consumes model and tool
+budgets across turns; malformed, cancelled, over-budget, or unpersistable
+results fail closed, and providers that do not support the message dialect
+remain an explicit capability failure. Rejected: executing a second provider
+request without tool results, treating the model's final text as tool evidence,
+or creating a separate tool executor/store.

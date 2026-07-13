@@ -718,3 +718,19 @@ The implementation remains a hardened local alpha/showcase. It does not claim
 real Ollama Cloud or independent-provider credentials, multi-turn provider
 tool loops, authenticated machine adapters, full workcell recovery, durable
 concurrent storage, signed export, or release-gate completion.
+
+## Sixty-seventh 2026-07-13 review
+
+The v66 implementation closes the next local functionality gap: provider
+generated tool calls can now complete a bounded follow-up round. Relay preserves
+the assistant call and sends redacted typed `role: tool` results through the
+existing AI SDK/Watchdog route; tool-call, tool-turn, cancellation, and
+aggregate token budgets remain Relay-controlled. The new
+`tool-result-bundle.schema.json` contract and persisted `tool-results.json`
+artifact make intermediate tool outcomes inspectable and receipt-linked.
+
+`tests/relay_provider_tool_smoke.sh` proves an authenticated local
+Watchdog/stub-provider two-turn response, Agents SDK execution, repository
+mutation, result persistence, ChangeBucket, Eval, RunLedger, and terminal event
+evidence. This does not establish live provider compatibility, durable storage,
+workcell crash recovery, authenticated machine mode, or enterprise readiness.

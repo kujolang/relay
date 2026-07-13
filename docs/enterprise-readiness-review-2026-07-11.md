@@ -731,3 +731,20 @@ tool response, repository mutation, ChangeBucket, Eval, and RunLedger evidence.
 This closes a local functionality gap but is not live Ollama Cloud proof or a
 multi-turn tool loop. Authenticated remote callers, full workcells, durable
 storage, signed export, and release gates remain open.
+
+## Sixty-seventh 2026-07-13 review
+
+Relay now supports a bounded multi-turn provider-tool loop. After a provider
+tool call is approved and executed by the existing Agents SDK worker, Relay
+sends the assistant call plus redacted `role: tool` result messages through the
+same Watchdog/AI SDK route. `max_tool_calls`, `max_tool_turns`, aggregate token
+usage, cancellation, and result-artifact persistence are checked at each
+continuation boundary. Results are persisted as the typed
+`relay-tool-result-bundle-v1` artifact and linked by receipts/events.
+
+The authenticated local Watchdog/stub-provider smoke proves the round trip,
+repository mutation, ChangeBucket, Eval, RunLedger, result artifact, and
+terminal event evidence. This is a local provider-dialect fixture, not live
+Ollama Cloud or independent-provider proof. Provider dialect negotiation,
+workcell crash recovery, authenticated adapters, durable storage, and release
+gates remain open.
