@@ -1497,3 +1497,25 @@ multi-host ownership remain deferred.
 
 Rejected: deleting without coordination, force-removing active locks, or
 introducing a second revocation store.
+
+## ADR-113: Treat native JSONL write failures as evidence failures
+
+Context: `append_jsonl_bounded` validated size and path metadata but ignored the
+boolean result of Kujo's native `append_file` and `write_file` operations. A
+missing parent directory could therefore leave no evidence file while Relay
+returned success to its caller.
+
+Decision: return true only when the selected native append or create operation
+returns true; preserve the existing size limit, regular-file, and symlink
+checks. Add a deterministic contract case for failed creation.
+
+Rationale: evidence persistence must not claim a write that the runtime
+rejected. Using the native result keeps the fix inside the existing Kujo
+filesystem contract and avoids a competing writer abstraction.
+
+Consequences: local event/receipt persistence now fails closed on native write
+failure. Concurrent append serialization, durable transactions, crash recovery,
+and multi-host evidence ownership remain deferred.
+
+Rejected: trusting pre-write metadata, treating a missing parent as success,
+or adding a new evidence database solely to compensate for the ignored result.

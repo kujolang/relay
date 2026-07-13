@@ -941,3 +941,16 @@ revocation race but does not provide authenticated remote authorization,
 multi-host ownership, durable storage, live-provider proof, or enterprise
 readiness. The next-session backlog is
 `docs/next-session-enhancement-backlog-2026-07-13-v83.md`.
+
+## Eighty-fourth review — evidence write truthfulness
+
+`append_jsonl_bounded` now propagates the native Kujo append/create result. The
+focused contract test proves a missing-parent event file is reported as a
+failed persistence operation. This closes a local false-success path but does
+not change the readiness assessment: Relay is still a hardened local alpha,
+not enterprise-production-ready or universally useful. Live provider proof,
+authenticated tenancy, isolated workcell recovery, durable concurrent storage,
+and release-gate evidence remain open.
+
+The current follow-on backlog is
+`docs/next-session-enhancement-backlog-2026-07-13-v84.md`.

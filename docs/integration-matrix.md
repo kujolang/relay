@@ -151,3 +151,9 @@ The v83 review serializes capability revocation with the existing per-record
 authority lock. A held lock denies removal, while a released lock permits
 deletion of the regular record; the Agents SDK smoke is isolated from stale
 capability state between repeated runs.
+
+The v84 review makes bounded JSONL evidence writes honor native Kujo write
+results. A missing-parent creation failure is now surfaced as false by the
+contract suite, preventing a successful-looking event/receipt persistence
+path when no file was created. Durable transactional evidence storage remains
+outside Relay's current ownership.

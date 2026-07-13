@@ -923,3 +923,11 @@ shares the per-record authority lock, rechecks the regular record under that
 lock, and fails closed on contention or unsafe metadata. The Agents SDK smoke
 also clears its test-owned capability registry before and after execution so
 repeated acceptance runs do not inherit stale fixture identities.
+
+The v84 review closes a local evidence false-success path. Bounded JSONL
+evidence persistence now returns the native Kujo append/create result, and the
+contract suite proves a missing-parent creation failure is surfaced. No new
+durable storage or multi-host authority was introduced. Relay remains a
+hardened local alpha; the external provider, authenticated tenancy, workcell
+recovery, durable store, and release-gate items remain deferred in the v84
+backlog.

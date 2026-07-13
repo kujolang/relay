@@ -263,3 +263,11 @@ consumption, and repair. It retries contention four times with bounded
 backoff, rechecks record metadata under the lock, and fails closed for unsafe
 or non-regular records. The contract suite covers active-lock denial and
 successful post-lock removal.
+
+## v84 delivered — truthful JSONL evidence writes
+
+`append_jsonl_bounded` now returns the native Kujo `append_file` or `write_file`
+boolean result instead of unconditionally claiming success after invoking the
+write. The contract suite proves a missing-parent creation failure is reported
+as false. This closes a local evidence-reporting gap; it does not add durable
+transactions, append serialization, or multi-host storage.
