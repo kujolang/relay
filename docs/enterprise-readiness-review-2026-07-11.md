@@ -512,3 +512,13 @@ and its PackWrite, RunLedger, ChangeBucket, and Eval evidence under the same
 relative path form used by Loop Engineering. This fixes launch-context
 correctness; it is not signed dependency provenance or enterprise deployment
 attestation.
+
+## Fiftieth 2026-07-13 review
+
+This review adds the read-only `runs verify` contract and closes a false-success
+boundary in `runs changes` and `runs evaluations`. Those commands now require
+authoritative state plus bounded, regular, shape-checked persisted artifacts;
+missing or malformed files cannot become successful empty results. The store
+smoke proves a positive verification verdict and negative missing-artifact
+cases. Relay remains a local alpha; external provider proof, authenticated
+ownership, full workcells, durable storage, and release gates remain open.

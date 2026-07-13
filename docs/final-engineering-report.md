@@ -46,7 +46,7 @@ The current run engine still accepts explicit action plans, but missions may now
 
 ## 2026-07-11 enterprise-readiness review
 
-The current posture is local-first hardened alpha/showcase, not universal enterprise production. This review added realpath workspace checks, shell/Git command deny rules, explicit write approvals, subprocess redaction, packet digest metadata, unique run suffixes, preflight failure handling, ChangeBucket/Eval completion authority, atomic JSON persistence, efficient JSONL append, generated file-existence acceptance checks, shared Capsule process handling, and a real pause-after-plan/resume checkpoint. See `docs/enterprise-readiness-review-2026-07-11.md` and the current `docs/next-session-enhancement-backlog-2026-07-12-v49.md` for the evidence boundary and prioritized remaining work.
+The current posture is local-first hardened alpha/showcase, not universal enterprise production. This review added realpath workspace checks, shell/Git command deny rules, explicit write approvals, subprocess redaction, packet digest metadata, unique run suffixes, preflight failure handling, ChangeBucket/Eval completion authority, atomic JSON persistence, efficient JSONL append, generated file-existence acceptance checks, shared Capsule process handling, and a real pause-after-plan/resume checkpoint. See `docs/enterprise-readiness-review-2026-07-11.md` and the current `docs/next-session-enhancement-backlog-2026-07-13-v50.md` for the evidence boundary and prioritized remaining work.
 
 ## Forty-seventh 2026-07-12 review
 
@@ -77,6 +77,15 @@ The same review normalizes relative `KUJO_BIN` and sibling adapter paths before
 subprocess cwd changes. The dedicated relative-tool-path smoke proves that a
 fixture mission still reaches PackWrite, RunLedger, ChangeBucket, and Eval
 evidence under the Loop Engineering launch form.
+
+## Fiftieth 2026-07-13 review
+
+Added the read-only `runs verify` contract and made ChangeBucket/Eval artifact
+inspection fail closed on missing, malformed, oversized, symbolic-linked, or
+wrong-shaped files. The store smoke proves a positive verification verdict and
+negative missing-artifact cases. Relay remains a local alpha; external provider
+proof, authenticated ownership, full workcells, durable storage, and release
+gates remain open.
 
 ## Second 2026-07-11 review
 

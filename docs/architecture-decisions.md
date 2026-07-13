@@ -658,3 +658,19 @@ Consequence: relative overrides are interpreted relative to the Relay checkout;
 missing or unsafe targets still fail through the existing subprocess/doctor
 boundaries. Rejected: trusting inherited cwd/PWD, adding PATH lookup, or
 copying sibling binaries into Relay.
+
+## ADR-069: Expose one read-only run verification boundary
+
+Context: Relay already validated state, events, receipts, ChangeBucket output,
+and Eval output in several individual CLI commands, but machine callers had no
+single compact verdict and artifact readers could turn a missing changes or
+evaluations file into a successful empty response. Decision: add
+`runs verify <run-id>` as a read-only `relay-run-verification-v1` contract and
+make `runs changes` and `runs evaluations` require bounded, regular,
+shape-checked persisted artifacts plus authoritative state. Rationale: CI,
+Paperclip, Hermes, and future adapters need one stable evidence gate without
+duplicating parser logic or treating absent evidence as success. Consequence:
+verification remains local and non-mutating; signed exports, durable storage,
+tenant authorization, and repair remain separate concerns. Rejected: trusting
+the rebuildable index, returning empty fallbacks, or adding a second evidence
+store.

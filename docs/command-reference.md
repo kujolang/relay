@@ -82,7 +82,7 @@ relay agents list|inspect <agent>|validate [--json]
 relay missions create [spec.json] [--output <path>] [--json]
 relay missions run <spec.json> [--fixture] [--pause-after-plan] [--skip-agent-smoke] [--json]
 relay missions inspect|pause|resume|cancel|cleanup|report <run-id> [--json]
-relay runs list|rebuild|inspect|events|watch|sizes|changes|evaluations <run-id> [--json]
+relay runs list|rebuild|inspect|verify|events|watch|sizes|changes|evaluations <run-id> [--json]
 relay runs export <run-id> [--output <path>] [--json]
 relay tools execute --json (internal capability-bound worker callback)
 relay benchmark run <repository> [--json]
@@ -163,6 +163,17 @@ receipted.
 Run inspection also requires a bounded, regular `state.json` whose `run_id`
 matches the requested identifier; the rebuildable index cannot substitute for
 authoritative per-run state.
+
+`runs changes` and `runs evaluations` require the same authoritative state and
+their persisted JSON artifacts. Missing, malformed, oversized, symbolic-linked,
+or wrong-shaped artifacts return a nonzero evidence failure instead of a
+successful empty object or array.
+
+`runs verify <run-id>` is a compact machine-facing integrity check. It validates
+the authoritative state, complete event chain, persisted receipts, state/log
+consistency, and persisted ChangeBucket/Eval artifact shapes, returning
+`relay-run-verification-v1` with individual boolean fields and
+`integrity_valid`. It does not repair, mutate, or replace any evidence.
 
 Runtime adapters normalize relative `KUJO_BIN` and configured sibling-tool
 paths against the Relay root before changing cwd. This preserves the
