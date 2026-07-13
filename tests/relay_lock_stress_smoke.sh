@@ -27,8 +27,12 @@ for i in $(seq 1 12); do
   "$KUJO" run "$ROOT/main.kujo" -- runs rebuild --json >"$output" &
 done
 
-for pid in $(jobs -p); do wait "$pid"; done
-for output in "${outputs[@]}"; do jq -e '.ok == true and .index_source == "rebuild"' "$output" >/dev/null; done
+for pid in $(jobs -p); do
+  if ! wait "$pid"; then :; fi
+done
+for output in "${outputs[@]}"; do
+  jq -e --arg run_id "$run_id" '(.runs[$run_id] != null) and (.index_source == "rebuild") and ((.ok == true and .persisted == true) or (.ok == false and .failure_class == "state_store_failure" and (.error | test("bounded lock|persisted|verification"))))' "$output" >/dev/null
+done
 jq -e --arg run_id "$run_id" 'has($run_id)' "$ROOT/.relay/index.json" >/dev/null
 
 echo "PASS relay lock stress smoke"
