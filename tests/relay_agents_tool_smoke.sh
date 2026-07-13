@@ -23,8 +23,9 @@ result="$($KUJO run "$ROOT/main.kujo" -- missions run "$ROOT/examples/agents-sdk
 test -f "$WORK/RELAY_AGENT_TOOL_OUTPUT.txt"
 grep -q 'Agents SDK tool registry' "$WORK/RELAY_AGENT_TOOL_OUTPUT.txt"
 
-denied_capability="$(printf '%s' "relay-denied-smoke|relay-denied-smoke-session|$WORK|relay-agent-tools" | shasum -a 256 | awk '{print $1}')"
-denied_payload="$(jq -cn --arg root "$ROOT" --arg kujo "$KUJO" --arg work "$WORK" --arg capability "$denied_capability" '{relay_root:$root,kujo_bin:$kujo,capability:$capability,run_id:"relay-denied-smoke",session_id:"relay-denied-smoke-session",workspace:$work,approval_approved:false,mission_spec:{allow_writes:true,approval:{approved:false},allowed_commands:["git"],budgets:{max_output_bytes:1048576,max_write_bytes:1048576}},tool_calls:[{name:"relay.write_file",input:{path:"RELAY_AGENT_TOOL_DENIED.txt",content:"must not be written\n"}}]}')"
+denied_nonce="relay-denied-smoke-private-nonce"
+denied_capability="$(printf '%s' "relay-denied-smoke|relay-denied-smoke-session|$WORK|$denied_nonce|relay-agent-tools" | shasum -a 256 | awk '{print $1}')"
+denied_payload="$(jq -cn --arg root "$ROOT" --arg kujo "$KUJO" --arg work "$WORK" --arg capability "$denied_capability" --arg nonce "$denied_nonce" '{relay_root:$root,kujo_bin:$kujo,capability:$capability,capability_nonce:$nonce,run_id:"relay-denied-smoke",session_id:"relay-denied-smoke-session",workspace:$work,approval_approved:false,mission_spec:{allow_writes:true,approval:{approved:false},allowed_commands:["git"],budgets:{max_output_bytes:1048576,max_write_bytes:1048576}},tool_calls:[{name:"relay.write_file",input:{path:"RELAY_AGENT_TOOL_DENIED.txt",content:"must not be written\n"}}]}')"
 set +e
 denied_output="$(RELAY_AGENT_PAYLOAD="$denied_payload" "$KUJO" run "$ROOT/src/agent_bridge.kujo" --interpreter 2>&1)"
 denied_exit=$?
@@ -42,8 +43,9 @@ test "$tampered_exit" -ne 0
 [[ "$tampered_output" == *'relay_root_mismatch'* ]]
 test ! -e "$WORK/RELAY_AGENT_TOOL_DENIED.txt"
 
-direct_capability="$(printf '%s' "relay-direct-policy|relay-direct-policy-session|$WORK|relay-agent-tools" | shasum -a 256 | awk '{print $1}')"
-direct_payload="$(jq -cn --arg work "$WORK" --arg capability "$direct_capability" '{capability:$capability,run_id:"relay-direct-policy",session_id:"relay-direct-policy-session",workspace:$work,mission_spec:{allow_writes:true,approval:{approved:false},allowed_commands:["git"],budgets:{max_output_bytes:1048576,max_write_bytes:1048576}},tool_name:"relay.write_file",input:{path:"RELAY_AGENT_TOOL_DIRECT_DENIED.txt",content:"must not be written\n"}}')"
+direct_nonce="relay-direct-policy-private-nonce"
+direct_capability="$(printf '%s' "relay-direct-policy|relay-direct-policy-session|$WORK|$direct_nonce|relay-agent-tools" | shasum -a 256 | awk '{print $1}')"
+direct_payload="$(jq -cn --arg work "$WORK" --arg capability "$direct_capability" --arg nonce "$direct_nonce" '{capability:$capability,capability_nonce:$nonce,run_id:"relay-direct-policy",session_id:"relay-direct-policy-session",workspace:$work,mission_spec:{allow_writes:true,approval:{approved:false},allowed_commands:["git"],budgets:{max_output_bytes:1048576,max_write_bytes:1048576}},tool_name:"relay.write_file",input:{path:"RELAY_AGENT_TOOL_DIRECT_DENIED.txt",content:"must not be written\n"}}')"
 set +e
 direct_output="$(RELAY_TOOL_REQUEST="$direct_payload" RELAY_TOOL_CAPABILITY="$direct_capability" "$KUJO" run "$ROOT/main.kujo" -- tools execute --json 2>&1)"
 direct_exit=$?
@@ -52,7 +54,15 @@ test "$direct_exit" -ne 0
 [[ "$direct_output" == *'write-enabled tool requests require approval.approved=true'* ]]
 test ! -e "$WORK/RELAY_AGENT_TOOL_DIRECT_DENIED.txt"
 
-timeout_payload="$(jq -cn --arg work "$WORK" --arg capability "$direct_capability" '{capability:$capability,run_id:"relay-direct-policy",session_id:"relay-direct-policy-session",workspace:$work,mission_spec:{allow_writes:false,approval:{approved:false},allowed_commands:["git"],budgets:{max_output_bytes:1048576,max_write_bytes:1048576}},tool_name:"relay.run_command",input:{command:"git status --short",timeout_ms:0}}')"
+legacy_payload="$(printf '%s' "$direct_payload" | jq 'del(.capability_nonce)')"
+set +e
+legacy_output="$(RELAY_TOOL_REQUEST="$legacy_payload" RELAY_TOOL_CAPABILITY="$direct_capability" "$KUJO" run "$ROOT/main.kujo" -- tools execute --json 2>&1)"
+legacy_exit=$?
+set -e
+test "$legacy_exit" -ne 0
+[[ "$legacy_output" == *'tool capability is invalid'* ]]
+
+timeout_payload="$(jq -cn --arg work "$WORK" --arg capability "$direct_capability" --arg nonce "$direct_nonce" '{capability:$capability,capability_nonce:$nonce,run_id:"relay-direct-policy",session_id:"relay-direct-policy-session",workspace:$work,mission_spec:{allow_writes:false,approval:{approved:false},allowed_commands:["git"],budgets:{max_output_bytes:1048576,max_write_bytes:1048576}},tool_name:"relay.run_command",input:{command:"git status --short",timeout_ms:0}}')"
 set +e
 timeout_output="$(RELAY_TOOL_REQUEST="$timeout_payload" RELAY_TOOL_CAPABILITY="$direct_capability" "$KUJO" run "$ROOT/main.kujo" -- tools execute --json 2>&1)"
 timeout_exit=$?
@@ -60,7 +70,7 @@ set -e
 test "$timeout_exit" -ne 0
 [[ "$timeout_output" == *'tool timeout_ms must be between 1 and 600000'* ]]
 
-secret_failure_payload="$(jq -cn --arg root "$ROOT" --arg kujo "$KUJO" --arg work "$WORK" --arg capability "$direct_capability" '{relay_root:$root,kujo_bin:$kujo,capability:$capability,run_id:"relay-direct-policy",session_id:"relay-direct-policy-session",workspace:$work,approval_approved:false,mission_spec:{allow_writes:false,approval:{approved:false},allowed_commands:["git"],budgets:{max_output_bytes:1048576,max_write_bytes:1048576}},tool_calls:[{name:"relay.run_command",input:{command:"git status --short"}}],output_text:"Authorization: Bearer sk-secret-leak-probe"}')"
+secret_failure_payload="$(jq -cn --arg root "$ROOT" --arg kujo "$KUJO" --arg work "$WORK" --arg capability "$direct_capability" --arg nonce "$direct_nonce" '{relay_root:$root,kujo_bin:$kujo,capability:$capability,capability_nonce:$nonce,run_id:"relay-direct-policy",session_id:"relay-direct-policy-session",workspace:$work,approval_approved:false,mission_spec:{allow_writes:false,approval:{approved:false},allowed_commands:["git"],budgets:{max_output_bytes:1048576,max_write_bytes:1048576}},tool_calls:[{name:"relay.run_command",input:{command:"git status --short"}}],output_text:"Authorization: Bearer sk-secret-leak-probe"}')"
 set +e
 secret_failure_output="$(cd "$AGENTS_SDK" && RELAY_AGENT_PAYLOAD="$secret_failure_payload" "$KUJO" run "$ROOT/src/agent_bridge.kujo" --interpreter 2>&1)"
 secret_failure_exit=$?
@@ -71,7 +81,7 @@ if printf '%s' "$secret_failure_output" | grep -q 'sk-secret-leak-probe'; then
   exit 1
 fi
 
-budget_payload="$(jq -cn --arg work "$WORK" --arg capability "$direct_capability" '{capability:$capability,run_id:"relay-direct-policy",session_id:"relay-direct-policy-session",workspace:$work,mission_spec:{allow_writes:false,approval:{approved:false},allowed_commands:["git"],budgets:{max_output_bytes:0,max_write_bytes:1048576}},tool_name:"relay.run_command",input:{command:"git status --short"}}')"
+budget_payload="$(jq -cn --arg work "$WORK" --arg capability "$direct_capability" --arg nonce "$direct_nonce" '{capability:$capability,capability_nonce:$nonce,run_id:"relay-direct-policy",session_id:"relay-direct-policy-session",workspace:$work,mission_spec:{allow_writes:false,approval:{approved:false},allowed_commands:["git"],budgets:{max_output_bytes:0,max_write_bytes:1048576}},tool_name:"relay.run_command",input:{command:"git status --short"}}')"
 set +e
 budget_output="$(RELAY_TOOL_REQUEST="$budget_payload" RELAY_TOOL_CAPABILITY="$direct_capability" "$KUJO" run "$ROOT/main.kujo" -- tools execute --json 2>&1)"
 budget_exit=$?
@@ -79,8 +89,9 @@ set -e
 test "$budget_exit" -ne 0
 [[ "$budget_output" == *'tool budgets must be between 1 and 8388608 bytes'* ]]
 
-budget_capability="$(printf '%s' "relay-budget-smoke|relay-budget-smoke-session|$WORK|relay-agent-tools" | shasum -a 256 | awk '{print $1}')"
-budget_payload="$(jq -cn --arg root "$ROOT" --arg kujo "$KUJO" --arg work "$WORK" --arg capability "$budget_capability" '{relay_root:$root,kujo_bin:$kujo,capability:$capability,run_id:"relay-budget-smoke",session_id:"relay-budget-smoke-session",workspace:$work,approval_approved:false,mission_spec:{allow_writes:false,approval:{approved:false},allowed_commands:["git"],budgets:{max_tool_calls:1,max_output_bytes:1048576,max_write_bytes:1048576}},tool_calls:[{name:"relay.run_command",input:{command:"git status --short"}},{name:"relay.run_command",input:{command:"git status --short"}}]}')"
+budget_nonce="relay-budget-smoke-private-nonce"
+budget_capability="$(printf '%s' "relay-budget-smoke|relay-budget-smoke-session|$WORK|$budget_nonce|relay-agent-tools" | shasum -a 256 | awk '{print $1}')"
+budget_payload="$(jq -cn --arg root "$ROOT" --arg kujo "$KUJO" --arg work "$WORK" --arg capability "$budget_capability" --arg nonce "$budget_nonce" '{relay_root:$root,kujo_bin:$kujo,capability:$capability,capability_nonce:$nonce,run_id:"relay-budget-smoke",session_id:"relay-budget-smoke-session",workspace:$work,approval_approved:false,mission_spec:{allow_writes:false,approval:{approved:false},allowed_commands:["git"],budgets:{max_tool_calls:1,max_output_bytes:1048576,max_write_bytes:1048576}},tool_calls:[{name:"relay.run_command",input:{command:"git status --short"}},{name:"relay.run_command",input:{command:"git status --short"}}]}')"
 set +e
 budget_output="$(RELAY_AGENT_PAYLOAD="$budget_payload" "$KUJO" run "$ROOT/src/agent_bridge.kujo" --interpreter 2>&1)"
 budget_exit=$?

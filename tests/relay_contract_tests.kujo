@@ -1,7 +1,7 @@
 from src.contracts import event, event_integrity_valid, event_chain_integrity_valid, event_sequence_matches_state, receipt, receipt_integrity_valid, receipt_sequence_valid, receipt_sequence_matches_state, state_integrity_input, state_integrity_valid, run_state, agent_profile, RELAY_VERSION, EVENT_CONTRACT, RECEIPT_CONTRACT
 from src.policy import classify_failure, path_is_safe, path_is_within_workspace, command_is_allowed, tool_decision
 from src.runtime import resume_state_safe, cleanup_state_safe, control_state_safe, save_state, mark_evidence_failure, cancellation_request, cancellation_integrity_input, persist_required_json, report
-from src.common import safe_id, redact_text, shell_quote_single, command_args, process_options, process_options_with_cancel, safe_env_name, path_is_symlink_safe, path_has_symlink_component, path_has_parent_component, read_json_limited, append_jsonl, write_json, dict_get_or, bool_or, safe_json
+from src.common import safe_id, redact_text, shell_quote_single, command_args, process_options, process_options_with_cancel, safe_process_path, safe_env_name, path_is_symlink_safe, path_has_symlink_component, path_has_parent_component, read_json_limited, append_jsonl, write_json, dict_get_or, bool_or, safe_json
 from src.adapters import fallback_allowed, fallback_decision, watchdog_route_allowed
 from src.store import safe_run_key, store_root_safe, acquire_index_lock, acquire_index_lock_retry, release_index_lock
 from src.watchdog import safe_base, safe_correlation_id, route_policy
@@ -128,6 +128,9 @@ json_redaction := redact_text("{\"api_key\":\"json-secret\",\"access_token\":\"a
 failed = failed + check("JSON credential redaction", bool_or(contains(json_redaction, "json-secret"), true) == false && bool_or(contains(json_redaction, "access-secret"), true) == false && bool_or(contains(json_redaction, "pw-secret"), true) == false && bool_or(contains(json_redaction, "[REDACTED_CREDENTIAL]"), false))
 failed = failed + check("provider token redaction", contains(redact_text("sk-12345678abcdefghijklmnopqrstuvwxyz"), "[REDACTED_KEY]") && contains(redact_text("github_pat_123456789012345678901234567890"), "[REDACTED_KEY]"))
 failed = failed + check("private key redaction", contains(redact_text("-----BEGIN PRIVATE KEY-----"), "[REDACTED_PRIVATE_KEY]"))
+process_env_probe := process_options({"PATH": "/tmp/relay-untrusted-path", "LD_PRELOAD": "/tmp/relay-loader", "RELAY_TEST_ENV": "ok"}, 1000, 1000)
+failed = failed + check("process PATH remains fixed", dict_get_or(process_env_probe["env"], "PATH", "") == safe_process_path())
+failed = failed + check("dangerous process environment is dropped", has_key(process_env_probe["env"], "LD_PRELOAD") == 0 && dict_get_or(process_env_probe["env"], "RELAY_TEST_ENV", "") == "ok")
 bounded_json_path := "/tmp/relay-contract-bounded-json-" + to_string(current_timestamp())
 write_file(bounded_json_path, "{\"ok\":true}")
 failed = failed + check("bounded JSON read accepts small file", dict_get_or(read_json_limited(bounded_json_path, {}, 64), "ok", false) == true)
@@ -143,6 +146,14 @@ failed = failed + check("fallback decision skips policy failure", dict_get_or(fa
 failed = failed + check("fallback decision records success", dict_get_or(fallback_decision({"ok": true}, "primary", "backup"), "reason", "") == "primary_succeeded")
 failed = failed + check("cancelled failure classification", classify_failure("cancelled") == "cancelled")
 failed = failed + check("timeout failure classification", classify_failure("timed_out") == "timeout")
+failed = failed + check("policy failure classification", classify_failure("tool_policy_violation") == "policy_violation")
+failed = failed + check("workflow failure classification", classify_failure("workflow_definition_failure") == "workflow_definition_failure")
+failed = failed + check("permission failure classification", classify_failure("tool_permission_denied") == "permission_denial")
+failed = failed + check("malformed tool failure classification", classify_failure("malformed_tool_call") == "malformed_tool_call")
+failed = failed + check("invalid model failure classification", classify_failure("invalid_model_response") == "invalid_model_response")
+failed = failed + check("missing context failure classification", classify_failure("missing_context") == "missing_context")
+failed = failed + check("implementation failure classification", classify_failure("implementation_failure") == "implementation_failure")
+failed = failed + check("evaluation failure classification", classify_failure("evaluation_failure") == "evaluation_failure")
 failed = failed + check("safe Watchdog route", watchdog_route_allowed("http://127.0.0.1:7700/proxy/v1"))
 failed = failed + check("HTTPS external Watchdog route", watchdog_route_allowed("https://watchdog.example.com/proxy/v1"))
 failed = failed + check("HTTP external Watchdog route denied", watchdog_route_allowed("http://watchdog.example.com/proxy/v1") == false)

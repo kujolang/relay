@@ -35,7 +35,7 @@ test "$elapsed_wait" -lt 12
 run_id="$(jq -r '.run.run_id // .run_id' "$OUTPUT")"
 test -n "$run_id" && test "$run_id" != "null"
 state="$($KUJO run "$ROOT/main.kujo" -- missions inspect "$run_id" --json)"
-printf '%s' "$state" | jq -e '.ok == true and .run.status == "failed" and .run.failure.class == "timeout" and (.run.action_results | any(.timed_out == true and .failure_class == "timeout"))' >/dev/null
+printf '%s' "$state" | jq -e '.ok == true and .run.status == "failed" and .run.failure.class == "timeout" and (.run.action_results | any(.timed_out == true and .failure_class == "timeout" and (.exit_code | type) == "number"))' >/dev/null
 
 if ps -axo command | grep -F "$WORK/scripts/slow.sh" | grep -v grep >/dev/null; then
   echo "timed-out command left a descendant process" >&2

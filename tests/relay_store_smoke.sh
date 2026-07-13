@@ -4,8 +4,10 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 KUJO="${KUJO:-${KUJO_BIN:-$ROOT/../kujo/target/release/kujo}}"
 WORK="/tmp/relay-store-workspace"
+SPEC="/tmp/relay-store-mission.json"
 
-rm -rf "$WORK" "$ROOT/.relay"
+rm -rf "$WORK" "$ROOT/.relay" "$SPEC"
+trap 'rm -rf "$WORK" "$ROOT/.relay" "$SPEC"' EXIT
 mkdir -p "$WORK"
 git init -q "$WORK"
 git -C "$WORK" config user.email relay@example.invalid
@@ -13,12 +15,28 @@ git -C "$WORK" config user.name Relay
 touch "$WORK/README.md"
 git -C "$WORK" add README.md
 git -C "$WORK" commit -qm baseline
+ruby -rjson -e 'spec=JSON.parse(File.read(ARGV.fetch(0))); spec["repository"]=ARGV.fetch(1); File.write(ARGV.fetch(2), JSON.generate(spec))' "$ROOT/examples/fixture-mission.json" "$WORK" "$SPEC"
 
 export RELAY_ROOT="$ROOT"
-result="$($KUJO run "$ROOT/main.kujo" -- missions run "$ROOT/examples/fixture-mission.json" --fixture --skip-agent-smoke --json)"
+result="$($KUJO run "$ROOT/main.kujo" -- missions run "$SPEC" --fixture --skip-agent-smoke --json)"
 printf '%s' "$result" | grep -q '"status":"completed"'
 run_id="$(printf '%s' "$result" | ruby -rjson -e 'print JSON.parse(STDIN.read)["run"]["run_id"]')"
 test -n "$run_id"
+second_result="$($KUJO run "$ROOT/main.kujo" -- missions run "$SPEC" --fixture --skip-agent-smoke --json)"
+second_run_id="$(printf '%s' "$second_result" | ruby -rjson -e 'print JSON.parse(STDIN.read)["run"]["run_id"]')"
+test -n "$second_run_id" && test "$second_run_id" != "$run_id"
+
+run_window="$($KUJO run "$ROOT/main.kujo" -- runs list --limit 1 --json)"
+printf '%s' "$run_window" | jq -e '.ok == true and .run_count == 2 and (.runs | length) == 1 and .has_more == true and (.next_after | length) > 0' >/dev/null
+run_cursor="$(printf '%s' "$run_window" | jq -r '.next_after')"
+next_run_window="$($KUJO run "$ROOT/main.kujo" -- runs list --after "$run_cursor" --limit 1 --json)"
+printf '%s' "$next_run_window" | jq -e '.ok == true and .run_count == 2 and .offset == 1 and (.runs | length) == 1 and .has_more == false' >/dev/null
+set +e
+bad_run_limit="$($KUJO run "$ROOT/main.kujo" -- runs list --limit 4097 --json 2>&1)"
+bad_run_limit_status=$?
+set -e
+test "$bad_run_limit_status" -ne 0
+printf '%s' "$bad_run_limit" | grep -q 'run limit must be between 1 and 4096'
 
 # A corrupt or tampered cache must not become an arbitrary filesystem read.
 printf '%s' '{"attacker":{"run_dir":"/etc","status":"completed"}}' > "$ROOT/.relay/index.json"

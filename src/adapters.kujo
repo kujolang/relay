@@ -206,10 +206,15 @@ func agents_sdk_tool_run(workspace, spec, run_id, session_id) {
     mission_spec := spec
     mission_spec["allow_writes"] := bool_or(dict_get_or(spec, "allow_writes", false), false)
     mission_spec["budgets"] := dict_get_or(spec, "budgets", {})
+    # The capability must not be derivable from public run/workspace IDs. The
+    # worker receives this nonce only through the short-lived parent/child
+    # environment boundary and Relay verifies it again at the tool authority.
+    capability_nonce := sha256(run_id + "|" + session_id + "|" + workspace + "|" + to_string(current_timestamp()) + "|" + to_string(random_int(1000, 999999)))
     payload := {
         "relay_root": relay_root(),
         "kujo_bin": kujo_bin(),
-        "capability": sha256(run_id + "|" + session_id + "|" + workspace + "|relay-agent-tools"),
+        "capability": sha256(run_id + "|" + session_id + "|" + workspace + "|" + capability_nonce + "|relay-agent-tools"),
+        "capability_nonce": capability_nonce,
         "run_id": run_id,
         "session_id": session_id,
         "workspace": workspace,

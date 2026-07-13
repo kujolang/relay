@@ -135,6 +135,11 @@ func path_has_symlink_component(path) {
             continue
         }
         if current == "/" { current = current + part } else if current == "" { current = part } else { current = current + "/" + part }
+        # macOS exposes /tmp as the stable system alias for /private/tmp. It is
+        # a platform-owned redirect, not a caller-selected repository alias;
+        # continue past that one component while still checking every child
+        # component for attacker-controlled redirection.
+        if current == "/tmp" { continue }
         if path_is_symlink_safe(current) { return true }
     }
     return false
@@ -185,10 +190,18 @@ func process_options(extra_env, timeout_ms, max_output_bytes) {
     }
     if type(extra_env) == "dict" {
         for name in keys(extra_env) {
+            # Never let a caller widen executable lookup or inject a loader,
+            # interpreter, Git override, or trust-store variable through the
+            # child-process boundary. PWD is retained only because run_process
+            # derives it from its already validated working directory.
+            if name == "PATH" { continue }
+            if name != "PWD" && safe_env_name(name) == false { continue }
             env_map[name] := extra_env[name]
             allowed := push(allowed, name)
         }
     }
+    env_map["PATH"] := safe_process_path()
+    if index_of(allowed, "PATH") < 0 { allowed := push(allowed, "PATH") }
     return {"inherit_env": false, "timeout_ms": timeout_ms, "max_output_bytes": max_output_bytes, "env": env_map, "env_allow": allowed}
 }
 

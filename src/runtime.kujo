@@ -1,4 +1,4 @@
-from src.common import dict_get_or, env_or, string_or, bool_or, int_or, now_iso, safe_id, read_json_or, read_json_limited, write_json, append_jsonl, safe_json, shell_quote_single, command_args, write_text_atomic, process_options, process_options_with_cancel, redact_text, path_is_symlink_safe
+from src.common import dict_get_or, env_or, string_or, bool_or, int_or, now_iso, safe_id, read_json_or, read_json_limited, write_json, append_jsonl, safe_json, shell_quote_single, command_args, write_text_atomic, process_options, process_options_with_cancel, redact_text, path_is_symlink_safe, path_has_symlink_component
 from src.contracts import run_state, event, event_integrity_input, receipt, receipt_integrity_input, event_chain_integrity_valid, receipt_sequence_valid, state_integrity_input, state_integrity_valid
 from src.registry import find_agent
 from src.policy import tool_decision, classify_failure, path_is_safe, path_is_within_workspace, command_is_allowed
@@ -272,9 +272,9 @@ func load_spec(path) {
     workspace_mode := string_or(dict_get_or(spec, "workspace_mode", "provided"), "provided")
     if workspace_mode != "provided" && workspace_mode != "worktree" { return {"ok": false, "error": "workspace_mode must be provided or worktree"} }
     repository := string_or(dict_get_or(spec, "repository", ""), "")
-    if repository == "" || path_is_dir(repository) == false || path_is_symlink_safe(repository) { return {"ok": false, "error": "Mission repository must be an existing non-symlink directory"} }
+    if repository == "" || path_is_dir(repository) == false || path_is_symlink_safe(repository) || path_has_symlink_component(repository) { return {"ok": false, "error": "Mission repository must be an existing non-symlink directory"} }
     if path_exists(repository + "/.git") == false { return {"ok": false, "error": "Mission repository must be a Git workspace"} }
-    if path_is_symlink_safe(repository + "/.git") { return {"ok": false, "error": "Mission Git metadata must not be a symbolic link"} }
+    if path_is_symlink_safe(repository + "/.git") || path_has_symlink_component(repository + "/.git") { return {"ok": false, "error": "Mission Git metadata must not be a symbolic link"} }
     action_policy := {"workspace": repository, "allow_writes": bool_or(dict_get_or(spec, "allow_writes", false), false), "allowed_commands": allowed_commands}
     for action in actions {
         if dict_get_or(action, "type", "") == "run_command" && command_is_allowed(dict_get_or(action, "command", ""), action_policy) == false {
@@ -344,7 +344,7 @@ func execute_action(action, spec, state, run_dir) {
         failure_class := "tool_failure"
         if result.cancelled { failure_class = "cancelled" }
         else if result.timed_out { failure_class = "timeout" }
-        return {"ok": ok, "tool": "run_command", "command": redact_text(command), "stdout": redact_text(result.stdout), "stderr": redact_text(result.stderr), "timed_out": result.timed_out, "cancelled": result.cancelled, "stdout_truncated": result.stdout_truncated, "stderr_truncated": result.stderr_truncated, "output_truncated": output_truncated, "duration_ms": duration_ms, "failure_class": failure_class}
+        return {"ok": ok, "tool": "run_command", "command": redact_text(command), "stdout": redact_text(result.stdout), "stderr": redact_text(result.stderr), "exit_code": result.exitcode, "timed_out": result.timed_out, "cancelled": result.cancelled, "stdout_truncated": result.stdout_truncated, "stderr_truncated": result.stderr_truncated, "output_truncated": output_truncated, "duration_ms": duration_ms, "failure_class": failure_class}
     }
     return {"ok": false, "failure_class": "policy_violation", "error": "unknown_action_type"}
 }
@@ -353,13 +353,14 @@ func execute_tool_request(request, supplied_capability) {
     if type(request) != "dict" { return {"ok": false, "error": "tool request must be an object"} }
     capability := string_or(dict_get_or(request, "capability", ""), "")
     workspace := string_or(dict_get_or(request, "workspace", ""), "")
-    if workspace == "" || path_is_dir(workspace) == false || path_is_symlink_safe(workspace) { return {"ok": false, "error": "tool workspace is invalid"} }
+    if workspace == "" || path_is_dir(workspace) == false || path_is_symlink_safe(workspace) || path_has_symlink_component(workspace) { return {"ok": false, "error": "tool workspace is invalid"} }
     run_id := string_or(dict_get_or(request, "run_id", ""), "")
     session_id := string_or(dict_get_or(request, "session_id", ""), "")
-    expected_capability := sha256(run_id + "|" + session_id + "|" + workspace + "|relay-agent-tools")
+    capability_nonce := string_or(dict_get_or(request, "capability_nonce", ""), "")
+    expected_capability := sha256(run_id + "|" + session_id + "|" + workspace + "|" + capability_nonce + "|relay-agent-tools")
     supplied := string_or(supplied_capability, env_or("RELAY_TOOL_CAPABILITY", ""))
-    if capability == "" || capability != expected_capability || supplied != expected_capability { return {"ok": false, "error": "tool capability is invalid"} }
-    if path_exists(workspace + "/.git") == false || path_is_symlink_safe(workspace + "/.git") { return {"ok": false, "error": "tool workspace must be a Git workspace"} }
+    if capability_nonce == "" || capability == "" || capability != expected_capability || supplied != expected_capability { return {"ok": false, "error": "tool capability is invalid"} }
+    if path_exists(workspace + "/.git") == false || path_is_symlink_safe(workspace + "/.git") || path_has_symlink_component(workspace + "/.git") { return {"ok": false, "error": "tool workspace must be a Git workspace"} }
     original_spec := dict_get_or(request, "mission_spec", {})
     if type(original_spec) != "dict" { return {"ok": false, "error": "mission policy is missing"} }
     spec := original_spec

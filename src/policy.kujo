@@ -1,14 +1,24 @@
 from src.common import command_args, contains_any, dict_get_or, string_or, process_options
 
 func classify_failure(code) {
-    if contains_any(code, ["cancel", "aborted"]) { return "cancelled" }
-    if contains_any(code, ["auth", "unauthorized", "401"]) { return "authentication_failure" }
-    if contains_any(code, ["rate", "429", "allowance"]) { return "rate_or_allowance_limit" }
-    if contains_any(code, ["timeout", "timed_out"]) { return "timeout" }
-    if contains_any(code, ["tool", "command"]) { return "tool_failure" }
-    if contains_any(code, ["permission", "denied", "policy"]) { return "permission_denial" }
-    if contains_any(code, ["test", "eval"]) { return "evaluation_failure" }
-    if contains_any(code, ["repo", "git"]) { return "repository_failure" }
+    normalized := to_lower(trim(to_string(code)))
+    if contains_any(normalized, ["cancel", "aborted"]) { return "cancelled" }
+    if contains_any(normalized, ["auth", "unauthorized", "401"]) { return "authentication_failure" }
+    if contains_any(normalized, ["rate", "429", "allowance"]) { return "rate_or_allowance_limit" }
+    if contains_any(normalized, ["timeout", "timed_out"]) { return "timeout" }
+    # Specific policy and permission classes must precede the generic tool
+    # class; otherwise `tool_permission_denied` loses the authority signal
+    # needed by repair and escalation policy.
+    if contains_any(normalized, ["workflow_definition_failure", "invalid_workflow", "workflow_definition"]) { return "workflow_definition_failure" }
+    if contains_any(normalized, ["policy_violation", "policy"]) { return "policy_violation" }
+    if contains_any(normalized, ["permission", "denied", "forbidden"]) { return "permission_denial" }
+    if contains_any(normalized, ["malformed_tool", "invalid_tool_call"]) { return "malformed_tool_call" }
+    if contains_any(normalized, ["invalid_model", "malformed_response", "structured_output"]) { return "invalid_model_response" }
+    if contains_any(normalized, ["missing_context", "context_missing"]) { return "missing_context" }
+    if contains_any(normalized, ["implementation", "code_failure"]) { return "implementation_failure" }
+    if contains_any(normalized, ["test", "eval", "evaluation"]) { return "evaluation_failure" }
+    if contains_any(normalized, ["repo", "git", "workspace"]) { return "repository_failure" }
+    if contains_any(normalized, ["tool", "command"]) { return "tool_failure" }
     return "provider_failure"
 }
 

@@ -6,9 +6,10 @@ KUJO="${KUJO:-${KUJO_BIN:-$ROOT/../kujo/target/release/kujo}}"
 WORK="/tmp/relay-spec-safety-workspace"
 LARGE="/tmp/relay-large-mission.json"
 SYMLINK="/tmp/relay-symlink-mission.json"
+REPO_LINK="/tmp/relay-symlink-repository-$$"
 INVALID_ACTION="/tmp/relay-invalid-action-mission.json"
 
-rm -rf "$WORK" "$ROOT/.relay" "$LARGE" "$SYMLINK" "$INVALID_ACTION"
+rm -rf "$WORK" "$ROOT/.relay" "$LARGE" "$SYMLINK" "$REPO_LINK" "$INVALID_ACTION"
 mkdir -p "$WORK"
 git init -q "$WORK"
 git -C "$WORK" config user.email relay@example.invalid
@@ -34,6 +35,16 @@ symlink_status=$?
 set -e
 test "$symlink_status" -ne 0
 printf '%s' "$symlink_output" | grep -q 'must not be a symbolic link'
+
+ln -s "$WORK" "$REPO_LINK"
+ruby -rjson -e 'path=ARGV.fetch(0); repo=ARGV.fetch(1); File.write(path, JSON.generate({name:"symlink-repository",goal:"must fail closed",repository:repo,actions:[]}))' "$INVALID_ACTION" "$REPO_LINK"
+set +e
+symlink_repository_output="$($KUJO run "$ROOT/main.kujo" -- missions run "$INVALID_ACTION" --fixture --skip-agent-smoke --json 2>&1)"
+symlink_repository_status=$?
+set -e
+test "$symlink_repository_status" -ne 0
+printf '%s' "$symlink_repository_output" | grep -q 'non-symlink directory'
+rm -f "$REPO_LINK"
 
 ruby -rjson -e 'path=ARGV.fetch(0); File.write(path, JSON.generate({name:"invalid-action",goal:"must fail during validation",repository:ARGV.fetch(1),actions:[{type:"unknown"}]}))' "$INVALID_ACTION" "$WORK"
 set +e
