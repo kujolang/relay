@@ -1,4 +1,4 @@
-from src.common import dict_get_or, env_or, string_or, bool_or, int_or, safe_json, read_json_or, redact_text, process_options, safe_env_name, contains_any
+from src.common import dict_get_or, env_or, env_bool, string_or, bool_or, int_or, safe_json, read_json_or, redact_text, process_options, safe_env_name, contains_any
 from src.policy import real_path
 from src.watchdog import watchdog_verify, safe_base, route_policy, safe_correlation_id
 
@@ -115,7 +115,7 @@ func call_ai(messages, model, provider, base_url, api_key_env, offline, stream, 
     if watchdog_url() != "" && offline == false { route = "watchdog_proxy" }
     route_posture := route_policy(watchdog_url())
     parsed["relay_telemetry"] := {"route": route, "watchdog_route": {"configured": dict_get_or(route_posture, "configured", false), "valid": dict_get_or(route_posture, "valid", false), "scheme": dict_get_or(route_posture, "scheme", ""), "reason": dict_get_or(route_posture, "reason", "")}, "watchdog_auth_configured": watchdog_token != "", "provider": provider, "model": model, "stream_requested": stream, "correlation_id": correlation, "duration_ms": int_or(dict_get_or(result, "duration_ms", 0), 0)}
-    if offline == false && env_or("RELAY_WATCHDOG_VERIFY", "false") == "true" {
+    if offline == false && env_bool("RELAY_WATCHDOG_VERIFY", false) {
         verification := watchdog_verify(correlation)
         parsed["relay_watchdog_verification"] := verification
         if verification["ok"] == false {

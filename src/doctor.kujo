@@ -1,4 +1,4 @@
-from src.common import dict_get_or, env_or, safe_env_name, int_or, path_is_symlink_safe, path_has_symlink_component
+from src.common import dict_get_or, env_or, env_bool, safe_env_name, int_or, path_is_symlink_safe, path_has_symlink_component
 from src.adapters import kujo_bin, ai_sdk_root, agents_sdk_root, watchdog_url, run_process
 from src.policy import real_path
 from src.watchdog import health_check, proxy_config_check, route_policy
@@ -87,7 +87,7 @@ func doctor() {
     }
     registry_safe := len(agent_errors) == 0
     checks := push(checks, {"name": "Chain of Command registry", "ok": registry_safe, "required": true, "safe": registry_safe, "missing": agent_errors})
-    live := env_or("RELAY_OFFLINE_FIXTURE", "true") != "true"
+    live := env_bool("RELAY_OFFLINE_FIXTURE", true) == false
     mode := "fixture"
     if live { mode = "live" }
     watchdog_route := route_policy(watchdog_url())
@@ -95,7 +95,7 @@ func doctor() {
     watchdog_ok := dict_get_or(watchdog_route, "valid", false)
     if live == false { watchdog_ok = true }
     checks := push(checks, {"name": "Watchdog route", "ok": watchdog_ok, "required": live, "safe": watchdog_ok, "configured": watchdog_configured, "valid": dict_get_or(watchdog_route, "valid", false), "scheme": dict_get_or(watchdog_route, "scheme", ""), "reason": dict_get_or(watchdog_route, "reason", "")})
-    watchdog_verify_required := live && env_or("RELAY_WATCHDOG_VERIFY", "false") == "true"
+    watchdog_verify_required := live && env_bool("RELAY_WATCHDOG_VERIFY", false)
     if watchdog_verify_required {
         watchdog_health := health_check()
         watchdog_config := proxy_config_check()

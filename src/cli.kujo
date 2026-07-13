@@ -1,4 +1,4 @@
-from src.common import dict_get_or, env_or, string_or, bool_or, int_or, read_json_limited, safe_json, write_json, now_iso, path_is_symlink_safe
+from src.common import dict_get_or, env_or, env_bool, string_or, bool_or, int_or, read_json_limited, safe_json, write_json, now_iso, path_is_symlink_safe
 from src.contracts import RELAY_VERSION, event_chain_integrity_valid, event_sequence_matches_state, receipt_sequence_valid, receipt_sequence_matches_state
 from src.registry import agent_catalog, find_agent, agent_path
 from src.adapters import ai_chat, capsule_run
@@ -131,7 +131,7 @@ func cmd_chat(tokens) {
     prompt := join(parsed["positionals"], " ")
     model := string_or(dict_get_or(parsed["flags"], "model", "fixture-model"), "fixture-model")
     provider := string_or(dict_get_or(parsed["flags"], "provider", "fixture"), "fixture")
-    offline := has_flag(parsed["flags"], "fixture") || has_flag(parsed["flags"], "offline") || env_or("RELAY_OFFLINE_FIXTURE", "true") == "true"
+    offline := has_flag(parsed["flags"], "fixture") || has_flag(parsed["flags"], "offline") || env_bool("RELAY_OFFLINE_FIXTURE", true)
     result := ai_chat([{"role": "user", "content": prompt}], model, provider, offline, has_flag(parsed["flags"], "stream"))
     if has_flag(parsed["flags"], "stream") {
         events := []
@@ -169,7 +169,7 @@ func cmd_models(tokens) {
     if sub == "probe" {
         model := string_or(positional(parsed["positionals"], 1, env_or("RELAY_MODEL", "fixture-model")), "fixture-model")
         provider := string_or(dict_get_or(parsed["flags"], "provider", env_or("RELAY_PROVIDER", "fixture")), "fixture")
-        offline := has_flag(parsed["flags"], "fixture") || has_flag(parsed["flags"], "offline") || env_or("RELAY_OFFLINE_FIXTURE", "true") == "true"
+        offline := has_flag(parsed["flags"], "fixture") || has_flag(parsed["flags"], "offline") || env_bool("RELAY_OFFLINE_FIXTURE", true)
         result := ai_chat([{"role": "user", "content": "Reply with exactly: relay-probe-ok"}], model, provider, offline, false)
         return {"ok": dict_get_or(result, "ok", false), "model": model, "provider": provider, "offline": offline, "result": result}
     }
@@ -205,7 +205,7 @@ func cmd_missions(tokens) {
         path := positional(parsed["positionals"], 1, "")
         if path == "" { return {"ok": false, "error": "missions run requires a spec path"} }
         offline := has_flag(parsed["flags"], "fixture")
-        if env_or("RELAY_OFFLINE_FIXTURE", "true") == "true" { offline = true }
+        if env_bool("RELAY_OFFLINE_FIXTURE", true) { offline = true }
         return run_mission(path, {"offline_fixture": offline, "stream": false, "pause_after_plan": has_flag(parsed["flags"], "pause-after-plan"), "agents_sdk_smoke": has_flag(parsed["flags"], "skip-agent-smoke") == false})
     }
     id := positional(parsed["positionals"], 1, "")

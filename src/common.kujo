@@ -29,6 +29,10 @@ func bool_or(value, fallback) {
     return fallback
 }
 
+func env_bool(key, fallback) {
+    return bool_or(env_or(key, ""), fallback)
+}
+
 func int_or(value, fallback) {
     if type(value) == "int" { return value }
     if type(value) == "string" {
@@ -256,6 +260,7 @@ export dict_get_or := dict_get_or
 export env_or := env_or
 export string_or := string_or
 export bool_or := bool_or
+export env_bool := env_bool
 export int_or := int_or
 export array_or := array_or
 export now_iso := now_iso
