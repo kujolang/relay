@@ -42,6 +42,8 @@ a := agent_profile("planner", "Planner", "plan", "fixture-model", ["read_repo"],
 failed = failed + check("agent authority", a["authority"] == "read_only")
 failed = failed + check("safe relative path", path_is_safe(".", "src/file.txt"))
 failed = failed + check("parent component identified", path_has_parent_component("../outside"))
+failed = failed + check("safe sibling path inspected", path_has_symlink_component("./../ai-sdk") == false)
+failed = failed + check("state store parent component denied", store_root_safe("../relay-contract-store") == false)
 failed = failed + check("unsafe traversal", path_is_safe(".", "../secret") == false)
 failed = failed + check("nested traversal", path_is_safe(".", "src/../secret") == false)
 failed = failed + check("secret file denied", path_is_safe(".", ".env") == false)
