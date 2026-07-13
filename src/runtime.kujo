@@ -327,8 +327,8 @@ func execute_tool_request(request, supplied_capability) {
 
 func cancellation_request(run_dir) {
     path := run_dir + "/cancel.request.json"
-    if path_exists(path) == false { return {"ok": true, "requested": false} }
     if path_is_symlink_safe(path) { return {"ok": false, "error": "cancellation request is a symbolic link"} }
+    if path_exists(path) == false { return {"ok": true, "requested": false} }
     request := read_json_limited(path, null, 65536)
     if type(request) != "dict" { return {"ok": false, "error": "cancellation request is invalid"} }
     return {"ok": true, "requested": true, "request": request}
@@ -632,7 +632,7 @@ func cancel_run(run_id) {
         return {"ok": true, "run": state, "status": "cancelled"}
     }
     request_path := run_dir + "/cancel.request.json"
-    if path_exists(request_path) && path_is_symlink_safe(request_path) { return {"ok": false, "error": "cancellation request is a symbolic link"} }
+    if path_is_symlink_safe(request_path) { return {"ok": false, "error": "cancellation request is a symbolic link"} }
     request := {"requested_at": now_iso(), "requested_by": "operator", "reason": "operator_cancel"}
     if write_json(request_path, request) == false { return {"ok": false, "error": "cancellation request could not be recorded"} }
     latest := read_json_limited(run_dir + "/state.json", state, 67108864)
@@ -751,6 +751,7 @@ export cancel_run := cancel_run
 export cleanup_run := cleanup_run
 export resume_run := resume_run
 export execute_tool_request := execute_tool_request
+export cancellation_request := cancellation_request
 export state_root := state_root
 export run_root := run_root
 export resume_state_safe := resume_state_safe

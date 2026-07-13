@@ -1,5 +1,6 @@
 from src.common import dict_get_or, env_or, safe_env_name, int_or, path_is_symlink_safe, path_has_symlink_component
 from src.adapters import kujo_bin, ai_sdk_root, agents_sdk_root, watchdog_url, run_process
+from src.policy import real_path
 from src.watchdog import health_check, proxy_config_check, route_policy
 from src.registry import agent_catalog, agent_path
 from src.store import store_root_safe
@@ -73,7 +74,9 @@ func doctor() {
     checks := push(checks, dependency_version("Kujo runtime version", kujo_bin(), root, ["--version"], {}, true))
     checks := push(checks, dependency_version("PackWrite version", packwrite_path, env_or("RELAY_PACKWRITE_ROOT", root + "/../packwrite"), ["version"], {"KUJO": kujo_bin()}, true))
     checks := push(checks, dependency_version("RunLedger version", runledger_path, env_or("RELAY_RUNLEDGER_ROOT", root + "/../runledger"), ["version"], {"KUJO": kujo_bin()}, true))
-    checks := push(checks, dependency_version("ChangeBucket version", changebucket_path, env_or("RELAY_CHANGEBUCKET_ROOT", root + "/../changebucket"), ["version"], {"KUJO": kujo_bin()}, true))
+    kujo_modules := real_path(root + "/../kujo/modules")
+    if kujo_modules == "" { kujo_modules = root + "/../kujo/modules" }
+    checks := push(checks, dependency_version("ChangeBucket version", changebucket_path, env_or("RELAY_CHANGEBUCKET_ROOT", root + "/../changebucket"), ["version"], {"KUJO": kujo_bin(), "KUJO_MODULE_PATH": kujo_modules}, true))
     checks := push(checks, dependency_hash("Kujo runtime hash", kujo_bin(), "RELAY_KUJO_SHA256"))
     checks := push(checks, dependency_hash("PackWrite hash", packwrite_path, "RELAY_PACKWRITE_SHA256"))
     checks := push(checks, dependency_hash("RunLedger hash", runledger_path, "RELAY_RUNLEDGER_SHA256"))

@@ -116,9 +116,20 @@ func path_has_symlink_component(path) {
     if starts_with(candidate, "/") { current = "/" }
     for part in split(candidate, "/") {
         if part == "" || part == "." { continue }
-        if part == ".." { return true }
+        if part == ".." {
+            if current == "/" { current = current + ".." } else if current == "" { current = ".." } else { current = current + "/.." }
+            if path_is_symlink_safe(current) { return true }
+            continue
+        }
         if current == "/" { current = current + part } else if current == "" { current = part } else { current = current + "/" + part }
         if path_is_symlink_safe(current) { return true }
+    }
+    return false
+}
+
+func path_has_parent_component(path) {
+    for part in split(trim(to_string(path)), "/") {
+        if part == ".." { return true }
     }
     return false
 }
@@ -176,15 +187,17 @@ func process_options_with_cancel(extra_env, timeout_ms, max_output_bytes, cancel
 }
 
 func read_json_or(path, fallback) {
-    if path_exists(path) == false { return fallback }
-    if path_is_symlink_safe(path) || path_is_file(path) == false { return fallback }
+    # Probe link metadata before existence semantics so a dangling link cannot
+    # be treated as an absent optional artifact.
+    if path_is_symlink_safe(path) { return fallback }
+    if path_exists(path) == false || path_is_file(path) == false { return fallback }
     try { return parse_json(read_file(path)) } except err { return fallback }
 }
 
 func read_json_limited(path, fallback, max_bytes) {
     limit := int_or(max_bytes, 1048576)
-    if limit <= 0 || path_exists(path) == false { return fallback }
-    if path_is_symlink_safe(path) || path_is_file(path) == false || file_size(path) > limit { return fallback }
+    if limit <= 0 || path_is_symlink_safe(path) || path_exists(path) == false { return fallback }
+    if path_is_file(path) == false || file_size(path) > limit { return fallback }
     return read_json_or(path, fallback)
 }
 
@@ -195,8 +208,12 @@ func write_json(path, value) {
 func append_jsonl(path, value) {
     try {
         line := safe_json(value) + "\n"
+        # Check metadata before path_exists: writing through a dangling link
+        # would otherwise turn an absent evidence file into an attacker-
+        # selected destination.
+        if path_is_symlink_safe(path) { return false }
         if path_exists(path) {
-            if path_is_symlink_safe(path) || path_is_file(path) == false { return false }
+            if path_is_file(path) == false { return false }
             append_file(path, line)
         } else { write_file(path, line) }
         return true
@@ -249,6 +266,7 @@ export command_args := command_args
 export safe_env_name := safe_env_name
 export path_is_symlink_safe := path_is_symlink_safe
 export path_has_symlink_component := path_has_symlink_component
+export path_has_parent_component := path_has_parent_component
 export write_text_atomic := write_text_atomic
 export safe_process_path := safe_process_path
 export process_options := process_options

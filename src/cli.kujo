@@ -187,20 +187,23 @@ func watch_run_events(record, flags) {
     mut saw_events_file := false
     mut chain_checked_raw := ""
     while current_timestamp() - started_ms <= timeout_ms {
-        if path_exists(events_path) == false {
+        event_symlink := path_is_symlink_safe(events_path)
+        event_exists := path_exists(events_path)
+        if event_symlink || (event_exists && path_is_file(events_path) == false) {
+            print(safe_json({"type": "relay_watch_error", "error": "run event log is a symbolic link or non-regular file"}))
+            return {"ok": false, "_streamed": true}
+        }
+        if event_exists == false {
             if saw_events_file {
                 print(safe_json({"type": "relay_watch_error", "error": "run event log disappeared"}))
                 return {"ok": false, "_streamed": true}
             }
-        } else if path_is_symlink_safe(events_path) || path_is_file(events_path) == false {
-            print(safe_json({"type": "relay_watch_error", "error": "run event log is a symbolic link or non-regular file"}))
-            return {"ok": false, "_streamed": true}
         }
-        if path_exists(events_path) && file_size(events_path) > 8388608 {
+        if event_exists && file_size(events_path) > 8388608 {
             print(safe_json({"type": "relay_watch_error", "error": "run event log exceeds the 8 MiB inspection limit"}))
             return {"ok": false, "_streamed": true}
         }
-        if path_exists(events_path) {
+        if event_exists {
             saw_events_file = true
             raw := read_file(events_path)
             if raw != last_raw {
@@ -343,7 +346,7 @@ func cmd_runs(tokens) {
     if sub == "inspect" { return {"ok": true, "run": read_json_limited(record["run_dir"] + "/state.json", {}, 67108864), "run_dir": record["run_dir"]} }
     if sub == "events" || sub == "export" {
         events_path := record["run_dir"] + "/events.jsonl"
-        if path_exists(events_path) == false || path_is_symlink_safe(events_path) || path_is_file(events_path) == false || file_size(events_path) > 8388608 { return {"ok": false, "error": "run event log is missing, non-regular, symbolic-linked, or exceeds the 8 MiB inspection limit", "integrity_valid": false, "state_consistent": false} }
+        if path_is_symlink_safe(events_path) || path_exists(events_path) == false || path_is_file(events_path) == false || file_size(events_path) > 8388608 { return {"ok": false, "error": "run event log is missing, non-regular, symbolic-linked, or exceeds the 8 MiB inspection limit", "integrity_valid": false, "state_consistent": false} }
         raw_events := read_file(events_path)
         events := []
         for line in split(raw_events, "\n") {

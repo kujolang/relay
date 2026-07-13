@@ -161,5 +161,6 @@ export path_is_safe := path_is_safe
 export canonicalize_path := canonicalize_path
 export path_is_within_root := path_is_within_root
 export path_is_within_workspace := path_is_within_workspace
+export real_path := real_path
 export command_is_allowed := command_is_allowed
 export tool_decision := tool_decision

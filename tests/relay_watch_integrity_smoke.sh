@@ -56,4 +56,15 @@ printf '%s' "$watch_status" >"$WATCH_STATUS"
 test "$watch_status" -ne 0
 grep -q 'run event log disappeared' "$WATCH_OUTPUT"
 
+# A dangling event link is still an unsafe evidence object. The watcher must
+# reject it immediately instead of treating it as a missing file and waiting
+# for a timeout.
+ln -s "/tmp/relay-watch-dangling-target-$$" "$run_dir/events.jsonl"
+set +e
+dangling_watch_output="$($KUJO run "$ROOT/main.kujo" -- runs watch "$run_id" --poll-ms 10 --timeout-ms 1000 --json 2>&1)"
+dangling_watch_status=$?
+set -e
+test "$dangling_watch_status" -ne 0
+printf '%s' "$dangling_watch_output" | grep -q 'symbolic link'
+
 echo "PASS relay watch event disappearance smoke"

@@ -1,4 +1,5 @@
 from src.common import dict_get_or, env_or, string_or, bool_or, int_or, safe_json, read_json_or, redact_text, process_options, safe_env_name, contains_any
+from src.policy import real_path
 from src.watchdog import watchdog_verify, safe_base, route_policy, safe_correlation_id
 
 func relay_root() { return env_or("RELAY_ROOT", env_or("PWD", ".")) }
@@ -27,7 +28,18 @@ func last_json(raw) {
 
 func run_process(command, cwd, extra_env, timeout_ms) {
     started_ms := current_timestamp()
-    options := process_options(extra_env, timeout_ms, 8 * 1024 * 1024)
+    mut process_env := extra_env
+    if type(process_env) != "dict" { process_env = {} }
+    # `/usr/bin/env -C` changes the kernel cwd, but some Kujo module resolution
+    # paths also consult PWD. Keep both views aligned for sibling-tool probes
+    # and adapters so a dependency cannot accidentally import Relay's `src/`
+    # tree merely because the caller launched it from Relay.
+    if cwd != "" {
+        resolved_cwd := real_path(cwd)
+        if resolved_cwd == "" { resolved_cwd = cwd }
+        process_env["PWD"] := resolved_cwd
+    }
+    options := process_options(process_env, timeout_ms, 8 * 1024 * 1024)
     actual_command := command
     if cwd != "" {
         actual_command := ["/usr/bin/env", "-C", cwd]
@@ -192,7 +204,9 @@ func runledger_finish(run_dir, run_id, status, verdict, notes) {
 
 func changebucket(repo, run_dir) {
     command := ["/usr/bin/env", env_or("RELAY_CHANGEBUCKET_BIN", relay_root() + "/../changebucket/bin/changebucket"), "--json", "--repo", repo]
-    result := run_process(command, run_dir, {"KUJO": kujo_bin()}, 60000)
+    kujo_modules := real_path(relay_root() + "/../kujo/modules")
+    if kujo_modules == "" { kujo_modules = relay_root() + "/../kujo/modules" }
+    result := run_process(command, run_dir, {"KUJO": kujo_bin(), "KUJO_MODULE_PATH": kujo_modules}, 60000)
     return {"ok": dict_get_or(result, "success", false), "data": last_json(dict_get_or(result, "stdout", "")), "stdout": dict_get_or(result, "stdout", ""), "stderr": dict_get_or(result, "stderr", ""), "duration_ms": dict_get_or(result, "duration_ms", 0)}
 }
 

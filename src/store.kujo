@@ -1,4 +1,4 @@
-from src.common import dict_get_or, int_or, read_json_limited, write_json, string_or, path_is_symlink_safe, path_has_symlink_component
+from src.common import dict_get_or, int_or, read_json_limited, write_json, string_or, path_is_symlink_safe, path_has_symlink_component, path_has_parent_component
 
 # The index is a rebuildable cache. Per-run state.json remains authoritative;
 # this keeps inspection correct after a torn write, copied workspace, or a
@@ -27,9 +27,9 @@ func expected_run_dir(state_root, run_id) {
 }
 
 func store_root_safe(state_root) {
-    if trim(to_string(state_root)) == "" || path_has_symlink_component(state_root) { return false }
+    if trim(to_string(state_root)) == "" || path_has_parent_component(state_root) || path_has_symlink_component(state_root) { return false }
     runs_root := state_root + "/runs"
-    if path_has_symlink_component(runs_root) { return false }
+    if path_has_parent_component(runs_root) || path_has_symlink_component(runs_root) { return false }
     return true
 }
 
