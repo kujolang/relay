@@ -911,3 +911,9 @@ the denial. This remains local single-host coordination, not authenticated
 multi-host ownership or enterprise readiness.
 
 Current follow-on backlog: `docs/next-session-enhancement-backlog-2026-07-13-v81.md`.
+
+The v82 review removes a duplicate filesystem scan from invalid run-index cache
+recovery. `load_run_index` now uses one bounded locked rebuild to produce and
+persist the authoritative cache result. This is a measured-scope local
+performance improvement; durable storage and multi-host authority remain
+deliberately unimplemented.

@@ -918,3 +918,14 @@ single-host secret-rotation race but does not provide authenticated multi-host
 ownership, crash-lock recovery, live-provider proof, or enterprise readiness.
 The next-session backlog is
 `docs/next-session-enhancement-backlog-2026-07-13-v81.md`.
+
+## Eighty-second 2026-07-13 review
+
+Invalid run-index cache recovery now performs one locked authoritative scan
+instead of rebuilding the same run tree twice. The contract test proves the
+refreshed index is both returned and persisted, and the full acceptance and
+Loop Engineering gates remain required evidence. This is a local recovery-path
+performance improvement; it does not provide durable transactions,
+multi-host concurrency, retention, live-provider proof, or enterprise
+readiness. The next-session backlog is
+`docs/next-session-enhancement-backlog-2026-07-13-v82.md`.

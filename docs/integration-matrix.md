@@ -141,3 +141,8 @@ The v81 review also serializes capability issuance with the consumption/repair
 lock and rejects duplicate run/session records. A second issuance now returns
 `capability_already_registered` rather than replacing an existing worker secret;
 the state-store smoke proves the machine-readable denial.
+
+The v82 review adds a locked `rebuild_and_persist_run_index` path so invalid
+cache recovery performs one authoritative filesystem scan instead of two.
+Contract, store, acceptance, and Loop Engineering coverage remain required;
+durable transactional storage and multi-host concurrency remain open.

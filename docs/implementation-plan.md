@@ -247,3 +247,11 @@ fails. This closes the remaining local lock-acquisition race in the Relay
 boundary, not multi-host ownership or crash-lock reconciliation.
 
 Current follow-on backlog: `docs/next-session-enhancement-backlog-2026-07-13-v78.md`.
+
+## v82 delivered — single-scan index recovery
+
+The invalid-cache path now uses `rebuild_and_persist_run_index`, which acquires
+the existing bounded lock, rebuilds from authoritative per-run state once, and
+persists the returned index. The contract suite proves the returned and stored
+records agree. Explicit rebuild/register callers retain the existing
+authoritative persistence path.

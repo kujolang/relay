@@ -1449,3 +1449,28 @@ it does not establish authenticated multi-host capability ownership.
 
 Rejected: overwriting records, using a separate issuance lock namespace,
 silently rotating secrets for the same identity, or force-removing stale locks.
+
+## ADR-111: Refresh an invalid run-index cache with one authoritative scan
+
+Context: `load_run_index` validates the rebuildable cache against the
+authoritative per-run state tree. When validation failed, it rebuilt the index
+and then called the locked persistence path, which rebuilt the same tree a
+second time. This duplicated filesystem reads on the recovery path.
+
+Decision: add a dedicated locked `rebuild_and_persist_run_index` path. It
+acquires the existing bounded lock, rebuilds the authoritative index once,
+persists it, and returns that same result. If the bounded lock cannot be
+acquired, it returns one uncached rebuild rather than waiting indefinitely.
+Keep `persist_run_index` authoritative for explicit rebuild/register callers.
+
+Rationale: reduce invalid-cache recovery work while preserving the existing
+per-run state authority, bounded contention behavior, and fail-closed store
+checks. The contract test proves the helper both returns the rebuilt record and
+writes the cache.
+
+Consequences: cache recovery performs one authoritative scan instead of two.
+The index remains a rebuildable single-host cache; durable transactions,
+multi-host coordination, crash recovery, and retention remain deferred.
+
+Rejected: trusting the supplied cache after lock acquisition, removing the
+lock from persistence, or adding a second durable index store.
