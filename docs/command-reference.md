@@ -113,7 +113,10 @@ delegates to Relay's policy executor. It does not grant the Agents SDK direct
 filesystem or shell authority. The worker rechecks write approval, command
 timeout, and byte-budget bounds instead of trusting only the Agents SDK caller.
 Provider-generated tool planning, interactive approvals, and authenticated
-remote invocation are not yet enabled. The worker
+remote invocation are not yet enabled. Worker model output, tool output, and
+worker error text are redacted before the summary crosses the bridge; this is a
+local fail-closed filter, not a substitute for provider-native classification or
+the deferred Redact integration. The worker
 also ignores or rejects payload-selected `relay_root` and `kujo_bin` values
 unless they exactly match the trusted process environment, and refuses a
 symbolic-linked or missing trusted Relay root.

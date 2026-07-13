@@ -71,6 +71,14 @@ pass. This strengthens local authority and failure detection but does not claim
 provider-generated tool planning, authenticated machine invocation, workcell
 crash recovery, durable storage, or enterprise readiness.
 
+## Fifty-seventh 2026-07-13 review
+
+The Agents SDK bridge now recursively redacts model output, nested tool output,
+and worker error text before emitting its machine summary. The Agents SDK smoke
+proves credential-shaped output is not exposed. This improves local disclosure
+safety but does not claim provider-native classification, full Redact
+integration, authenticated service mode, or enterprise readiness.
+
 ## Fifty-third 2026-07-13 review
 
 This review added two bounded local improvements. `runs sizes` now rejects

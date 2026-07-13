@@ -795,3 +795,16 @@ watch is a machine-facing evidence interface and must fail immediately on
 unsafe state rather than waiting. Consequence: state-link and missing-state
 failures are explicit; the bounded local watcher remains non-durable and
 single-host. Rejected: raw state fallback or timeout-based detection.
+
+## ADR-078: Redact Agents SDK bridge summaries recursively
+
+Context: the Agents SDK bridge returned model output, tool output, and worker
+error text in its machine summary. Those values can contain provider secrets or
+repository credentials even when subprocess evidence is redacted elsewhere.
+Decision: recursively apply Relay's existing redaction helper to bridge output,
+tool-result objects, and error messages before serialization. Rationale: the
+bridge is an evidence and authority boundary, so every returned string must
+cross the same local secret-safety filter. Consequence: credential-shaped text
+is masked while the contract remains structurally compatible; provider-native
+classification and full Redact integration remain deferred. Rejected: trusting
+the model, SDK, or subprocess layer to sanitize every nested result.

@@ -226,6 +226,15 @@ real artifact. This reduces local evidence redirection risk; kernel-level
 no-follow primitives, multi-user ownership, and durable storage isolation
 remain open.
 
+## Fifty-seventh 2026-07-13 review
+
+Agents SDK bridge summaries now recursively redact model output, tool-result
+objects, and worker error text before returning machine-readable results. The
+Agents SDK smoke includes a credential-shaped output probe and passes. This
+closes a local bridge disclosure gap but is not provider-native secret
+classification, full Redact integration, authenticated service mode, or
+enterprise readiness.
+
 ## Eighth review slice — complete evidence verification
 
 The machine evidence boundary now rejects not only mutated or reordered event
