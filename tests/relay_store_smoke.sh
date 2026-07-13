@@ -63,6 +63,18 @@ rebuilt="$($KUJO run "$ROOT/main.kujo" -- runs rebuild --json)"
 printf '%s' "$rebuilt" | grep -q '"index_source":"rebuild"'
 printf '%s' "$rebuilt" | grep -q "\"$run_id\""
 
+# A failed index write must not be reported as a successful rebuild.
+mv "$ROOT/.relay/index.json" "$ROOT/.relay/index.json.persistence-backup"
+mkdir "$ROOT/.relay/index.json"
+set +e
+failed_rebuild="$($KUJO run "$ROOT/main.kujo" -- runs rebuild --json 2>&1)"
+failed_rebuild_rc=$?
+set -e
+test "$failed_rebuild_rc" -ne 0
+printf '%s' "$failed_rebuild" | grep -q 'Run index could not be persisted'
+rmdir "$ROOT/.relay/index.json"
+mv "$ROOT/.relay/index.json.persistence-backup" "$ROOT/.relay/index.json"
+
 export_path="/tmp/relay-run-export-$run_id.json"
 rm -f "$export_path"
 exported="$($KUJO run "$ROOT/main.kujo" -- runs export "$run_id" --output "$export_path" --json)"

@@ -158,6 +158,23 @@ func run_directories_match_index(state_root, index) {
     return count == len(index)
 }
 
+func rebuild_and_persist_run_index_result(state_root) {
+    if store_root_safe(state_root) == false { return {"ok": false, "index": {}, "error": "Run index store root is unsafe"} }
+    lock := acquire_index_lock_retry(state_root, 4, 20)
+    if lock["ok"] == false { return {"ok": false, "index": rebuild_run_index(state_root), "error": "Run index could not acquire its bounded lock", "attempts": dict_get_or(lock, "attempts", 0)} }
+    authoritative := rebuild_run_index(state_root)
+    index_path := state_root + "/index.json"
+    if write_json(index_path, authoritative) == false {
+        release_index_lock(state_root, lock["token"])
+        return {"ok": false, "index": authoritative, "error": "Run index could not be persisted", "attempts": lock["attempts"]}
+    }
+    persisted := read_json_limited(index_path, null, 8388608)
+    verified := type(persisted) == "dict" && cached_index_is_safe(state_root, persisted) && run_directories_match_index(state_root, persisted)
+    release_index_lock(state_root, lock["token"])
+    if verified == false { return {"ok": false, "index": authoritative, "error": "Persisted run index failed verification", "attempts": lock["attempts"]} }
+    return {"ok": true, "index": authoritative, "persisted": true, "attempts": lock["attempts"]}
+}
+
 func load_run_index(state_root) {
     if store_root_safe(state_root) == false { return {} }
     cached := read_json_limited(state_root + "/index.json", null, 8388608)
@@ -168,27 +185,14 @@ func load_run_index(state_root) {
 }
 
 func rebuild_and_persist_run_index(state_root) {
-    if store_root_safe(state_root) == false { return {} }
-    lock := acquire_index_lock_retry(state_root, 4, 20)
-    if lock["ok"] == false { return rebuild_run_index(state_root) }
-    authoritative := rebuild_run_index(state_root)
-    write_json(state_root + "/index.json", authoritative)
-    release_index_lock(state_root, lock["token"])
-    return authoritative
+    result := rebuild_and_persist_run_index_result(state_root)
+    return dict_get_or(result, "index", {})
 }
 
 func persist_run_index(state_root, index) {
-    if store_root_safe(state_root) == false { return index }
-    # Local callers may briefly contend while another process refreshes the
-    # rebuildable cache. A small bounded backoff improves successful
-    # multi-process coordination without turning the cache into an
-    # unbounded wait or pretending it is a durable database.
-    lock := acquire_index_lock_retry(state_root, 4, 20)
-    if lock["ok"] == false { return index }
-    authoritative := rebuild_run_index(state_root)
-    write_json(state_root + "/index.json", authoritative)
-    release_index_lock(state_root, lock["token"])
-    return authoritative
+    result := rebuild_and_persist_run_index_result(state_root)
+    if dict_get_or(result, "ok", false) == false { return index }
+    return dict_get_or(result, "index", index)
 }
 
 export safe_run_key := safe_run_key
@@ -198,6 +202,7 @@ export acquire_index_lock := acquire_index_lock
 export acquire_index_lock_retry := acquire_index_lock_retry
 export release_index_lock := release_index_lock
 export rebuild_run_index := rebuild_run_index
+export rebuild_and_persist_run_index_result := rebuild_and_persist_run_index_result
 export rebuild_and_persist_run_index := rebuild_and_persist_run_index
 export load_run_index := load_run_index
 export persist_run_index := persist_run_index

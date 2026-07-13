@@ -3,7 +3,7 @@ from src.policy import classify_failure, repair_allowed, path_is_safe, path_is_w
 from src.runtime import resume_state_safe, cleanup_state_safe, control_state_safe, save_state, mark_evidence_failure, cancellation_request, cancellation_integrity_input, persist_required_json, report
 from src.common import safe_id, redact_text, shell_quote_single, command_args, process_options, process_options_with_cancel, safe_process_path, safe_env_name, path_is_symlink_safe, path_has_symlink_component, path_has_parent_component, read_json_limited, append_jsonl, append_jsonl_bounded, write_json, write_text_atomic, create_exclusive_dir, dict_get_or, bool_or, string_or, safe_json, issue_agent_capability, revoke_agent_capability
 from src.adapters import fallback_allowed, fallback_decision, watchdog_route_allowed, tool_definitions, normalize_provider_tool_calls, provider_payload_size, provider_payload_allowed, bounded_max_tokens
-from src.store import safe_run_key, store_root_safe, acquire_index_lock, acquire_index_lock_retry, release_index_lock, rebuild_and_persist_run_index
+from src.store import safe_run_key, store_root_safe, acquire_index_lock, acquire_index_lock_retry, release_index_lock, rebuild_and_persist_run_index, rebuild_and_persist_run_index_result
 from src.watchdog import safe_base, safe_correlation_id, route_policy, usage_reconciliation
 
 func check(label, condition) {
@@ -243,6 +243,15 @@ create_dir(refresh_root + "/runs/refresh-run")
 write_json(refresh_root + "/runs/refresh-run/state.json", {"run_id": "refresh-run", "mission_id": "refresh-mission", "status": "completed", "updated_at": "2026-07-13T00:00:00Z"})
 refreshed_index := rebuild_and_persist_run_index(refresh_root)
 failed = failed + check("index refresh rebuilds and persists once", has_key(refreshed_index, "refresh-run") && read_json_limited(refresh_root + "/index.json", {}, 65536)["refresh-run"]["status"] == "integrity_invalid")
+index_failure_root := tmp_base + "/relay-contract-index-persist-failure-" + to_string(current_timestamp())
+create_dir(index_failure_root)
+create_dir(index_failure_root + "/runs")
+create_dir(index_failure_root + "/index.json")
+index_failure := rebuild_and_persist_run_index_result(index_failure_root)
+failed = failed + check("index persistence failure is reported", index_failure["ok"] == false && contains(index_failure["error"], "persisted"))
+os_rmdir(index_failure_root + "/index.json")
+os_rmdir(index_failure_root + "/runs")
+os_rmdir(index_failure_root)
 delete_file(refresh_root + "/runs/refresh-run/state.json")
 os_rmdir(refresh_root + "/runs/refresh-run")
 os_rmdir(refresh_root + "/runs")
