@@ -60,6 +60,7 @@ printf '%s' "$result" | grep -q 'relay-watchdog-upstream-ok'
 printf '%s' "$result" | grep -q '"ok":true'
 printf '%s' "$result" | grep -q '"route":"watchdog_proxy"'
 printf '%s' "$result" | grep -q '"matched":true'
+printf '%s' "$result" | grep -q '"usage_reconciliation"'
 printf '%s' "$result" | grep -q '"correlation_id":"relay-real-watchdog-correlation"'
 if printf '%s' "$result" | grep -q 'relay-proxy-token\|relay-api-token\|relay-stub-provider-key'; then
   echo "Watchdog/provider secret leaked into output" >&2

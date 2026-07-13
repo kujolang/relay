@@ -22,7 +22,7 @@ server := server.route("GET", "/api/proxy-config", func(req) {
 server := server.route("GET", "/api/requests", func(req) {
     headers := dict_get_or(req, "headers", {})
     if header_value(headers, "X-Watchdog-Token") != "relay-api-token" { return http_response(401, "{\"ok\":false,\"error\":\"api auth required\"}") }
-    return http_response(200, "{\"ok\":true,\"data\":[{\"correlation_id\":\"" + correlation + "\",\"status\":\"success\"}]}")
+    return http_response(200, "{\"ok\":true,\"data\":[{\"correlation_id\":\"" + correlation + "\",\"request_id\":\"stub-request\",\"model\":\"stub-model\",\"status\":\"success\",\"input_tokens\":2,\"output_tokens\":3,\"total_tokens\":5},{\"correlation_id\":\"" + correlation + "\",\"request_id\":\"stub-tool-request\",\"model\":\"stub-model\",\"status\":\"success\",\"input_tokens\":4,\"output_tokens\":6,\"total_tokens\":10},{\"correlation_id\":\"" + correlation + "\",\"request_id\":\"stub-tool-final\",\"model\":\"stub-model\",\"status\":\"success\",\"input_tokens\":8,\"output_tokens\":4,\"total_tokens\":12}]}")
 })
 
 server := server.route("POST", "/proxy/v1/chat/completions", func(req) {

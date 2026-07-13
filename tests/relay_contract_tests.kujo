@@ -4,7 +4,7 @@ from src.runtime import resume_state_safe, cleanup_state_safe, control_state_saf
 from src.common import safe_id, redact_text, shell_quote_single, command_args, process_options, process_options_with_cancel, safe_process_path, safe_env_name, path_is_symlink_safe, path_has_symlink_component, path_has_parent_component, read_json_limited, append_jsonl, append_jsonl_bounded, write_json, dict_get_or, bool_or, safe_json
 from src.adapters import fallback_allowed, fallback_decision, watchdog_route_allowed, tool_definitions, normalize_provider_tool_calls, provider_payload_size, provider_payload_allowed, bounded_max_tokens
 from src.store import safe_run_key, store_root_safe, acquire_index_lock, acquire_index_lock_retry, release_index_lock
-from src.watchdog import safe_base, safe_correlation_id, route_policy
+from src.watchdog import safe_base, safe_correlation_id, route_policy, usage_reconciliation
 
 func check(label, condition) {
     if condition { print("PASS " + label); return 0 }
@@ -54,6 +54,9 @@ failed = failed + check("workspace containment", path_is_within_workspace(".", "
 failed = failed + check("safe command", command_is_allowed("git status", {"allowed_commands": ["git"]}))
 failed = failed + check("safe Git status option", command_is_allowed("git status --porcelain", {"allowed_commands": ["git"]}))
 failed = failed + check("safe Git diff check", command_is_allowed("git diff --check", {"allowed_commands": ["git"]}))
+failed = failed + check("Watchdog usage match", usage_reconciliation({"input_tokens": 2, "output_tokens": 3, "total_tokens": 5}, {"usage_complete": true, "input_tokens": 2, "output_tokens": 3, "total_tokens": 5})["matched"])
+failed = failed + check("Watchdog usage mismatch", usage_reconciliation({"input_tokens": 2, "output_tokens": 3, "total_tokens": 5}, {"usage_complete": true, "input_tokens": 2, "output_tokens": 4, "total_tokens": 6})["matched"] == false)
+failed = failed + check("Watchdog incomplete usage unavailable", usage_reconciliation({"total_tokens": 5}, {"usage_complete": false, "total_tokens": 5})["available"] == false)
 script_workspace := "/tmp/relay-script-policy-" + to_string(current_timestamp())
 create_dir(script_workspace)
 create_dir(script_workspace + "/scripts")

@@ -35,7 +35,8 @@ result="$($KUJO run "$ROOT/main.kujo" -- chat watchdog-smoke --model stub-model 
 printf '%s' "$result" | grep -q '"ok":true'
 printf '%s' "$result" | grep -q '"route":"watchdog_proxy"'
 printf '%s' "$result" | grep -q '"relay_watchdog_verification"'
-printf '%s' "$result" | grep -q '"matched":true'
+printf '%s' "$result" | grep -q '"usage_reconciliation"'
+printf '%s' "$result" | jq -e '.relay_watchdog_verification.correlation.request_id == "stub-request" and .relay_watchdog_verification.usage_reconciliation.available == true and .relay_watchdog_verification.usage_reconciliation.matched == true' >/dev/null
 printf '%s' "$result" | grep -q '"correlation_id":"relay-test-correlation"'
 if printf '%s' "$result" | grep -q 'relay-proxy-token\|relay-api-token\|relay-stub-provider-key'; then
   echo "Watchdog/provider secret leaked into output" >&2
