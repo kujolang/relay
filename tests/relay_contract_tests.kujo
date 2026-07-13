@@ -87,6 +87,8 @@ probe_expected := bool_or(env_or("RELAY_EXPECT_SYMLINK_PROBE", "false"), false)
 failed = failed + check("configured symlink probe boundary", path_is_symlink_safe(probe_path) == probe_expected)
 store_probe_path := env_or("RELAY_STORE_PROBE_PATH", "")
 if store_probe_path != "" { failed = failed + check("parent symlink store rejected", path_has_symlink_component(store_probe_path)) }
+dependency_probe_path := env_or("RELAY_DEPENDENCY_PROBE_PATH", "")
+if dependency_probe_path != "" { failed = failed + check("parent symlink dependency rejected", path_has_symlink_component(dependency_probe_path)) }
 decision := tool_decision("write_file", {"path": "x.txt"}, {"workspace": ".", "allow_writes": false})
 failed = failed + check("write approval boundary", decision["status"] == "approval_required")
 failed = failed + check("unknown tool denied", tool_decision("unknown", {}, {})["allowed"] == false)

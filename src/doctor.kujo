@@ -1,4 +1,4 @@
-from src.common import dict_get_or, env_or, safe_env_name, int_or, path_is_symlink_safe
+from src.common import dict_get_or, env_or, safe_env_name, int_or, path_is_symlink_safe, path_has_symlink_component
 from src.adapters import kujo_bin, ai_sdk_root, agents_sdk_root, watchdog_url, run_process
 from src.watchdog import health_check, proxy_config_check, route_policy
 from src.registry import agent_catalog, agent_path
@@ -8,10 +8,11 @@ func path_check(label, path, directory, required) {
     exists := false
     if directory { exists = path_is_dir(path) } else { exists = path_exists(path) }
     symlink := exists && path_is_symlink_safe(path)
+    symlink_component := path_has_symlink_component(path)
     expected_type := false
     if directory { expected_type = exists } else { expected_type = exists && path_is_file(path) }
-    safe := expected_type && symlink == false
-    return {"name": label, "ok": safe, "required": required, "path": path, "exists": exists, "expected_type": expected_type, "symlink": symlink, "safe": safe}
+    safe := expected_type && symlink == false && symlink_component == false
+    return {"name": label, "ok": safe, "required": required, "path": path, "exists": exists, "expected_type": expected_type, "symlink": symlink, "symlink_component": symlink_component, "safe": safe}
 }
 
 func dependency_version(label, path, cwd, args, env_map, required) {
@@ -41,7 +42,7 @@ func dependency_hash(label, path, env_name) {
     expected := to_lower(trim(to_string(env_or(env_name, ""))))
     if expected == "" { return {"name": label, "ok": true, "required": false, "safe": true, "configured": false, "matched": null, "path": path} }
     if sha256_format(expected) == false { return {"name": label, "ok": false, "required": true, "safe": false, "configured": true, "matched": false, "path": path, "error": "invalid_expected_hash"} }
-    if path_is_file(path) == false || path_is_symlink_safe(path) { return {"name": label, "ok": false, "required": true, "safe": false, "configured": true, "matched": false, "path": path, "error": "path_unsafe"} }
+    if path_is_file(path) == false || path_is_symlink_safe(path) || path_has_symlink_component(path) { return {"name": label, "ok": false, "required": true, "safe": false, "configured": true, "matched": false, "path": path, "error": "path_unsafe"} }
     actual := ""
     try { actual = to_lower(trim(to_string(sha256_file(path)))) } except err { actual = "" }
     matched := actual == expected
