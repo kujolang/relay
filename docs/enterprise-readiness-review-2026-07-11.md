@@ -408,3 +408,11 @@ ChangeBucket launchers for non-empty version output using bounded subprocesses
 and explicit environments. The CLI smoke and full local acceptance gates pass.
 This catches stale or miswired local dependencies, but signed provenance,
 semantic compatibility ranges, hashes, and deployment ownership remain open.
+
+## Fortieth 2026-07-12 review
+
+Doctor now supports optional SHA-256 pins for the Kujo, PackWrite, RunLedger,
+and ChangeBucket executables. Malformed, mismatched, missing, or symlinked
+pinned targets fail readiness, and the focused CLI smoke plus full local gates
+pass. This is an operator-controlled local integrity check, not signed
+provenance, compatibility-range enforcement, or deployment attestation.

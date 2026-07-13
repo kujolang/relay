@@ -34,6 +34,13 @@ readiness fail with `version_probe_failed`. Override sibling tool roots with
 `RELAY_PACKWRITE_ROOT`, `RELAY_RUNLEDGER_ROOT`, or `RELAY_CHANGEBUCKET_ROOT`
 when their launchers are installed outside the default ecosystem checkout.
 
+Deployments may optionally pin executable content with
+`RELAY_KUJO_SHA256`, `RELAY_PACKWRITE_SHA256`, `RELAY_RUNLEDGER_SHA256`, and
+`RELAY_CHANGEBUCKET_SHA256`. Each value must be a 64-character lowercase or
+uppercase SHA-256 digest; a mismatch, malformed digest, missing file, or
+symbolic-linked target is a required `doctor` failure. These pins are a local
+integrity control, not a signed provenance or deployment-attestation system.
+
 Relay also fails closed when `.relay` or `.relay/runs` is a symbolic link. This
 prevents mission, index, and operator-control paths from redirecting evidence
 outside the configured Relay root; the failure is reported as

@@ -474,3 +474,17 @@ doctor performs a few bounded subprocesses and does not yet verify signed
 provenance, hashes, semantic compatibility ranges, or deployment ownership.
 Rejected: trusting executable existence, parsing README versions, or silently
 running version probes with the host environment.
+
+## ADR-058: Support optional executable hash pinning in doctor
+
+Context: bounded version probes catch stale or miswired executables, but a
+version string alone cannot identify the exact binary used by a deployment.
+Decision: allow operators to configure SHA-256 pins for the Kujo, PackWrite,
+RunLedger, and ChangeBucket executables; validate digest format, reject
+symlinks, and fail required doctor readiness on mismatch. Rationale: provide a
+small, provider-independent integrity control without inventing a signing or
+deployment-ownership system. Consequence: pins require operator rotation when
+dependencies are upgraded and remain weaker than signed provenance, semantic
+compatibility ranges, and attestation. Rejected: silently hashing without an
+operator-provided expectation, accepting arbitrary digest formats, or treating
+version output as binary identity.

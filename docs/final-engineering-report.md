@@ -407,3 +407,10 @@ RunLedger, and ChangeBucket with explicit environments and configurable sibling
 roots. Required probe failures make readiness fail closed. Full local gates pass;
 this remains a dependency-readiness check, not signed supply-chain provenance,
 semantic compatibility validation, or enterprise deployment attestation.
+
+## Fortieth 2026-07-12 review
+
+`doctor --json` now optionally verifies SHA-256 pins for the Kujo, PackWrite,
+RunLedger, and ChangeBucket executables. Invalid or mismatched pins fail closed;
+matching and wrong-hash cases are covered by the CLI smoke. Signed provenance,
+semantic compatibility ranges, and deployment ownership remain deferred.
