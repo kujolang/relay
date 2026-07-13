@@ -891,3 +891,14 @@ establish durable storage, authenticated ownership, kernel no-follow
 guarantees, or enterprise readiness.
 
 Current follow-on backlog: `docs/next-session-enhancement-backlog-2026-07-13-v79.md`.
+
+The v80 review reuses Kujo's native `write_file_atomic` for Relay evidence
+writes and removes the duplicate timestamp/random temporary-file implementation.
+Capability-registry directory creation now uses the shared fail-closed safe
+directory helper. A symlink replacement regression proves the new writer
+changes the link path without changing its target. This is local filesystem
+consistency hardening, not evidence of durable multi-host storage, signed
+provenance, authenticated ownership, live-provider compatibility, or enterprise
+readiness.
+
+Current follow-on backlog: `docs/next-session-enhancement-backlog-2026-07-13-v80.md`.

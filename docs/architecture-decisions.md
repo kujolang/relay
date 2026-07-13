@@ -1397,3 +1397,30 @@ storage, authenticated ownership, and crash recovery remain future work.
 Rejected: idempotent `create_dir` for state authority, shell-based `mkdir -p`,
 best-effort continuation after unsafe directory creation, or a parallel state
 directory implementation in the CLI.
+
+## ADR-109: Reuse Kujo atomic file writes for Relay evidence and capability state
+
+Context: Relay's local `write_text_atomic` wrapper used a timestamp/random
+temporary filename followed by `write_file` and rename. That preserved the
+basic replacement shape but did not inherit Kujo's native exclusive temporary
+file creation, flush/sync behavior, or its no-overwrite finalization contract.
+Capability-registry directory creation also used the idempotent `create_dir`
+helper even though the registry is an authority boundary.
+
+Decision: delegate `write_text_atomic` to Kujo's native `write_file_atomic` with
+explicit replacement enabled, and route capability-registry directory creation
+through the shared fail-closed `ensure_safe_directory` helper. Keep the Relay
+wrapper's boolean return contract and the runtime's existing artifact-path
+checks.
+
+Rationale: reuse a first-party Kujo primitive with stronger temporary-file and
+rename semantics, remove duplicate filesystem logic, and make mission state and
+Agents SDK capability state follow the same local authority policy.
+
+Consequences: evidence writes gain native atomic/fsync behavior and capability
+directories no longer depend on idempotent creation. Durability, signed
+provenance, multi-host ownership, and kernel-level no-follow guarantees remain
+outside Relay's local contract.
+
+Rejected: retaining the predictable custom temporary-file scheme, shell-based
+atomic writes, or adding a third Relay-specific filesystem writer.

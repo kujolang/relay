@@ -200,4 +200,4 @@ The aggregate runner executes the contract suite, all committed `*_smoke.sh`
 tests, the schema smoke, and `git diff --check`, so new smoke coverage is
 automatically included without maintaining a second hand-written test list.
 
-For the full integration evidence boundary and deferred enterprise work, see [`docs/enterprise-readiness-review-2026-07-11.md`](docs/enterprise-readiness-review-2026-07-11.md), [`docs/command-reference.md`](docs/command-reference.md), the machine contracts in [`schemas/`](schemas/), and the current [`docs/next-session-enhancement-backlog-2026-07-13-v79.md`](docs/next-session-enhancement-backlog-2026-07-13-v79.md).
+For the full integration evidence boundary and deferred enterprise work, see [`docs/enterprise-readiness-review-2026-07-11.md`](docs/enterprise-readiness-review-2026-07-11.md), [`docs/command-reference.md`](docs/command-reference.md), the machine contracts in [`schemas/`](schemas/), and the current [`docs/next-session-enhancement-backlog-2026-07-13-v80.md`](docs/next-session-enhancement-backlog-2026-07-13-v80.md).

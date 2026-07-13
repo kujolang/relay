@@ -130,3 +130,9 @@ roots now fail closed when a state component is unsafe or cannot be created;
 the acceptance suite proves state-root/runs symlink rejection and full fixture
 execution with the hardened path. This remains local single-host protection,
 not durable multi-host storage or kernel no-follow enforcement.
+
+The v80 review removes Relay's duplicate timestamp/random temporary-file writer.
+Evidence and capability-state writes now use Kujo's native atomic writer, while
+capability-registry directories use the shared exclusive, symlink-safe creator.
+The symlink-probe smoke proves replacing a link updates the link path without
+modifying its target; focused state and Agents SDK coverage remains green.

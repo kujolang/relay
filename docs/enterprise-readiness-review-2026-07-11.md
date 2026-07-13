@@ -894,3 +894,15 @@ kernel no-follow operations, durable multi-host storage, authenticated
 ownership, crash recovery, live-provider proof, or enterprise release gates.
 The next-session backlog is
 `docs/next-session-enhancement-backlog-2026-07-13-v79.md`.
+
+## Eightieth 2026-07-13 review
+
+Relay now delegates evidence writes to Kujo's native `write_file_atomic`
+primitive, replacing the local timestamp/random temporary-file implementation.
+Agents SDK capability-registry directories use the same fail-closed,
+exclusive, symlink-safe directory helper as mission state. The symlink-probe,
+state-store, focused contract, and full acceptance paths provide local proof.
+This improves local filesystem consistency but does not establish durable
+multi-host storage, signed provenance, authenticated ownership, live-provider
+proof, or enterprise release readiness. The next-session backlog is
+`docs/next-session-enhancement-backlog-2026-07-13-v80.md`.
