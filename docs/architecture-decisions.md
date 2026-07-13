@@ -428,5 +428,19 @@ chain on every poll. Rationale: reduce watcher CPU while preserving the
 append-only evidence and tamper-detection contract. Consequence: the watcher
 still retains the bounded raw file and parsed events in memory; remote sinks,
 durable subscriptions, and multi-host fan-out remain deferred. Rejected:
-skipping integrity validation when the file size is unchanged or introducing a
-second event store.
+skipping integrity validation when the stream changes or introducing a second
+event store.
+
+## ADR-055: Fail closed when a watched event log disappears
+
+Context: `runs watch` retained parsed events after reading `events.jsonl`, so a
+later deletion could otherwise leave the watcher with a stale in-memory stream
+and allow a terminal state to appear complete. Decision: remember that the
+event file was observed and return an explicit watcher error if it disappears;
+also avoid repeating the full chain walk during unchanged polls. Rationale:
+the event file is part of the run's evidence boundary, and disappearance is
+evidence loss rather than a normal empty poll. Consequence: local filesystem
+watching fails closed on deletion, while authenticated remote subscriptions,
+durable event ownership, and no-follow kernel primitives remain deferred.
+Rejected: treating deletion as an empty stream, trusting the cached events, or
+hashing the full history on every idle poll.

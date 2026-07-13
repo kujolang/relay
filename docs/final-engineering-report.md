@@ -377,6 +377,16 @@ leaving non-Unix and workcell ownership contracts open.
 
 `runs watch` now avoids reparsing the complete JSONL history on every poll. It
 processes appended complete lines and pending partial lines incrementally,
-rejects replacement/truncation, and preserves full per-poll chain validation.
-This improves local watcher scaling while leaving remote subscriptions and
-multi-host event fan-out open.
+rejects replacement/truncation/disappearance, and preserves full chain
+validation whenever the stream changes. This improves local watcher scaling
+while leaving remote subscriptions and multi-host event fan-out open.
+
+## Thirty-seventh 2026-07-12 review
+
+The live watcher now fails closed if its observed `events.jsonl` disappears,
+and it skips duplicate full-chain validation during unchanged polls. The
+focused integrity smoke and full configured local gate set pass. Redact
+integration remains contract-first: the current Redact CLI does not accept
+JSON machine artifacts, so Relay does not claim an unsafe adapter; the local
+redactor remains the persisted-evidence boundary until a structured Redact
+contract exists.

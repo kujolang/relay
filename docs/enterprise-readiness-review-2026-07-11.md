@@ -376,5 +376,18 @@ and distributed process ownership remain deferred.
 This review reduced local watcher parsing cost without weakening evidence
 validation. `runs watch` now retains parsed events, parses only newly appended
 complete lines plus any pending partial line, rejects replacement/truncation,
-and still validates the full event chain on every poll. Remote event sinks,
-durable subscriptions, and multi-host fan-out remain deferred.
+and still validates the full event chain on every changed stream. Remote event
+sinks, durable subscriptions, and multi-host fan-out remain deferred.
+
+## Thirty-seventh 2026-07-12 review
+
+This review closes a watcher evidence-loss gap. After `runs watch` has seen an
+event log, deletion now produces a non-zero `run event log disappeared` error
+instead of allowing stale in-memory events to satisfy terminal reconciliation.
+The focused disappearance smoke and full local acceptance gates pass.
+
+The Redact repository was exercised as part of the integration audit. Its
+current CLI MVP is text/Markdown-oriented and rejects `.json` input, so a safe
+structured-artifact adapter cannot yet be claimed. Relay keeps its local
+fail-closed redactor and records a contract-first Redact follow-up rather than
+passing machine-readable evidence through an unproven text sanitizer.
