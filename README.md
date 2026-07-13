@@ -91,6 +91,7 @@ Mission actions are declarative and policy checked. Write-enabled missions requi
 - `tests/relay_metrics_smoke.sh`: bounded AI/adapter duration telemetry evidence
 - `tests/relay_sizes_smoke.sh`: bounded artifact size inventory and symlink rejection
 - `tests/relay_cancel_smoke.sh`: process-group cancellation, bounded return time, and terminal evidence
+- `tests/relay_timeout_smoke.sh`: process-group timeout termination, bounded return time, and typed timeout evidence
 - `tests/relay_spec_safety_smoke.sh`: mission-spec size and symlink input rejection
 - `tests/relay_output_budget_smoke.sh`: bounded command evidence and explicit truncation smoke test
 - `tests/relay_watchdog_smoke.sh`: configured Watchdog health/config/request-correlation contract smoke test
@@ -131,4 +132,4 @@ bash tests/relay_state_store_safety_smoke.sh
 git diff --check
 ```
 
-For the full integration evidence boundary and deferred enterprise work, see [`docs/enterprise-readiness-review-2026-07-11.md`](docs/enterprise-readiness-review-2026-07-11.md), [`docs/command-reference.md`](docs/command-reference.md), and the current [`docs/next-session-enhancement-backlog-2026-07-12-v34.md`](docs/next-session-enhancement-backlog-2026-07-12-v34.md).
+For the full integration evidence boundary and deferred enterprise work, see [`docs/enterprise-readiness-review-2026-07-11.md`](docs/enterprise-readiness-review-2026-07-11.md), [`docs/command-reference.md`](docs/command-reference.md), and the current [`docs/next-session-enhancement-backlog-2026-07-12-v35.md`](docs/next-session-enhancement-backlog-2026-07-12-v35.md).

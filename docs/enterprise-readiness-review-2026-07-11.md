@@ -361,3 +361,12 @@ Relay now maps Kujo cancellation to `cancelled`, timeout termination to
 contract suite and cancellation smoke prove the distinction. Provider-specific
 failure taxonomies, typed retry/repair receipts, and cross-system normalization
 remain deferred.
+
+## Thirty-fifth 2026-07-12 review
+
+This review added independent timeout evidence. A 30-second descendant command
+with a one-second timeout now returns within 12 seconds, records
+`timed_out: true` and `failure_class: timeout`, and leaves no slow descendant
+process. This proves the Unix Kujo process-group timeout boundary separately
+from operator cancellation. Non-Unix process trees, rollback-aware workcells,
+and distributed process ownership remain deferred.

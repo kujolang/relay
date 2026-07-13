@@ -364,3 +364,11 @@ Action evidence now distinguishes cancelled commands and timed-out commands
 from generic tool failures. This gives RunLedger, operator reports, and machine
 callers a truthful stop reason without inferring from exit codes. Provider
 taxonomy normalization and typed retry/repair receipts remain open.
+
+## Thirty-fifth 2026-07-12 review
+
+Relay now has a dedicated timeout smoke, not only timeout input validation. It
+runs a 30-second descendant task with a one-second limit, proves bounded return
+within 12 seconds, verifies typed timeout evidence, and checks for orphaned
+processes. The result strengthens the local Unix process lifecycle claim while
+leaving non-Unix and workcell ownership contracts open.

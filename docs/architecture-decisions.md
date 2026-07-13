@@ -403,3 +403,16 @@ stop from a tool defect. Consequence: downstream consumers must handle the
 more precise classes; provider-specific taxonomies and typed retry/repair
 receipts remain deferred. Rejected: inferring failure type from exit code or
 collapsing cancellation and timeout into generic tool failure.
+
+## ADR-053: Prove timeout descendant termination separately
+
+Context: cancellation had a descendant-safe smoke, but timeout termination was
+only indirectly covered by the Kujo runtime test and action timeout validation.
+Decision: maintain a dedicated Relay timeout smoke that runs a 30-second
+descendant task with a one-second action timeout, requires bounded return,
+typed `timeout` evidence, and no remaining slow process. Rationale: timeout is
+an independent safety boundary and can regress even when operator cancellation
+works. Consequence: the local Unix guarantee is executable; non-Unix process
+trees, rollback-aware workcells, and cross-host process ownership remain open.
+Rejected: treating timeout validation as proof of termination or reusing only
+the cancellation request smoke.
