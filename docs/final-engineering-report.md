@@ -423,3 +423,13 @@ the AI bridge receives them. Contract and CLI smoke coverage pass. The change
 improves local process authority without claiming secret-broker custody,
 authenticated multi-tenant operation, signed provenance, or live external
 provider integration.
+
+## Forty-second 2026-07-12 review
+
+Unified Relay's symlink checks behind a fail-closed probe helper. Missing paths
+remain absent, but invalid inputs and filesystem inspection errors are treated
+as unsafe across evidence, workspace, dependency, control, and Agents SDK
+worker boundaries. Source checks, contract tests, Agents SDK tool smoke, and
+CLI smoke pass. This is a local authority hardening, not kernel-level no-follow
+support, multi-user ownership, durable storage, or enterprise deployment
+attestation.

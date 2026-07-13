@@ -504,3 +504,20 @@ credential variable; this remains a local process boundary, not a secret
 broker or authenticated tenancy system. Rejected: inheriting arbitrary host
 environment variables, allowing all uppercase names, or attempting to sanitize
 the provider after process startup.
+
+## ADR-060: Treat symlink probe errors as unsafe
+
+Context: Relay used a shared symlink helper at evidence, workspace, dependency,
+control, and Agents SDK worker boundaries, but an exception from the underlying
+filesystem probe was previously converted to `false`, which could be mistaken
+for proof that a path was not a symlink. Decision: return `false` only when a
+path is absent or the successful probe confirms no symlink; return `true` when
+the runtime cannot inspect the supplied path, and use this helper throughout
+Relay's path-sensitive checks. Rationale: an inspection failure is an
+authority failure, not a safe state, and one consistent helper reduces drift
+between CLI, doctor, runtime, and worker code. Consequence: transient or
+permission-related filesystem probe failures fail closed and may require an
+operator retry; missing paths retain their prior absent-path semantics. This
+does not replace kernel no-follow primitives or multi-user ownership. Rejected:
+treating probe exceptions as non-symlinks, duplicating ad hoc try/catch logic,
+or silently continuing with an unverified path.

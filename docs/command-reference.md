@@ -51,6 +51,12 @@ prevents mission, index, and operator-control paths from redirecting evidence
 outside the configured Relay root; the failure is reported as
 `state_store_failure`.
 
+All Relay symlink checks use the same fail-closed probe boundary. A missing
+path is treated as absent, but a runtime error while inspecting an existing or
+caller-supplied path is treated as unsafe. This prevents filesystem inspection
+failures from being interpreted as proof that an evidence, workspace, worker,
+dependency, or control path is safe.
+
 ## Commands
 
 ```text

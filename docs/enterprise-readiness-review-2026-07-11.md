@@ -425,3 +425,13 @@ the AI bridge is spawned. Contract coverage and the CLI smoke pass. This
 closes a local process-environment injection gap, but does not provide secret
 broker custody, authenticated tenancy, signed provenance, or live external
 provider proof; Relay remains a local alpha.
+
+## Forty-second 2026-07-12 review
+
+Relay now treats symlink-inspection errors as unsafe across evidence, workspace,
+dependency, control, and Agents SDK worker boundaries. Missing paths remain
+absent, while invalid probe inputs and runtime inspection failures fail closed.
+The Kujo source checks, contract suite, Agents SDK tool smoke, and CLI smoke
+pass. This closes a local fail-open inspection path but does not provide
+kernel-level no-follow primitives, multi-user ownership, durable storage, or
+enterprise deployment assurance.
