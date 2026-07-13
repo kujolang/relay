@@ -2,11 +2,28 @@ from src.common import dict_get_or, env_or, string_or, bool_or, int_or, safe_jso
 from src.policy import real_path
 from src.watchdog import watchdog_verify, safe_base, route_policy, safe_correlation_id
 
-func relay_root() { return env_or("RELAY_ROOT", env_or("PWD", ".")) }
-func kujo_bin() { return env_or("KUJO_BIN", relay_root() + "/../kujo/target/release/kujo") }
-func repo_root() { return env_or("RELAY_REPO_ROOT", relay_root() + "/..") }
-func ai_sdk_root() { return env_or("RELAY_AI_SDK_PATH", relay_root() + "/../ai-sdk") }
-func agents_sdk_root() { return env_or("RELAY_AGENTS_SDK_PATH", relay_root() + "/../agents-sdk") }
+func relay_root() {
+    raw := env_or("RELAY_ROOT", env_or("PWD", "."))
+    if starts_with(raw, "/") { return raw }
+    resolved := real_path(raw)
+    if resolved != "" { return resolved }
+    return raw
+}
+
+func rooted_path(value) {
+    candidate := string_or(value, "")
+    if candidate == "" || starts_with(candidate, "/") { return candidate }
+    root := relay_root()
+    rooted := root + "/" + candidate
+    resolved := real_path(rooted)
+    if resolved != "" { return resolved }
+    return rooted
+}
+
+func kujo_bin() { return rooted_path(env_or("KUJO_BIN", relay_root() + "/../kujo/target/release/kujo")) }
+func repo_root() { return rooted_path(env_or("RELAY_REPO_ROOT", relay_root() + "/..")) }
+func ai_sdk_root() { return rooted_path(env_or("RELAY_AI_SDK_PATH", relay_root() + "/../ai-sdk")) }
+func agents_sdk_root() { return rooted_path(env_or("RELAY_AGENTS_SDK_PATH", relay_root() + "/../agents-sdk")) }
 func watchdog_url() { return env_or("RELAY_WATCHDOG_URL", "") }
 func watchdog_route_allowed(value) { return safe_base(value) }
 
@@ -30,19 +47,20 @@ func run_process(command, cwd, extra_env, timeout_ms) {
     started_ms := current_timestamp()
     mut process_env := extra_env
     if type(process_env) != "dict" { process_env = {} }
+    effective_cwd := rooted_path(cwd)
     # `/usr/bin/env -C` changes the kernel cwd, but some Kujo module resolution
     # paths also consult PWD. Keep both views aligned for sibling-tool probes
     # and adapters so a dependency cannot accidentally import Relay's `src/`
     # tree merely because the caller launched it from Relay.
-    if cwd != "" {
-        resolved_cwd := real_path(cwd)
-        if resolved_cwd == "" { resolved_cwd = cwd }
+    if effective_cwd != "" {
+        resolved_cwd := real_path(effective_cwd)
+        if resolved_cwd == "" { resolved_cwd = effective_cwd }
         process_env["PWD"] := resolved_cwd
     }
     options := process_options(process_env, timeout_ms, 8 * 1024 * 1024)
     actual_command := command
-    if cwd != "" {
-        actual_command := ["/usr/bin/env", "-C", cwd]
+    if effective_cwd != "" {
+        actual_command := ["/usr/bin/env", "-C", effective_cwd]
         for item in command { actual_command := push(actual_command, item) }
     }
     try {
@@ -86,7 +104,7 @@ func call_ai(messages, model, provider, base_url, api_key_env, offline, stream, 
     if allow_insecure_localhost != "" { env_map["KUJO_AI_SDK_ALLOW_INSECURE_LOCALHOST"] := allow_insecure_localhost }
     api_key := env(api_key_env)
     if type(api_key) != "null" { env_map[api_key_env] := api_key }
-    bridge := env_or("RELAY_AI_BRIDGE", relay_root() + "/src/ai_bridge.kujo")
+    bridge := rooted_path(env_or("RELAY_AI_BRIDGE", relay_root() + "/src/ai_bridge.kujo"))
     command := ["/usr/bin/env", "-C", ai_sdk_root(), kujo_bin(), "run", bridge, "--interpreter"]
     result := run_process(command, "", env_map, 120000)
     parsed := last_json(dict_get_or(result, "stdout", ""))
@@ -177,8 +195,8 @@ func agents_sdk_tool_run(workspace, spec, run_id, session_id) {
 }
 
 func packwrite_generate(run_dir, prompt_path, packet_path) {
-    packwrite := env_or("RELAY_PACKWRITE_BIN", relay_root() + "/../packwrite/bin/packwrite")
-    fake_file := env_or("RELAY_PACKWRITE_FAKE_RESPONSE", relay_root() + "/examples/packwrite-response.json")
+    packwrite := rooted_path(env_or("RELAY_PACKWRITE_BIN", relay_root() + "/../packwrite/bin/packwrite"))
+    fake_file := rooted_path(env_or("RELAY_PACKWRITE_FAKE_RESPONSE", relay_root() + "/examples/packwrite-response.json"))
     command := ["/usr/bin/env", "-C", run_dir, packwrite, "init", prompt_path, "--output", "agent", "--overwrite"]
     result := run_process(command, "", {"KUJO": kujo_bin(), "PACKWRITE_FAKE_RESPONSE_FILE": fake_file}, 120000)
     return {"ok": dict_get_or(result, "success", false), "command": command, "stdout": dict_get_or(result, "stdout", ""), "stderr": dict_get_or(result, "stderr", ""), "artifact_dir": run_dir + "/agent", "packet_path": packet_path, "duration_ms": dict_get_or(result, "duration_ms", 0)}
@@ -186,7 +204,7 @@ func packwrite_generate(run_dir, prompt_path, packet_path) {
 
 func runledger_start(run_dir, model, provider, task, repo) {
     ledger := run_dir + "/ledger"
-    command := ["/usr/bin/env", "-C", run_dir, env_or("RELAY_RUNLEDGER_BIN", relay_root() + "/../runledger/bin/runledger"), "start", "--model", model, "--provider", provider, "--task", task, "--repo", repo, "--ledger", ledger]
+    command := ["/usr/bin/env", "-C", run_dir, rooted_path(env_or("RELAY_RUNLEDGER_BIN", relay_root() + "/../runledger/bin/runledger")), "start", "--model", model, "--provider", provider, "--task", task, "--repo", repo, "--ledger", ledger]
     result := run_process(command, "", {"KUJO": kujo_bin()}, 60000)
     output := dict_get_or(result, "stdout", "")
     run_id := ""
@@ -197,13 +215,13 @@ func runledger_start(run_dir, model, provider, task, repo) {
 }
 
 func runledger_finish(run_dir, run_id, status, verdict, notes) {
-    command := ["/usr/bin/env", "-C", run_dir, env_or("RELAY_RUNLEDGER_BIN", relay_root() + "/../runledger/bin/runledger"), "finish", run_id, "--status", status, "--verdict", verdict, "--notes", notes, "--ledger", run_dir + "/ledger"]
+    command := ["/usr/bin/env", "-C", run_dir, rooted_path(env_or("RELAY_RUNLEDGER_BIN", relay_root() + "/../runledger/bin/runledger")), "finish", run_id, "--status", status, "--verdict", verdict, "--notes", notes, "--ledger", run_dir + "/ledger"]
     result := run_process(command, "", {"KUJO": kujo_bin()}, 60000)
     return {"ok": dict_get_or(result, "success", false), "output": dict_get_or(result, "stdout", ""), "error": dict_get_or(result, "stderr", ""), "duration_ms": dict_get_or(result, "duration_ms", 0)}
 }
 
 func changebucket(repo, run_dir) {
-    command := ["/usr/bin/env", env_or("RELAY_CHANGEBUCKET_BIN", relay_root() + "/../changebucket/bin/changebucket"), "--json", "--repo", repo]
+    command := ["/usr/bin/env", rooted_path(env_or("RELAY_CHANGEBUCKET_BIN", relay_root() + "/../changebucket/bin/changebucket")), "--json", "--repo", repo]
     kujo_modules := real_path(relay_root() + "/../kujo/modules")
     if kujo_modules == "" { kujo_modules = relay_root() + "/../kujo/modules" }
     result := run_process(command, run_dir, {"KUJO": kujo_bin(), "KUJO_MODULE_PATH": kujo_modules}, 60000)
@@ -211,18 +229,19 @@ func changebucket(repo, run_dir) {
 }
 
 func eval_run(run_dir, config_path) {
-    command := ["/usr/bin/env", "-C", run_dir, kujo_bin(), "run", env_or("RELAY_EVAL_ENTRY", relay_root() + "/../eval/main.kujo"), "--", "run", config_path, "--json"]
+    command := ["/usr/bin/env", "-C", run_dir, kujo_bin(), "run", rooted_path(env_or("RELAY_EVAL_ENTRY", relay_root() + "/../eval/main.kujo")), "--", "run", config_path, "--json"]
     result := run_process(command, "", {}, 120000)
     return {"ok": dict_get_or(result, "success", false), "data": last_json(dict_get_or(result, "stdout", "")), "stdout": dict_get_or(result, "stdout", ""), "stderr": dict_get_or(result, "stderr", ""), "duration_ms": dict_get_or(result, "duration_ms", 0)}
 }
 
 func capsule_run(repo, output_dir) {
-    capsule := env_or("RELAY_CAPSULE_BIN", relay_root() + "/../benchmarks-capsule/bin/capsule")
+    capsule := rooted_path(env_or("RELAY_CAPSULE_BIN", relay_root() + "/../benchmarks-capsule/bin/capsule"))
     result := run_process(["/usr/bin/env", capsule, "make", repo, "--out", output_dir, "--stable"], "", {"KUJO": kujo_bin()}, 120000)
     return {"ok": dict_get_or(result, "success", false), "stdout": dict_get_or(result, "stdout", ""), "stderr": dict_get_or(result, "stderr", ""), "artifacts": output_dir, "duration_ms": dict_get_or(result, "duration_ms", 0)}
 }
 
 export kujo_bin := kujo_bin
+export rooted_path := rooted_path
 export ai_sdk_root := ai_sdk_root
 export agents_sdk_root := agents_sdk_root
 export run_process := run_process
