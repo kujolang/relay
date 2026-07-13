@@ -31,7 +31,7 @@ printf '%s' "$resumed" | grep -q '"provider":"fixture"'
 printf '%s' "$resumed" | grep -q '"receipts"'
 
 run_dir="$(printf '%s' "$resumed" | ruby -rjson -e 'print JSON.parse(STDIN.read)["run_dir"]')"
-jq -e '.receipts | length >= 7 and (map(.receipt_id) as $ids | (($ids | unique | length) == ($ids | length)))' "$run_dir/state.json" >/dev/null
+jq -e '.receipts | length >= 7 and (map(.receipt_id) as $ids | (($ids | unique | length) == ($ids | length))) and (all(.[]; (.metadata.workflow == "verified-feature" and .metadata.model == "fixture-model" and .metadata.provider == "fixture" and (.metadata.packet_revision == 0 or .metadata.packet_revision == 1) and (.metadata.runledger_id != null))))' "$run_dir/state.json" >/dev/null
 test -f "$run_dir/receipts.json"
 
 test -f "$WORK/RELAY_OUTPUT.txt"

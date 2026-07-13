@@ -30,7 +30,7 @@ failed = failed + check("event sequence truncation rejected", event_sequence_mat
 chain_second["parent_event_id"] := "tampered-parent"
 failed = failed + check("event chain tamper rejected", event_chain_integrity_valid([chain_first, chain_second]) == false)
 r := receipt("artifact", "m1", "r1", "s1", "a1", "agent/MASTER.md", "completed", {"ok": true})
-failed = failed + check("receipt required fields", has_key(r, "receipt_id") && has_key(r, "artifact_ref") && has_key(r, "integrity_sha256"))
+failed = failed + check("receipt required fields", has_key(r, "receipt_id") && has_key(r, "artifact_ref") && has_key(r, "integrity_sha256") && has_key(r, "metadata"))
 failed = failed + check("receipt integrity", receipt_integrity_valid(r))
 failed = failed + check("receipt sequence integrity", receipt_sequence_valid([r]))
 failed = failed + check("receipt sequence matches state", receipt_sequence_matches_state([r], [r]))

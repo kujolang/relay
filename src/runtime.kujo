@@ -1,5 +1,5 @@
 from src.common import dict_get_or, env_or, string_or, bool_or, int_or, now_iso, safe_id, read_json_or, read_json_limited, write_json, append_jsonl, safe_json, shell_quote_single, command_args, write_text_atomic, process_options, process_options_with_cancel, redact_text
-from src.contracts import run_state, event, event_integrity_input, receipt, event_chain_integrity_valid, receipt_sequence_valid
+from src.contracts import run_state, event, event_integrity_input, receipt, receipt_integrity_input, event_chain_integrity_valid, receipt_sequence_valid
 from src.registry import find_agent
 from src.policy import tool_decision, classify_failure, path_is_safe, path_is_within_workspace, command_is_allowed
 from src.adapters import ai_chat_correlated, agents_sdk_smoke, agents_sdk_tool_run, packwrite_generate, runledger_start, runledger_finish, changebucket, eval_run
@@ -54,6 +54,17 @@ func save_state(state, run_dir) {
 
 func record_receipt(state, run_dir, kind, step_id, agent_id, artifact_ref, status, payload) {
     item := receipt(kind, state["mission_id"], state["run_id"], step_id, agent_id, artifact_ref, status, payload)
+    item["metadata"] := {
+        "workflow": string_or(dict_get_or(state, "workflow", ""), ""),
+        "model": string_or(dict_get_or(state, "model", ""), ""),
+        "provider": string_or(dict_get_or(state, "provider", ""), ""),
+        "packet_revision": int_or(dict_get_or(state, "packet_revision", 0), 0),
+        "attempt": int_or(dict_get_or(state, "attempt", 0), 0),
+        "repair_attempt": int_or(dict_get_or(state, "repair_attempts", 0), 0),
+        "runledger_id": string_or(dict_get_or(dict_get_or(state, "runledger", {}), "run_id", ""), ""),
+        "correlation_id": string_or(dict_get_or(dict_get_or(state, "telemetry", {}), "correlation_id", ""), "")
+    }
+    item["integrity_sha256"] := sha256(receipt_integrity_input(item))
     receipts := push(dict_get_or(state, "receipts", []), item)
     if write_json(run_dir + "/receipts.json", receipts) == false { return {"receipt": item, "receipts": receipts, "evidence_failure": {"class": "evidence_failure", "message": "run receipt index could not be persisted"}} }
     return {"receipt": item, "receipts": receipts}

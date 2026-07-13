@@ -84,6 +84,7 @@ func receipt_integrity_input(item) {
         to_string(dict_get_or(item, "artifact_ref", "")) + "|" +
         to_string(dict_get_or(item, "status", "")) + "|" +
         to_string(dict_get_or(item, "created_at", "")) + "|" +
+        safe_json(dict_get_or(item, "metadata", {})) + "|" +
         safe_json(dict_get_or(item, "payload", {}))
 }
 
@@ -100,6 +101,7 @@ func receipt(kind, mission_id, run_id, step_id, agent_id, artifact_ref, status, 
         "artifact_ref": artifact_ref,
         "status": status,
         "created_at": now_iso(),
+        "metadata": {},
         "payload": payload
     }
     item["integrity_sha256"] := sha256(receipt_integrity_input(item))
