@@ -829,3 +829,16 @@ reconciliation or authenticated enterprise tenancy. Durable workcells,
 recoverable storage, signed provenance, provider dialect testing, and release
 gates remain unresolved. The next-session backlog is
 `docs/next-session-enhancement-backlog-2026-07-13-v73.md`.
+
+## Seventy-fifth 2026-07-13 review
+
+Adapter execution now shares the dependency trust boundary used by doctor:
+configured Kujo, PackWrite, RunLedger, ChangeBucket, Eval, and Capsule targets
+must be regular, non-symlinked files with safe existing parent components. The
+launcher resolves Kujo from an explicit override, `PATH`, or the sibling release
+tree and exports the resolved path. Raw configured paths remain visible in
+diagnostics, but unsafe targets are never spawned. The focused CLI smoke proves
+the symlink rejection. This is local hardening only; signed provenance,
+authenticated deployment ownership, live external-provider proof, recoverable
+workcells, durable storage, and release gates remain unresolved. The next-session
+backlog is `docs/next-session-enhancement-backlog-2026-07-13-v74.md`.

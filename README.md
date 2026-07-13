@@ -49,6 +49,13 @@ RunLedger, ChangeBucket, and doctor probes from resolving Relay's modules or
 losing their executable merely because the caller launched Relay from a
 different working directory.
 
+The launcher resolves Kujo from an explicit override, the system `PATH`, or the
+ecosystem sibling release path, then exports the resolved binary as `KUJO_BIN`.
+Runtime adapters independently require configured dependency binaries and
+entrypoints to be regular, non-symlinked files before invocation; `doctor` keeps
+the raw configured path in its diagnostic result so unsafe configuration is
+visible without ever being executed.
+
 ## Enterprise-readiness position
 
 Relay is a strong Kujo showcase and a safe local foundation, not a universal enterprise platform. Enterprise adoption requires environment-specific validation for identity, tenancy, network egress, secret custody, retention, concurrency, disaster recovery, provider SLAs, and approval governance. The current implementation intentionally fails closed for unsafe paths, shell metacharacters, destructive Git operations, unapproved writes, invalid workspaces, missing PackWrite/Agents SDK/AI evidence, and failed ChangeBucket/Eval evidence.
@@ -133,7 +140,7 @@ inventory rejects oversized directories before recursive flattening.
 - `schemas/`: machine-readable mission, run, event, receipt, doctor, probe, tool-result, run-verification, run-sizes, and packet-manifest contracts
 - `tests/relay_contract_tests.kujo`: deterministic contract tests
 - `tests/relay_acceptance.sh`: contract suite plus every committed smoke test and `git diff --check`
-- `tests/relay_cli_smoke.sh`: CLI, doctor, probe, normalized boolean-environment, AI-bridge source-boundary, approval-boundary, and Watchdog-route telemetry non-disclosure smoke test
+- `tests/relay_cli_smoke.sh`: CLI, doctor, probe, normalized boolean-environment, AI-bridge source-boundary, approval-boundary, Watchdog-route telemetry non-disclosure, and symlinked dependency rejection smoke test
 - `tests/relay_mission_smoke.sh`: real write, pause/resume, required ChangeBucket/Eval/report persistence, and RunLedger smoke test
 - `tests/relay_budget_smoke.sh`: bounded step-budget failure smoke test
 - `tests/relay_worktree_smoke.sh`: isolated worktree creation, source protection, and confirmed cleanup smoke test
@@ -177,4 +184,4 @@ The aggregate runner executes the contract suite, all committed `*_smoke.sh`
 tests, the schema smoke, and `git diff --check`, so new smoke coverage is
 automatically included without maintaining a second hand-written test list.
 
-For the full integration evidence boundary and deferred enterprise work, see [`docs/enterprise-readiness-review-2026-07-11.md`](docs/enterprise-readiness-review-2026-07-11.md), [`docs/command-reference.md`](docs/command-reference.md), the machine contracts in [`schemas/`](schemas/), and the current [`docs/next-session-enhancement-backlog-2026-07-13-v73.md`](docs/next-session-enhancement-backlog-2026-07-13-v73.md).
+For the full integration evidence boundary and deferred enterprise work, see [`docs/enterprise-readiness-review-2026-07-11.md`](docs/enterprise-readiness-review-2026-07-11.md), [`docs/command-reference.md`](docs/command-reference.md), the machine contracts in [`schemas/`](schemas/), and the current [`docs/next-session-enhancement-backlog-2026-07-13-v74.md`](docs/next-session-enhancement-backlog-2026-07-13-v74.md).

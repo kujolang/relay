@@ -201,3 +201,14 @@ provider call IDs and unsafe proxy environment overrides fail closed, and
 PackWrite preflight now verifies a safe generated `agent/MASTER.md`. These
 local protections improve failure behavior and reduce authority ambiguity; they
 do not claim live provider, durable store, or enterprise tenancy readiness.
+
+The v74 review adds a shared trusted-path boundary for dependency invocation.
+The launcher resolves Kujo from an explicit override, `PATH`, or the sibling
+release tree and exports the resolved binary. PackWrite, RunLedger, ChangeBucket,
+Eval, and Capsule adapters reject configured symlinked or non-regular targets
+before spawning them; doctor retains raw path and symlink diagnostics. The CLI
+smoke proves a symlinked PackWrite target fails readiness without execution.
+Executable mode/signature provenance, authenticated deployment ownership, live
+external-provider proof, durable workcells, and release gates remain open.
+
+Current follow-on backlog: `docs/next-session-enhancement-backlog-2026-07-13-v74.md`.

@@ -832,3 +832,16 @@ and provider-tool smokes pass. This closes a local telemetry evidence gap but
 does not prove external-provider billing, provider dialect compatibility,
 durable workcells, authenticated tenancy, or enterprise readiness. The next
 session backlog is `docs/next-session-enhancement-backlog-2026-07-13-v73.md`.
+
+## Seventy-fifth 2026-07-13 review
+
+Relay now enforces trusted dependency execution at the adapter boundary. Kujo
+launcher resolution supports an explicit binary, system `PATH`, or the sibling
+release path and exports the selected `KUJO_BIN`. PackWrite, RunLedger,
+ChangeBucket, Eval, and Capsule adapters reject configured symlinked or
+non-regular targets before invocation, while doctor preserves raw path and
+symlink diagnostics. A CLI smoke proves a symlinked PackWrite target fails
+readiness without execution. This improves local authority containment but does
+not prove executable signatures, authenticated deployment ownership, external
+provider compatibility, durable workcells, or enterprise readiness. The next
+session backlog is `docs/next-session-enhancement-backlog-2026-07-13-v74.md`.

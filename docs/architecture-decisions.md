@@ -1261,3 +1261,30 @@ contract, but do not prove external-provider billing reconciliation.
 Rejected: selecting the latest correlated row, reading Watchdog's database
 directly, trusting provider usage without Watchdog reconciliation, or copying
 raw telemetry rows into Relay artifacts.
+
+## ADR-104: Trust dependency paths before adapter execution
+
+Context: Relay's doctor checked configured dependency paths, but runtime adapter
+invocations still accepted an environment-selected path directly. A symlinked
+or non-regular PackWrite, RunLedger, ChangeBucket, Eval, or Capsule target could
+therefore pass configuration into a child process even when readiness diagnostics
+would have identified the path as unsafe.
+
+Decision: resolve configured dependency paths against the Relay root, reject
+symlinked targets and existing symlinked parent components, require regular
+files, and fail closed before invocation. The launcher resolves Kujo from an
+explicit override, `PATH`, or the sibling release tree and exports that trusted
+path as `KUJO_BIN`. Doctor retains the raw configured path for truthful
+diagnostics while probes use the trusted path.
+
+Rationale: make the execution boundary enforce the same integrity assumption as
+the readiness boundary without introducing a second dependency registry or
+changing ownership of sibling tools.
+
+Consequences: symlink-based local wrappers must be replaced with regular files
+or an explicit future signed-distribution mechanism. Missing or unsafe targets
+fail with the existing adapter/doctor error path. Mode, signature, authenticated
+deployment ownership, and immutable manifests remain future controls.
+
+Rejected: trusting doctor-only checks, resolving symlinks and executing the
+resolved target, or allowing arbitrary caller-selected child paths.

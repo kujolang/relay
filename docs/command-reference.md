@@ -8,6 +8,8 @@ Relay commands return process exit code `0` on success and nonzero on invalid in
 |---|---|---|
 | `KUJO_BIN` | Kujo runtime binary | `../kujo/target/release/kujo` |
 | `RELAY_ROOT` | Relay checkout used to resolve sibling tools | current directory |
+| `RELAY_PACKWRITE_BIN` / `RELAY_RUNLEDGER_BIN` / `RELAY_CHANGEBUCKET_BIN` | Optional explicit sibling tool binaries | ecosystem release paths |
+| `RELAY_EVAL_ENTRY` / `RELAY_CAPSULE_BIN` | Optional Eval entrypoint or Capsule binary | ecosystem paths |
 | `RELAY_OFFLINE_FIXTURE` | Select deterministic fixture mode | `true` |
 | `RELAY_WATCHDOG_URL` | Watchdog-compatible OpenAI base URL for live calls | required when live |
 | `RELAY_WATCHDOG_PROXY_TOKEN` | Optional Watchdog proxy-route token forwarded as a bounded request header | unset |
@@ -29,6 +31,14 @@ resolve to a regular, non-symlinked `.kujo` file inside the configured Relay
 root. `chat`, `models probe`, and `doctor` reject an external or unsafe bridge
 before spawning Kujo, so an environment override cannot silently replace the
 provider adapter with arbitrary source.
+
+The launcher resolves Kujo from `KUJO`/`KUJO_BIN`, then `PATH`, then the sibling
+release binary, and exports the resolved path as `KUJO_BIN`. Runtime adapters
+apply the same trust boundary to configured PackWrite, RunLedger, ChangeBucket,
+Eval, and Capsule dependencies: the target and its existing parent components
+must resolve to regular, non-symlinked files before execution. Doctor reports
+the raw configured path and its symlink posture, but never executes an unsafe
+target.
 
 The environment-backed AI, Agents SDK, and tool-worker JSON bridges reject
 payloads larger than 128 KiB before parsing and return structured invalid-payload
