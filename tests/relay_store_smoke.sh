@@ -51,7 +51,8 @@ printf '%s' "$exported" | grep -q '"integrity_valid":true'
 test -f "$export_path"
 jq -e --arg run_id "$run_id" '.format == "relay-run-export-v1" and .run_id == $run_id and .integrity_valid == true and .receipts_valid == true and .receipts_consistent == true and (.events | length) > 0 and (.receipts | length) >= 7 and (.receipts | map(.receipt_id) as $ids | (($ids | unique | length) == ($ids | length)))' "$export_path" >/dev/null
 
-events_path="$ROOT/.relay/runs/$run_id/events.jsonl"
+run_dir="$ROOT/.relay/runs/$run_id"
+events_path="$run_dir/events.jsonl"
 mv "$events_path" "$events_path.regular"
 ln -s /etc/passwd "$events_path"
 set +e
@@ -73,6 +74,20 @@ set -e
 test "$receipts_rc" -ne 0
 printf '%s' "$tampered_receipts" | grep -q '"receipts_valid":false'
 mv "$receipts_path.backup" "$receipts_path"
+
+# The authoritative state event list must match the verified JSONL payloads,
+# not merely carry the same event IDs. A state-only payload edit is evidence
+# divergence and must fail inspection/export.
+state_path="$run_dir/state.json"
+cp "$state_path" "$state_path.backup"
+ruby -rjson -e 'path=ARGV.fetch(0); state=JSON.parse(File.read(path)); state.fetch("events").fetch(0).fetch("payload")["state_only_tampered"]=true; File.write(path, JSON.generate(state))' "$state_path"
+set +e
+state_divergence="$($KUJO run "$ROOT/main.kujo" -- runs events "$run_id" --json 2>&1)"
+state_divergence_rc=$?
+set -e
+test "$state_divergence_rc" -ne 0
+printf '%s' "$state_divergence" | grep -q '"state_consistent":false'
+mv "$state_path.backup" "$state_path"
 
 cp "$events_path" "$events_path.backup"
 # A truncated log must fail closed even when the remaining prefix is internally

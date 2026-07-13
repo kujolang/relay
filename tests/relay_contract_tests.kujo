@@ -27,6 +27,9 @@ chain_second := event("run_completed", "m1", "r1", "s2", "a1", {"ok": true}, cha
 failed = failed + check("event chain integrity", event_chain_integrity_valid([chain_first, chain_second]))
 failed = failed + check("event sequence matches state", event_sequence_matches_state([chain_first, chain_second], [chain_first, chain_second]))
 failed = failed + check("event sequence truncation rejected", event_sequence_matches_state([chain_first, chain_second], [chain_first]) == false)
+state_event_tamper := chain_first
+state_event_tamper["payload"] := {"state_only_tamper": true}
+failed = failed + check("event state payload divergence rejected", event_sequence_matches_state([state_event_tamper, chain_second], [chain_first, chain_second]) == false)
 chain_second["parent_event_id"] := "tampered-parent"
 failed = failed + check("event chain tamper rejected", event_chain_integrity_valid([chain_first, chain_second]) == false)
 r := receipt("artifact", "m1", "r1", "s1", "a1", "agent/MASTER.md", "completed", {"ok": true})
