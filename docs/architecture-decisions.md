@@ -488,3 +488,19 @@ dependencies are upgraded and remain weaker than signed provenance, semantic
 compatibility ranges, and attestation. Rejected: silently hashing without an
 operator-provided expectation, accepting arbitrary digest formats, or treating
 version output as binary identity.
+
+## ADR-059: Deny injection-capable provider credential environment names
+
+Context: `RELAY_API_KEY_ENV` lets an operator select the environment variable
+that carries a provider credential, but several otherwise valid-looking names
+also control dynamic loading, interpreter startup, Git configuration, or
+certificate trust. Passing those names to the AI bridge could widen authority
+before provider code runs. Decision: reject dynamic-loader prefixes and a
+bounded denylist covering interpreter, Git override, and trust-store variables
+before bridge spawn. Rationale: keep provider selection flexible while making
+the credential-environment boundary explicit and fail closed. Consequence:
+operators using one of the denied names must choose a dedicated uppercase
+credential variable; this remains a local process boundary, not a secret
+broker or authenticated tenancy system. Rejected: inheriting arbitrary host
+environment variables, allowing all uppercase names, or attempting to sanitize
+the provider after process startup.

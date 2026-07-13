@@ -416,3 +416,12 @@ and ChangeBucket executables. Malformed, mismatched, missing, or symlinked
 pinned targets fail readiness, and the focused CLI smoke plus full local gates
 pass. This is an operator-controlled local integrity check, not signed
 provenance, compatibility-range enforcement, or deployment attestation.
+
+## Forty-first 2026-07-12 review
+
+Provider credential environment selection now rejects dynamic-loader,
+interpreter-injection, Git override, and trust-store override variables before
+the AI bridge is spawned. Contract coverage and the CLI smoke pass. This
+closes a local process-environment injection gap, but does not provide secret
+broker custody, authenticated tenancy, signed provenance, or live external
+provider proof; Relay remains a local alpha.

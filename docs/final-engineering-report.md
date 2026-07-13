@@ -414,3 +414,12 @@ semantic compatibility validation, or enterprise deployment attestation.
 RunLedger, and ChangeBucket executables. Invalid or mismatched pins fail closed;
 matching and wrong-hash cases are covered by the CLI smoke. Signed provenance,
 semantic compatibility ranges, and deployment ownership remain deferred.
+
+## Forty-first 2026-07-12 review
+
+Hardened provider credential environment selection rejects dynamic-loader,
+interpreter-injection, Git override, and trust-store override variables before
+the AI bridge receives them. Contract and CLI smoke coverage pass. The change
+improves local process authority without claiming secret-broker custody,
+authenticated multi-tenant operation, signed provenance, or live external
+provider integration.

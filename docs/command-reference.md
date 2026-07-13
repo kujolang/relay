@@ -27,6 +27,11 @@ socket transport rather than an unbounded environment variable.
 
 Run `relay doctor --json` before a live or CI invocation. Fixture mode does not require Watchdog or credentials; live mode fails closed when either is absent.
 
+Provider credential environment names also reject dynamic-loader, interpreter
+injection, Git override, and trust-store override variables such as
+`LD_PRELOAD`, `DYLD_INSERT_LIBRARIES`, `PYTHONPATH`, `BASH_ENV`,
+`GIT_CONFIG_GLOBAL`, and `SSL_CERT_FILE` before the AI bridge is spawned.
+
 Doctor also probes the configured Kujo, PackWrite, RunLedger, and ChangeBucket
 executables for non-empty version output. Version probes run with bounded
 timeouts and explicit environments; a failed required probe makes doctor
