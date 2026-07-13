@@ -81,6 +81,8 @@ func safe_env_name(value) {
     name := trim(to_string(value))
     if name == "" || starts_with(name, "PATH") || name == "HOME" || name == "PWD" || name == "SHELL" { return false }
     if contains_any(name, ["-", " ", ".", "/", "\\", ":"]) { return false }
+    if starts_with(name, "LD_") || starts_with(name, "DYLD_") { return false }
+    if contains_any(name, ["BASH_ENV", "GIT_CONFIG", "GIT_EXTERNAL_DIFF", "GIT_SSH_COMMAND", "NODE_OPTIONS", "PERL5OPT", "PYTHONPATH", "RUBYOPT", "SSL_CERT_FILE", "CURL_CA_BUNDLE"]) { return false }
     if contains("0123456789", substring(name, 0, 1)) { return false }
     mut i := 0
     while i < len(name) {
