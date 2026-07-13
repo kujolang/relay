@@ -104,6 +104,7 @@ printf '%s' "$inspected" | jq -e --arg run_id "$run_id" '.ok == true and .run.ru
 
 verified="$($KUJO run "$ROOT/main.kujo" -- runs verify "$run_id" --json)"
 printf '%s' "$verified" | jq -e --arg run_id "$run_id" '.ok == true and .format == "relay-run-verification-v1" and .run_id == $run_id and .integrity_valid == true and .state_valid == true and .events_valid == true and .receipts_valid == true and .receipts_consistent == true and .changes_valid == true and .evaluations_valid == true' >/dev/null
+printf '%s' "$verified" | jq -e '.report_valid == true' >/dev/null
 
 # Run artifact readers must fail closed instead of turning a missing result
 # into a successful empty object or array.
@@ -117,6 +118,16 @@ test "$missing_changes_rc" -ne 0
 printf '%s' "$missing_changes" | grep -q 'run artifact evidence is missing'
 mv "$changes_path.missing" "$changes_path"
 
+mv "$changes_path" "$changes_path.missing"
+set +e
+missing_export_changes="$($KUJO run "$ROOT/main.kujo" -- runs export "$run_id" --json 2>&1)"
+missing_export_changes_rc=$?
+set -e
+test "$missing_export_changes_rc" -ne 0
+printf '%s' "$missing_export_changes" | grep -q 'run export evidence is incomplete'
+printf '%s' "$missing_export_changes" | grep -q '"changes_valid":false'
+mv "$changes_path.missing" "$changes_path"
+
 evaluations_path="$run_dir/evaluations.json"
 mv "$evaluations_path" "$evaluations_path.missing"
 set +e
@@ -126,6 +137,17 @@ set -e
 test "$missing_evaluations_rc" -ne 0
 printf '%s' "$missing_evaluations" | grep -q 'run artifact evidence is missing'
 mv "$evaluations_path.missing" "$evaluations_path"
+
+report_path="$run_dir/report.json"
+mv "$report_path" "$report_path.missing"
+set +e
+missing_export_report="$($KUJO run "$ROOT/main.kujo" -- runs export "$run_id" --json 2>&1)"
+missing_export_report_rc=$?
+set -e
+test "$missing_export_report_rc" -ne 0
+printf '%s' "$missing_export_report" | grep -q 'run export evidence is incomplete'
+printf '%s' "$missing_export_report" | grep -q '"report_valid":false'
+mv "$report_path.missing" "$report_path"
 
 # The authoritative state event list must match the verified JSONL payloads,
 # not merely carry the same event IDs. A state-only payload edit is evidence

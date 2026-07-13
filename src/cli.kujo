@@ -399,10 +399,12 @@ func cmd_runs(tokens) {
         }
         changes := read_run_artifact_evidence(record["run_dir"], "changes.json", "dict", 8388608)
         evaluations := read_run_artifact_evidence(record["run_dir"], "evaluations.json", "array", 8388608)
+        report := read_run_artifact_evidence(record["run_dir"], "report.json", "dict", 8388608)
         changes_valid := dict_get_or(changes, "ok", false)
         evaluations_valid := dict_get_or(evaluations, "ok", false)
-        valid := changes_valid && evaluations_valid
-        return {"ok": valid, "format": "relay-run-verification-v1", "run_id": id, "status": dict_get_or(state_evidence["state"], "status", "unknown"), "integrity_valid": valid, "state_valid": true, "events_valid": true, "receipts_valid": dict_get_or(events_result, "receipts_valid", false), "receipts_consistent": dict_get_or(events_result, "receipts_consistent", false), "changes_valid": changes_valid, "evaluations_valid": evaluations_valid, "errors": [dict_get_or(changes, "error", ""), dict_get_or(evaluations, "error", "")]}
+        report_valid := dict_get_or(report, "ok", false)
+        valid := changes_valid && evaluations_valid && report_valid
+        return {"ok": valid, "format": "relay-run-verification-v1", "run_id": id, "status": dict_get_or(state_evidence["state"], "status", "unknown"), "integrity_valid": valid, "state_valid": true, "events_valid": true, "receipts_valid": dict_get_or(events_result, "receipts_valid", false), "receipts_consistent": dict_get_or(events_result, "receipts_consistent", false), "changes_valid": changes_valid, "evaluations_valid": evaluations_valid, "report_valid": report_valid, "errors": [dict_get_or(changes, "error", ""), dict_get_or(evaluations, "error", ""), dict_get_or(report, "error", "")]}
     }
     if sub == "watch" { return watch_run_events(record, parsed["flags"]) }
     if sub == "sizes" { return run_artifact_sizes(record, id) }
@@ -437,7 +439,22 @@ func cmd_runs(tokens) {
         event_bundle := {"integrity_valid": valid, "chain_integrity_valid": chain_valid, "state_consistent": state_consistent, "receipts_valid": receipts_valid, "receipts_consistent": receipts_consistent, "receipt_error": dict_get_or(receipt_evidence, "error", ""), "events": events, "events_jsonl": raw_events}
         if sub == "events" { event_bundle["ok"] := valid; return event_bundle }
         if valid == false { event_bundle["ok"] := false; event_bundle["error"] := "run event integrity verification failed"; return event_bundle }
-        bundle := {"format": "relay-run-export-v1", "run_id": id, "integrity_valid": true, "chain_integrity_valid": chain_valid, "state_consistent": state_consistent, "receipts_valid": receipts_valid, "receipts_consistent": receipts_consistent, "run": state, "events": events, "receipts": receipts, "changes": read_json_limited(record["run_dir"] + "/changes.json", {}, 8388608), "evaluations": read_json_limited(record["run_dir"] + "/evaluations.json", [], 8388608), "report": read_json_limited(record["run_dir"] + "/report.json", {}, 8388608)}
+        changes_evidence := read_run_artifact_evidence(record["run_dir"], "changes.json", "dict", 8388608)
+        evaluations_evidence := read_run_artifact_evidence(record["run_dir"], "evaluations.json", "array", 8388608)
+        report_evidence := read_run_artifact_evidence(record["run_dir"], "report.json", "dict", 8388608)
+        changes_valid := dict_get_or(changes_evidence, "ok", false)
+        evaluations_valid := dict_get_or(evaluations_evidence, "ok", false)
+        report_valid := dict_get_or(report_evidence, "ok", false)
+        if changes_valid == false || evaluations_valid == false || report_valid == false {
+            event_bundle["ok"] := false
+            event_bundle["error"] := "run export evidence is incomplete"
+            event_bundle["changes_valid"] := changes_valid
+            event_bundle["evaluations_valid"] := evaluations_valid
+            event_bundle["report_valid"] := report_valid
+            event_bundle["artifact_errors"] := [dict_get_or(changes_evidence, "error", ""), dict_get_or(evaluations_evidence, "error", ""), dict_get_or(report_evidence, "error", "")]
+            return event_bundle
+        }
+        bundle := {"format": "relay-run-export-v1", "run_id": id, "integrity_valid": true, "chain_integrity_valid": chain_valid, "state_consistent": state_consistent, "receipts_valid": receipts_valid, "receipts_consistent": receipts_consistent, "changes_valid": true, "evaluations_valid": true, "report_valid": true, "run": state, "events": events, "receipts": receipts, "changes": changes_evidence["value"], "evaluations": evaluations_evidence["value"], "report": report_evidence["value"]}
         output_path := string_or(dict_get_or(parsed["flags"], "output", ""), "")
         if output_path != "" {
             if write_json(output_path, bundle) == false { return {"ok": false, "error": "run export could not be written"} }
