@@ -4,6 +4,16 @@ Kujo Relay is a Kujo-native composition and execution layer for bounded agent mi
 
 Status: `0.1.0` hardened local alpha. Offline execution, bounded repository work, bounded mission-spec inputs, bounded JSON evidence parsing, bounded AI/Agents SDK/tool bridge payloads, validated and secret-safe live Watchdog route posture with HTTPS required for non-loopback hosts, non-disclosing Watchdog route posture in diagnostics and AI telemetry, bounded safe correlation IDs, dependency-integrity doctor checks that reject unsafe required files and symlinked executables, deterministic upstream version probes and optional SHA-256 dependency pinning in `doctor --json`, dangerous dynamic-loader/interpreter/Git override credential environment names rejected before bridge spawn, explicit cancellation/timeout failure classes in action evidence, race-safe concurrent store probes, descendant-safe cancellation through the Kujo process-group runtime, trusted Agents SDK worker-root binding, integrity-bound resume, pause, cancel, and worktree cleanup controls, fail-closed evidence persistence, state-store symlink rejection across parent path components, cooperative mission cancellation, symlink-safe evidence reads that fail closed on probe errors and preserve dangling-symlink detection, structured credential/token/private-key redaction in persisted evidence, incremental bounded `runs watch` event parsing with append-prefix and disappearance integrity checks, change-triggered chain validation, context-rich sealed RunLedger receipts, bounded adapter duration metrics, read-only run artifact size inventory, redacted subprocess evidence, explicit environment isolation, fixed executable search paths, shell-free command execution with exact read-only Git argv profiles, bounded lock backoff with contention evidence, failure-aware model fallback, budgets, deterministic evaluation, detached worktree missions, locked/self-healing run-index rebuilds, complete event-sequence verification, integrity-verified event export, real local Watchdog correlation, and one isolated fixture mission using the Agents SDK Tool Registry are verified locally. Relay is not yet enterprise-production-ready or universally useful: external live-provider proof, authenticated multi-tenant operation, full workcell isolation/recovery, provider-driven tool execution, durable concurrent storage, and release gates remain open.
 
+The current review also makes JSON/JSONL reads and appends, cancellation
+requests, and live event watching metadata-first for symlink safety. `runs watch`
+reuses the event-file existence result within each poll, while dangling event
+links fail immediately instead of being treated as missing files.
+
+Sibling Kujo-tool subprocesses also receive an aligned `PWD` and module-path
+context. This keeps PackWrite, RunLedger, ChangeBucket, and doctor probes from
+resolving Relay's modules merely because the caller launched Relay from the
+repository root.
+
 ## Enterprise-readiness position
 
 Relay is a strong Kujo showcase and a safe local foundation, not a universal enterprise platform. Enterprise adoption requires environment-specific validation for identity, tenancy, network egress, secret custody, retention, concurrency, disaster recovery, provider SLAs, and approval governance. The current implementation intentionally fails closed for unsafe paths, shell metacharacters, destructive Git operations, unapproved writes, invalid workspaces, missing PackWrite/Agents SDK/AI evidence, and failed ChangeBucket/Eval evidence.
@@ -135,4 +145,4 @@ bash tests/relay_symlink_probe_smoke.sh
 git diff --check
 ```
 
-For the full integration evidence boundary and deferred enterprise work, see [`docs/enterprise-readiness-review-2026-07-11.md`](docs/enterprise-readiness-review-2026-07-11.md), [`docs/command-reference.md`](docs/command-reference.md), and the current [`docs/next-session-enhancement-backlog-2026-07-12-v45.md`](docs/next-session-enhancement-backlog-2026-07-12-v45.md).
+For the full integration evidence boundary and deferred enterprise work, see [`docs/enterprise-readiness-review-2026-07-11.md`](docs/enterprise-readiness-review-2026-07-11.md), [`docs/command-reference.md`](docs/command-reference.md), and the current [`docs/next-session-enhancement-backlog-2026-07-12-v46.md`](docs/next-session-enhancement-backlog-2026-07-12-v46.md).

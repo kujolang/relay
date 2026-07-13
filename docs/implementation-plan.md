@@ -51,9 +51,9 @@
 
 ## Deferred
 
- Live Ollama Cloud proof, a live Watchdog-backed mission against a real external provider, provider-driven model tool planning, richer Agents SDK runner/tool-result artifact integration, Dispatch workflow import, dynamic agent discovery, full workcell isolation/rollback/recovery, CaseFile failure bundles, full Redact integration, MCP adapter, adaptive routing, Capsule A/B scoring, durable concurrent storage, signed export, richer retry/repair/cancellation receipts, remote event sinks, aggregate metrics, artifact retention/compaction, and ShipCheck/Concord release gates. Local real-Watchdog/stub-provider correlation, one fixture mission through the Agents SDK Tool Registry, complete event-sequence and receipt verification, exact Git argv policy, bounded lock backoff, incremental bounded live event watch, bounded duration evidence, bounded artifact size inventory, cooperative cancellation, symlink-safe evidence access including parent-component store checks, bounded mission-spec input, bounded persisted JSON parsing, failure-aware fallback, trusted worker-root binding, bounded bridge payloads, validated live Watchdog routes, HTTPS enforcement for non-loopback routes, secret-safe doctor route posture, route telemetry non-disclosure, endpoint-independent Watchdog diagnostics, integrity-bound resume checkpoints, integrity-bound worktree cleanup, integrity-bound pause/cancel controls, structured local credential/token/private-key redaction, dependency-integrity doctor checks, deterministic upstream version probes, optional SHA-256 dependency pinning, credential-environment injection deny rules, fail-closed symlink probe errors and dangling-symlink detection, explicit cancellation/timeout action classes, descendant-safe timeout termination evidence, PackWrite atomic pack writes, fail-closed evidence persistence, state-store symlink rejection, and sealed receipt execution context are proven. See `docs/next-session-enhancement-backlog-2026-07-12-v45.md`.
+ Live Ollama Cloud proof, a live Watchdog-backed mission against a real external provider, provider-driven model tool planning, richer Agents SDK runner/tool-result artifact integration, Dispatch workflow import, dynamic agent discovery, full workcell isolation/rollback/recovery, CaseFile failure bundles, full Redact integration, MCP adapter, adaptive routing, Capsule A/B scoring, durable concurrent storage, signed export, richer retry/repair/cancellation receipts, remote event sinks, aggregate metrics, artifact retention/compaction, and ShipCheck/Concord release gates. Local real-Watchdog/stub-provider correlation, one fixture mission through the Agents SDK Tool Registry, complete event-sequence and receipt verification, exact Git argv policy, bounded lock backoff, incremental bounded live event watch, bounded duration evidence, bounded artifact size inventory, cooperative cancellation, symlink-safe evidence access including parent-component store checks, bounded mission-spec input, bounded persisted JSON parsing, failure-aware fallback, trusted worker-root binding, bounded bridge payloads, validated live Watchdog routes, HTTPS enforcement for non-loopback routes, secret-safe doctor route posture, route telemetry non-disclosure, endpoint-independent Watchdog diagnostics, integrity-bound resume checkpoints, integrity-bound worktree cleanup, integrity-bound pause/cancel controls, structured local credential/token/private-key redaction, dependency-integrity doctor checks, deterministic upstream version probes, optional SHA-256 dependency pinning, credential-environment injection deny rules, fail-closed symlink probe errors and dangling-symlink detection, explicit cancellation/timeout action classes, descendant-safe timeout termination evidence, PackWrite atomic pack writes, fail-closed evidence persistence, state-store symlink rejection, and sealed receipt execution context are proven. See `docs/next-session-enhancement-backlog-2026-07-12-v46.md`.
 
-Current follow-on backlog: `docs/next-session-enhancement-backlog-2026-07-12-v45.md`.
+Current follow-on backlog: `docs/next-session-enhancement-backlog-2026-07-12-v46.md`.
 
 ## Dependency order
 
@@ -72,8 +72,14 @@ Process path resolution, live credentials, Watchdog availability, provider capab
 ## Current review delta
 
 Extend the existing fail-closed filesystem policy to all local trust roots:
-state-store parents, doctor dependency targets, and the Agents SDK worker
-root/source. Keep this as a shared boundary helper with focused probes; do not
-introduce a separate path-policy implementation. The next implementation
-priority remains live Watchdog/provider evidence and a real bounded mission,
-followed by stronger workcell and durable-store ownership.
+state-store parents, doctor dependency targets, the Agents SDK worker
+root/source, bounded JSON/JSONL artifacts, cancellation requests, and live
+event observation. Keep this as a shared boundary helper with focused probes;
+do not introduce a separate path-policy implementation. Cache repeated watcher
+existence checks per poll. The next implementation priority remains live
+Watchdog/provider evidence and a real bounded mission, followed by stronger
+workcell and durable-store ownership.
+
+The adapter boundary also now canonicalizes subprocess module context for
+sibling Kujo tools. This closes a cross-repository launch-context failure that
+could make ChangeBucket import Relay's modules or return no change evidence.

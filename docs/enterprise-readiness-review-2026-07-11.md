@@ -463,3 +463,18 @@ Kujo source checks, the contract suite, and the symlink smoke pass. This closes
 local path-policy drift; kernel no-follow primitives, authenticated ownership,
 live provider evidence, full workcell isolation, durable storage, and release
 attestation remain open.
+
+## Forty-sixth 2026-07-12 review
+
+Relay now probes JSON and JSONL artifact links before existence checks, rejects
+dangling cancellation requests, and makes `runs watch` reject dangling event
+links immediately. The watcher also reuses one existence result per poll,
+reducing redundant local filesystem probes. Focused source checks, contracts,
+the symlink smoke, and watch-integrity smoke pass. This improves local evidence
+and control authority but does not establish live provider proof, authenticated
+tenancy, workcell isolation, durable storage, or enterprise readiness.
+
+The same review aligned sibling-tool subprocess `PWD` and Kujo module context,
+restoring truthful ChangeBucket version and mission-change evidence from a
+Relay-root launch. This is local composition correctness, not signed
+dependency provenance or enterprise deployment attestation.

@@ -543,8 +543,11 @@ Context: checking only `.relay` and `.relay/runs` protects direct symlink
 redirection but leaves a symlinked existing parent directory able to redirect
 the entire evidence store while the final paths remain ordinary names.
 Decision: walk each path component of the state root and runs root, query
-symlink metadata for every existing component, reject `..`, and fail closed on
-probe errors. Rationale: the state store is Relay's local evidence and control
+symlink metadata for every existing component, explicitly reject `..` through
+`path_has_parent_component`, and fail closed on probe errors. The reusable
+symlink walk may inspect normalized sibling paths containing `..`; only the
+state-store owner applies the stricter parent-component policy. Rationale: the
+state store is Relay's local evidence and control
 authority; parent redirection must be rejected before index or run access.
 Consequence: unusual relative roots containing `..` and symlinked parent
 directories require an explicit safe path, while missing non-symlink components
@@ -570,3 +573,41 @@ non-symlink components remain valid where creation is expected. Kernel
 no-follow primitives, authenticated ownership, and durable multi-host storage
 remain open. Rejected: resolving links to a supposedly trusted target, or
 maintaining separate parent checks in each caller.
+
+## ADR-064: Probe evidence and control links before existence checks
+
+Context: the shared symlink helper already detected dangling links, but JSON
+readers, JSONL append, cancellation polling, and the live event watcher still
+called ordinary existence checks first. A dangling link could therefore be
+treated as an absent optional artifact, cause an append to target a redirected
+location, or make a watcher wait for a timeout instead of rejecting unsafe
+evidence. Decision: perform the fail-closed symlink probe first in bounded JSON
+reads, JSONL append, cancellation-request polling, event inspection/export,
+and each watcher poll; cache the watcher existence result for the rest of that
+poll. Rationale: metadata-first behavior must be consistent at every evidence
+and control boundary, while the cached existence result removes redundant
+filesystem probes from long-running watches. Consequence: dangling links fail
+immediately and missing paths retain absent semantics; the watcher performs
+one symlink and one existence probe per poll rather than repeating existence
+checks. Kernel no-follow operations, authenticated ownership, and durable
+multi-host storage remain open. Rejected: treating dangling links as missing,
+following them to inspect a target, or retaining separate watcher/read/control
+probe orderings.
+
+## ADR-065: Preserve sibling-tool module context in subprocess adapters
+
+Context: Relay launches PackWrite, RunLedger, ChangeBucket, and other Kujo
+programs from a caller-controlled working directory. The kernel cwd supplied
+through `/usr/bin/env -C` did not update `PWD`, and ChangeBucket's launcher also
+requires the Kujo module path for its `from cli` compatibility import. This
+could make a dependency import Relay's `src/` tree or fail its version and
+ChangeBucket evidence probes even when the dependency itself was present.
+Decision: when an adapter supplies a cwd, resolve it for `PWD` while retaining
+the direct `-C` execution boundary; pass the canonical Kujo module path to
+ChangeBucket doctor and mission adapters. Rationale: keep module resolution,
+process cwd, and evidence ownership aligned without allowing a caller PATH or
+shell to choose the runtime. Consequence: sibling version probes and mission
+ChangeBucket evidence work from Relay's launch context; the adapter remains
+provider-independent and still records subprocess failures. Rejected: trusting
+the inherited `PWD`, changing the caller's cwd globally, or copying sibling
+tool implementations into Relay.

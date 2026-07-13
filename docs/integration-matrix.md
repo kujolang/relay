@@ -51,3 +51,13 @@ between state-store safety and other local trust boundaries without creating a
 second filesystem policy. The focused source checks, contract suite, and
 dedicated dangling/parent symlink smoke provide local evidence; kernel no-follow
 operations, authenticated ownership, and multi-host storage remain deferred.
+
+The next review extends metadata-first probing to bounded JSON reads, JSONL
+append, cancellation requests, and event inspection/watch. The watcher now
+reuses one existence result per poll, improving local polling cost while
+rejecting dangling evidence links immediately.
+
+Sibling-tool subprocess adapters now align `PWD` with their execution cwd and
+pass the Kujo module path where ChangeBucket requires it. This preserves the
+existing subprocess ownership boundary while making version probes and mission
+change evidence work from Relay's launch context.

@@ -64,6 +64,12 @@ component walk now protects doctor dependency targets and the trusted Agents
 SDK worker root/source; a symlinked parent fails readiness or worker binding
 even when the leaf itself is not symbolic.
 
+Bounded JSON reads, JSONL evidence appends, cancellation polling, event
+inspection/export, and `runs watch` probe symlink metadata before ordinary
+existence semantics. Dangling links therefore fail closed instead of becoming
+missing artifacts; `runs watch` caches the existence result for each poll to
+avoid repeating the same filesystem lookup.
+
 ## Commands
 
 ```text

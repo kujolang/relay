@@ -460,3 +460,18 @@ index or run access. A parent-redirection contract probe was added. This is
 stronger local evidence authority, not kernel-level no-follow support,
 authenticated ownership, durable storage, or enterprise deployment
 attestation.
+
+## Forty-sixth 2026-07-12 review
+
+Relay now probes JSON and JSONL artifact links before existence checks, rejects
+dangling cancellation requests, and makes `runs watch` reject dangling event
+links immediately. The watcher also reuses one existence result per poll,
+reducing redundant local filesystem probes. Focused source checks, contracts,
+the symlink smoke, and watch-integrity smoke pass. This improves local evidence
+and control authority but does not establish live provider proof, authenticated
+tenancy, workcell isolation, durable storage, or enterprise readiness.
+
+Sibling-tool adapters now align subprocess cwd/module context, including the
+canonical Kujo module path required by ChangeBucket. The doctor and mission
+smokes verify that cross-repository version/change evidence remains truthful
+when Relay is launched from its own root.
