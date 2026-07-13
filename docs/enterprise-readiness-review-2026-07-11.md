@@ -370,3 +370,11 @@ with a one-second timeout now returns within 12 seconds, records
 process. This proves the Unix Kujo process-group timeout boundary separately
 from operator cancellation. Non-Unix process trees, rollback-aware workcells,
 and distributed process ownership remain deferred.
+
+## Thirty-sixth 2026-07-12 review
+
+This review reduced local watcher parsing cost without weakening evidence
+validation. `runs watch` now retains parsed events, parses only newly appended
+complete lines plus any pending partial line, rejects replacement/truncation,
+and still validates the full event chain on every poll. Remote event sinks,
+durable subscriptions, and multi-host fan-out remain deferred.

@@ -416,3 +416,17 @@ works. Consequence: the local Unix guarantee is executable; non-Unix process
 trees, rollback-aware workcells, and cross-host process ownership remain open.
 Rejected: treating timeout validation as proof of termination or reusing only
 the cancellation request smoke.
+
+## ADR-054: Incrementally parse bounded live event logs
+
+Context: `runs watch` reread and reparsed the entire bounded JSONL event log on
+every poll. Long-running missions therefore paid repeated JSON parsing work as
+the event stream grew. Decision: retain the parsed event array and previous raw
+prefix, parse only newly appended complete lines plus any previously incomplete
+line, reject replacement/truncation, and continue validating the full event
+chain on every poll. Rationale: reduce watcher CPU while preserving the
+append-only evidence and tamper-detection contract. Consequence: the watcher
+still retains the bounded raw file and parsed events in memory; remote sinks,
+durable subscriptions, and multi-host fan-out remain deferred. Rejected:
+skipping integrity validation when the file size is unchanged or introducing a
+second event store.

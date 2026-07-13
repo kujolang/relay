@@ -372,3 +372,11 @@ runs a 30-second descendant task with a one-second limit, proves bounded return
 within 12 seconds, verifies typed timeout evidence, and checks for orphaned
 processes. The result strengthens the local Unix process lifecycle claim while
 leaving non-Unix and workcell ownership contracts open.
+
+## Thirty-sixth 2026-07-12 review
+
+`runs watch` now avoids reparsing the complete JSONL history on every poll. It
+processes appended complete lines and pending partial lines incrementally,
+rejects replacement/truncation, and preserves full per-poll chain validation.
+This improves local watcher scaling while leaving remote subscriptions and
+multi-host event fan-out open.
