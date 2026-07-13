@@ -66,6 +66,20 @@ jq -e --arg run_id "$run_id" '.contract_version == "relay-tool-result-bundle-v1"
 
 events="$($KUJO run "$ROOT/main.kujo" -- runs events "$run_id" --json)"
 printf '%s' "$events" | jq -e '.ok == true and any(.events[]; .kind == "tool_plan_resolved" and .payload.provider_generated == true) and any(.events[]; .kind == "tool_result_persisted")' >/dev/null
+verified="$($KUJO run "$ROOT/main.kujo" -- runs verify "$run_id" --json)"
+printf '%s' "$verified" | jq -e '.ok == true and .tool_results_required == true and .tool_results_valid == true' >/dev/null
+
+# Provider-generated tool results are required evidence, not merely an
+# informational artifact. A tampered bundle must invalidate verification.
+cp "$ROOT/.relay/runs/$run_id/tool-results.json" "$ROOT/.relay/runs/$run_id/tool-results.json.backup"
+jq '.results[0].result.ok = false' "$ROOT/.relay/runs/$run_id/tool-results.json.backup" >"$ROOT/.relay/runs/$run_id/tool-results.json"
+set +e
+tampered_tool_results="$($KUJO run "$ROOT/main.kujo" -- runs verify "$run_id" --json 2>&1)"
+tampered_tool_results_rc=$?
+set -e
+test "$tampered_tool_results_rc" -ne 0
+printf '%s' "$tampered_tool_results" | jq -e '.ok == false and .tool_results_required == true and .tool_results_valid == false and .integrity_valid == false' >/dev/null
+mv "$ROOT/.relay/runs/$run_id/tool-results.json.backup" "$ROOT/.relay/runs/$run_id/tool-results.json"
 if printf '%s' "$result" | grep -q 'relay-proxy-token\|relay-api-token\|relay-stub-provider-key'; then
   echo "provider tool smoke leaked a credential" >&2
   exit 1
