@@ -1,5 +1,5 @@
 from src.common import dict_get_or, env_or, env_bool, safe_env_name, int_or, path_is_symlink_safe, path_has_symlink_component
-from src.adapters import kujo_bin, ai_sdk_root, agents_sdk_root, watchdog_url, run_process
+from src.adapters import kujo_bin, ai_sdk_root, agents_sdk_root, ai_bridge_path, watchdog_url, run_process
 from src.policy import real_path
 from src.watchdog import health_check, proxy_config_check, route_policy
 from src.registry import agent_catalog, agent_path
@@ -87,6 +87,8 @@ func doctor() {
     }
     registry_safe := len(agent_errors) == 0
     checks := push(checks, {"name": "Chain of Command registry", "ok": registry_safe, "required": true, "safe": registry_safe, "missing": agent_errors})
+    bridge_safe := ai_bridge_path() != ""
+    checks := push(checks, {"name": "AI bridge source", "ok": bridge_safe, "required": true, "safe": bridge_safe})
     live := env_bool("RELAY_OFFLINE_FIXTURE", true) == false
     mode := "fixture"
     if live { mode = "live" }

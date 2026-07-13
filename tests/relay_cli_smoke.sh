@@ -22,6 +22,25 @@ normalized_doctor="$(RELAY_OFFLINE_FIXTURE=1 "$KUJO" run "$ROOT/main.kujo" -- do
 printf '%s' "$normalized_doctor" | jq -e '.ok == true and .mode == "fixture"' >/dev/null
 normalized_probe="$(RELAY_OFFLINE_FIXTURE=YES "$KUJO" run "$ROOT/main.kujo" -- models probe fixture-model --json)"
 printf '%s' "$normalized_probe" | jq -e '.ok == true and .offline == true' >/dev/null
+unsafe_bridge="/tmp/relay-external-ai-bridge-$$.kujo"
+printf '%s' 'print({"ok":true})' > "$unsafe_bridge"
+set +e
+unsafe_bridge_output="$(RELAY_AI_BRIDGE="$unsafe_bridge" "$KUJO" run "$ROOT/main.kujo" -- chat unsafe-bridge --fixture --json 2>&1)"
+unsafe_bridge_status=$?
+set -e
+rm -f "$unsafe_bridge"
+test "$unsafe_bridge_status" -ne 0
+printf '%s' "$unsafe_bridge_output" | jq -e '.error.code == "invalid_ai_bridge_path"' >/dev/null
+if printf '%s' "$unsafe_bridge_output" | grep -q "$unsafe_bridge"; then
+  echo "unsafe AI bridge path leaked into output" >&2
+  exit 1
+fi
+set +e
+unsafe_bridge_doctor="$(RELAY_AI_BRIDGE="$unsafe_bridge" "$KUJO" run "$ROOT/main.kujo" -- doctor --json 2>&1)"
+unsafe_bridge_doctor_status=$?
+set -e
+test "$unsafe_bridge_doctor_status" -ne 0
+printf '%s' "$unsafe_bridge_doctor" | jq -e '.ok == false and (.checks | map(select(.name == "AI bridge source"))[0].safe == false)' >/dev/null
 runtime_hash="$(shasum -a 256 "$KUJO" | awk '{print $1}')"
 hash_doctor="$(RELAY_KUJO_SHA256="$runtime_hash" "$KUJO" run "$ROOT/main.kujo" -- doctor --json)"
 printf '%s' "$hash_doctor" | jq -e '.ok == true and (.checks | map(select(.name == "Kujo runtime hash"))[0].matched == true)' >/dev/null

@@ -1,5 +1,5 @@
-from src.common import dict_get_or, env_or, env_bool, string_or, bool_or, int_or, safe_json, read_json_or, redact_text, process_options, safe_env_name, contains_any
-from src.policy import real_path
+from src.common import dict_get_or, env_or, env_bool, string_or, bool_or, int_or, safe_json, read_json_or, redact_text, process_options, safe_env_name, contains_any, path_is_symlink_safe, path_has_symlink_component
+from src.policy import real_path, path_is_within_root
 from src.watchdog import watchdog_verify, safe_base, route_policy, safe_correlation_id
 
 func relay_root() {
@@ -26,6 +26,18 @@ func ai_sdk_root() { return rooted_path(env_or("RELAY_AI_SDK_PATH", relay_root()
 func agents_sdk_root() { return rooted_path(env_or("RELAY_AGENTS_SDK_PATH", relay_root() + "/../agents-sdk")) }
 func watchdog_url() { return env_or("RELAY_WATCHDOG_URL", "") }
 func watchdog_route_allowed(value) { return safe_base(value) }
+
+func ai_bridge_path() {
+    root := real_path(relay_root())
+    if root == "" { return "" }
+    configured := env_or("RELAY_AI_BRIDGE", relay_root() + "/src/ai_bridge.kujo")
+    candidate := configured
+    if starts_with(candidate, "/") == false { candidate = relay_root() + "/" + candidate }
+    if path_is_symlink_safe(candidate) || path_has_symlink_component(candidate) || path_is_file(candidate) == false { return "" }
+    resolved := real_path(candidate)
+    if resolved == "" || ends_with(resolved, ".kujo") == false || path_is_within_root(resolved, root) == false { return "" }
+    return resolved
+}
 
 func last_json(raw) {
     text := trim(to_string(raw))
@@ -104,7 +116,10 @@ func call_ai(messages, model, provider, base_url, api_key_env, offline, stream, 
     if allow_insecure_localhost != "" { env_map["KUJO_AI_SDK_ALLOW_INSECURE_LOCALHOST"] := allow_insecure_localhost }
     api_key := env(api_key_env)
     if type(api_key) != "null" { env_map[api_key_env] := api_key }
-    bridge := rooted_path(env_or("RELAY_AI_BRIDGE", relay_root() + "/src/ai_bridge.kujo"))
+    bridge := ai_bridge_path()
+    if bridge == "" {
+        return {"ok": false, "error": {"code": "invalid_ai_bridge_path", "message": "RELAY_AI_BRIDGE must resolve to a regular, non-symlinked Kujo file inside Relay"}, "relay_telemetry": {"route": "blocked_invalid_bridge", "provider": provider, "model": model}}
+    }
     command := ["/usr/bin/env", "-C", ai_sdk_root(), kujo_bin(), "run", bridge, "--interpreter"]
     result := run_process(command, "", env_map, 120000)
     parsed := last_json(dict_get_or(result, "stdout", ""))
@@ -244,6 +259,7 @@ export kujo_bin := kujo_bin
 export rooted_path := rooted_path
 export ai_sdk_root := ai_sdk_root
 export agents_sdk_root := agents_sdk_root
+export ai_bridge_path := ai_bridge_path
 export run_process := run_process
 export repo_root := repo_root
 export watchdog_url := watchdog_url
