@@ -16,6 +16,8 @@ schemas=(
   probe
   tool-result
   tool-result-bundle
+  run-verification
+  run-sizes
 )
 for name in "${schemas[@]}"; do
   path="$ROOT/schemas/$name.schema.json"

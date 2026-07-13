@@ -105,7 +105,7 @@ func parse_tokens(tokens) {
         token := tokens[i]
         if starts_with(token, "--") {
             key := substring(token, 2, len(token))
-            if key == "json" || key == "stream" || key == "fixture" || key == "offline" || key == "help" || key == "skip-agent-smoke" || key == "confirm" {
+            if key == "json" || key == "stream" || key == "fixture" || key == "offline" || key == "help" || key == "skip-agent-smoke" || key == "confirm" || key == "hashes" {
                 flags[key] := true
             } else if i + 1 < len(tokens) && starts_with(tokens[i + 1], "--") == false {
                 flags[key] := tokens[i + 1]
@@ -371,7 +371,7 @@ func watch_run_events(record, run_id, flags) {
     return {"ok": false, "_streamed": true}
 }
 
-func artifact_inventory(path, relative, max_entries, max_bytes, depth) {
+func artifact_inventory(path, relative, max_entries, max_bytes, depth, include_hashes) {
     if depth > 16 { return {"ok": false, "error": "run artifact inventory exceeds the 16-level directory depth limit"} }
     if path_is_symlink_safe(path) { return {"ok": false, "error": "run artifact inventory encountered a symbolic link: " + relative} }
     if path_is_dir(path) {
@@ -382,7 +382,7 @@ func artifact_inventory(path, relative, max_entries, max_bytes, depth) {
         names := sort(list_dir(path))
         if len(names) > max_entries { return {"ok": false, "error": "run artifact inventory exceeds the entry limit"} }
         for name in names {
-            child := artifact_inventory(path + "/" + name, relative + "/" + name, max_entries, max_bytes, depth + 1)
+            child := artifact_inventory(path + "/" + name, relative + "/" + name, max_entries, max_bytes, depth + 1, include_hashes)
             if dict_get_or(child, "ok", false) == false { return child }
             child_entries := dict_get_or(child, "entries", [])
             if type(child_entries) == "array" {
@@ -399,10 +399,12 @@ func artifact_inventory(path, relative, max_entries, max_bytes, depth) {
     if path_is_file(path) == false { return {"ok": false, "error": "run artifact inventory encountered an unsupported path: " + relative} }
     bytes := file_size(path)
     if bytes > max_bytes { return {"ok": false, "error": "run artifact inventory exceeds the total byte limit"} }
-    return {"ok": true, "entries": [{"path": relative, "kind": "file", "bytes": bytes}], "bytes": bytes, "files": 1, "directories": 0}
+    entry := {"path": relative, "kind": "file", "bytes": bytes}
+    if bool_or(include_hashes, false) { entry["integrity_sha256"] := sha256_file(path) }
+    return {"ok": true, "entries": [entry], "bytes": bytes, "files": 1, "directories": 0}
 }
 
-func run_artifact_sizes(record, run_id) {
+func run_artifact_sizes(record, run_id, flags) {
     run_dir := string_or(dict_get_or(record, "run_dir", ""), "")
     if run_dir == "" || path_is_dir(run_dir) == false || path_is_symlink_safe(run_dir) { return {"ok": false, "error": "run artifact directory is missing or unsafe"} }
     mut entries := []
@@ -414,7 +416,7 @@ func run_artifact_sizes(record, run_id) {
         if name == "workspace" {
             continue
         }
-        child := artifact_inventory(run_dir + "/" + name, name, 4096, 8388608, 0)
+        child := artifact_inventory(run_dir + "/" + name, name, 4096, 8388608, 0, has_flag(flags, "hashes"))
         if dict_get_or(child, "ok", false) == false { return child }
         child_entries := dict_get_or(child, "entries", [])
         if type(child_entries) == "array" {
@@ -426,7 +428,7 @@ func run_artifact_sizes(record, run_id) {
         if len(entries) > 4096 { return {"ok": false, "error": "run artifact inventory exceeds the entry limit"} }
         if total_bytes > 8388608 { return {"ok": false, "error": "run artifact inventory exceeds the total byte limit"} }
     }
-    return {"ok": true, "format": "relay-run-sizes-v1", "run_id": run_id, "run_dir": run_dir, "generated_at": now_iso(), "summary": {"bytes": total_bytes, "files": files, "directories": directories}, "entries": entries, "excluded": excluded}
+    return {"ok": true, "format": "relay-run-sizes-v1", "run_id": run_id, "run_dir": run_dir, "generated_at": now_iso(), "hashes_included": bool_or(has_flag(flags, "hashes"), false), "summary": {"bytes": total_bytes, "files": files, "directories": directories}, "entries": entries, "excluded": excluded}
 }
 
 func event_window(events, flags) {
@@ -548,7 +550,7 @@ func cmd_runs(tokens) {
         return {"ok": valid, "format": "relay-run-verification-v1", "run_id": id, "status": dict_get_or(state_evidence["state"], "status", "unknown"), "integrity_valid": valid, "state_valid": true, "events_valid": true, "receipts_valid": dict_get_or(events_result, "receipts_valid", false), "receipts_consistent": dict_get_or(events_result, "receipts_consistent", false), "changes_valid": changes_valid, "evaluations_valid": evaluations_valid, "report_valid": report_valid, "tool_results_required": dict_get_or(tool_results, "required", false), "tool_results_valid": tool_results_valid, "errors": [dict_get_or(changes, "error", ""), dict_get_or(evaluations, "error", ""), dict_get_or(report, "error", ""), dict_get_or(tool_results, "error", "")]}
     }
     if sub == "watch" { return watch_run_events(record, id, parsed["flags"]) }
-    if sub == "sizes" { return run_artifact_sizes(record, id) }
+    if sub == "sizes" { return run_artifact_sizes(record, id, parsed["flags"]) }
     if sub == "inspect" {
         state_evidence := read_run_state_evidence(record["run_dir"], id)
         if dict_get_or(state_evidence, "ok", false) == false {

@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kujo.dev/relay/schemas/run-verification.schema.json",
+  "title": "Kujo Relay run verification response",
+  "type": "object",
+  "required": ["ok", "format", "run_id", "integrity_valid", "state_valid", "events_valid", "receipts_valid", "receipts_consistent", "changes_valid", "evaluations_valid", "report_valid"],
+  "properties": {
+    "ok": {"type": "boolean"},
+    "format": {"const": "relay-run-verification-v1"},
+    "run_id": {"type": "string", "minLength": 1},
+    "status": {"type": "string"},
+    "integrity_valid": {"type": "boolean"},
+    "state_valid": {"type": "boolean"},
+    "events_valid": {"type": "boolean"},
+    "receipts_valid": {"type": "boolean"},
+    "receipts_consistent": {"type": "boolean"},
+    "changes_valid": {"type": "boolean"},
+    "evaluations_valid": {"type": "boolean"},
+    "report_valid": {"type": "boolean"},
+    "tool_results_required": {"type": "boolean"},
+    "tool_results_valid": {"type": "boolean"},
+    "errors": {"type": "array", "items": {"type": "string"}}
+  },
+  "additionalProperties": true
+}

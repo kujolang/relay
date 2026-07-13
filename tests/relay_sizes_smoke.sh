@@ -22,6 +22,8 @@ test -n "$run_id" && test "$run_id" != "null"
 
 sizes="$($KUJO run "$ROOT/main.kujo" -- runs sizes "$run_id" --json)"
 printf '%s\n' "$sizes" | jq -e '.ok == true and .summary.files > 0 and .summary.bytes > 0 and ((.excluded | map(.path)) | index("workspace")) != null and ((.entries | map(.path) | map(startswith("workspace/")) | any) == false)' >/dev/null
+hashed_sizes="$($KUJO run "$ROOT/main.kujo" -- runs sizes "$run_id" --hashes --json)"
+printf '%s\n' "$hashed_sizes" | jq -e '.ok == true and .hashes_included == true and all(.entries[]; (.integrity_sha256 | type == "string" and length == 64))' >/dev/null
 
 run_dir="$ROOT/.relay/runs/$run_id"
 ln -s /etc "$run_dir/unsafe-link"

@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kujo.dev/relay/schemas/run-sizes.schema.json",
+  "title": "Kujo Relay run artifact size response",
+  "type": "object",
+  "required": ["ok", "format", "run_id", "hashes_included", "summary", "entries", "excluded"],
+  "properties": {
+    "ok": {"type": "boolean"},
+    "format": {"const": "relay-run-sizes-v1"},
+    "run_id": {"type": "string", "minLength": 1},
+    "run_dir": {"type": "string", "minLength": 1},
+    "generated_at": {"type": "string", "minLength": 1},
+    "hashes_included": {"type": "boolean"},
+    "summary": {
+      "type": "object",
+      "required": ["bytes", "files", "directories"],
+      "properties": {
+        "bytes": {"type": "integer", "minimum": 0},
+        "files": {"type": "integer", "minimum": 0},
+        "directories": {"type": "integer", "minimum": 0}
+      },
+      "additionalProperties": true
+    },
+    "entries": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["path", "kind", "bytes"],
+        "properties": {
+          "path": {"type": "string", "minLength": 1},
+          "kind": {"const": "file"},
+          "bytes": {"type": "integer", "minimum": 0},
+          "integrity_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+        },
+        "additionalProperties": true
+      }
+    },
+    "excluded": {"type": "array"}
+  },
+  "additionalProperties": true
+}
