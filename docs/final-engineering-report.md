@@ -647,3 +647,24 @@ Newly built behavior is local policy/evidence composition only. It does not
 complete external provider validation, provider-generated tool planning,
 authenticated machine adapters, workcell crash recovery, durable transactional
 storage, signed export, or enterprise readiness.
+
+## Sixty-third 2026-07-13 review
+
+Relay now supports integrity-verified, bounded `runs events` inspection windows
+with `--limit` and `--after` cursors. The implementation validates the full
+event chain and authoritative state sequence before slicing, then returns
+bounded cursor metadata under the new `schemas/event-bundle.schema.json`
+contract. The legacy unpaged response and `runs export` behavior remain
+unchanged.
+
+Cooperative cancellation requests are now identity-bound to the target run and
+sealed over their request fields. Copied, stale-format, and tampered request
+files fail closed at action boundaries. This provides local tamper evidence;
+it does not claim authenticated ownership, replay protection, distributed
+cancellation, or rollback.
+
+The implementation remains Kujo-native and locally verifiable. The unresolved
+production boundary is unchanged: real Ollama Cloud and independent-provider
+evidence, provider-driven tool planning, full workcell isolation/recovery,
+authenticated Paperclip/Hermes/CI/MCP adapters, durable concurrent storage,
+signed export, and ShipCheck/Concord release gates still require future work.

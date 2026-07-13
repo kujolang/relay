@@ -662,3 +662,21 @@ the existing entry and directory-depth bounds. The sizes smoke covers the
 total-byte denial. Relay remains a hardened local alpha; external provider
 evidence, provider-generated tools, full workcells, authenticated machine
 mode, durable storage, signed export, and release gates remain open.
+
+## Sixty-third 2026-07-13 review
+
+Machine callers can now request bounded `runs events` windows with `--limit`
+and `--after` cursors. Relay validates the complete event chain and the
+authoritative state sequence before slicing, and the new `event-bundle` schema
+describes the integrity and cursor metadata. This improves transfer and
+allocation behavior for long local runs without creating a remote event sink.
+
+Cooperative cancellation requests now carry the target run ID and a SHA-256
+seal over their request fields. Action boundaries reject stale-format,
+cross-run, or modified request files. The seal is tamper evidence, not
+authenticated operator authority or replay protection. Focused store,
+cancellation, contract, and schema smokes cover the new boundaries.
+
+The enterprise boundary is unchanged: live external-provider proof, provider-
+generated tools, full workcells, authenticated machine mode, durable storage,
+signed export, and release gates remain open.

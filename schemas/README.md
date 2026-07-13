@@ -15,8 +15,8 @@ so upstream evidence can be carried without Relay silently dropping it. The
 | `mission.schema.json` | `missions create` / `missions run` input |
 | `run.schema.json` | persisted `state.json` and report JSON |
 | `event.schema.json` | AgentEvent-compatible `events.jsonl` records |
+| `event-bundle.schema.json` | verified `runs events` response, including paged windows |
 | `receipt.schema.json` | persisted `RelayReceipt` records |
 | `doctor.schema.json` | `doctor --json` |
 | `probe.schema.json` | `models probe --json` |
 | `tool-result.schema.json` | bounded `tools execute --json` result |
-

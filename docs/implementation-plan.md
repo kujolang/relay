@@ -63,12 +63,15 @@
 - Added an integrity seal over persisted run state and verify it at read, resume, cleanup, and report boundaries; state mutation now fails closed before status or workspace authority is trusted.
 - Published forward-compatible JSON Schemas for mission, run/report, AgentEvent, receipt, doctor, model probe, and tool-result boundaries under `schemas/`.
 - Added `tests/relay_acceptance.sh`, which discovers every committed smoke test, runs the contract suite and schema smoke, and performs `git diff --check`.
+- Added verified event-inspection windows with bounded `--limit` and `--after` cursors; the complete event chain and authoritative state sequence are validated before any page is returned.
+- Published the `event-bundle` JSON Schema for unpaged and paged `runs events` responses, including cursor and integrity metadata.
+- Bound cooperative cancellation requests to the target run ID and a SHA-256 request seal; malformed, copied, stale-format, and tampered requests fail closed at action boundaries.
 
 ## Deferred
 
  Live Ollama Cloud proof, a live Watchdog-backed mission against a real external provider, provider-driven model tool planning, richer Agents SDK runner/tool-result artifact integration, Dispatch workflow import, dynamic agent discovery, full workcell isolation/rollback/recovery, CaseFile failure bundles, full Redact integration, MCP adapter, adaptive routing, Capsule A/B scoring, durable concurrent storage, signed export, richer retry/repair/cancellation receipts, remote event sinks, aggregate metrics, artifact retention/compaction, crash recovery, and ShipCheck/Concord release gates. Local real-Watchdog/stub-provider correlation, one fixture mission through the Agents SDK Tool Registry, complete event-sequence and receipt verification, exact Git argv policy, bounded lock backoff, incremental bounded live event watch, bounded duration evidence, bounded artifact size inventory with depth denial, cooperative cancellation, symlink-safe evidence access including parent-component store checks, bounded mission-spec input, bounded persisted JSON parsing, required persisted receipt/state read boundaries, failure-aware fallback, trusted worker-root binding, bounded bridge payloads, validated live Watchdog routes, HTTPS enforcement for non-loopback routes, secret-safe doctor route posture, route telemetry non-disclosure, endpoint-independent Watchdog diagnostics, integrity-bound resume checkpoints, integrity-bound worktree cleanup, integrity-bound pause/cancel controls, structured local credential/token/private-key redaction, dependency-integrity doctor checks, deterministic upstream version probes, optional SHA-256 dependency pinning, credential-environment injection deny rules, fail-closed symlink probe errors and dangling-symlink detection, explicit cancellation/timeout action classes, descendant-safe timeout termination evidence, PackWrite atomic pack writes, fail-closed evidence persistence including required ChangeBucket/Eval/report artifacts and RunLedger finish, state-store symlink rejection, sealed receipt execution context, the read-only `runs verify` contract, complete export artifact checks, explicit non-valid partial export checks, cache-consistent index metadata, and single-scan registration are proven. See `docs/next-session-enhancement-backlog-2026-07-13-v54.md`.
 
-Current follow-on backlog: `docs/next-session-enhancement-backlog-2026-07-13-v62.md`.
+Current follow-on backlog: `docs/next-session-enhancement-backlog-2026-07-13-v63.md`.
 
 The v61 handoff supersedes the earlier v60 review backlog after persisted
 state-seal, machine-schema, aggregate-acceptance, and bounded mission-ID
@@ -77,6 +80,11 @@ hardening delivered in this session.
 The v62 local hardening also centralizes fallback classification and persists
 mission-level selected/skipped fallback evidence, and bounds `runs sizes` by
 total artifact bytes in addition to entry count and directory depth.
+
+The v63 local hardening adds machine-callable event windows without weakening
+integrity verification and seals cancellation requests to a run identity. These
+are local evidence and control-plane safeguards, not authenticated distributed
+operation or a durable event service.
 
 ## Dependency order
 

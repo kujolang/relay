@@ -924,3 +924,31 @@ path bounded without adding retention authority. Consequence: oversized
 evidence is reported as invalid and requires a future compaction/retention
 owner; workspace bytes remain excluded. Rejected: silently truncating
 inventories or following links.
+
+## ADR-087: Page verified event inspection for machine callers
+
+Context: `runs events` verified a bounded log but returned the complete event
+array and redundant JSONL string on every request. Decision: accept optional
+`--limit 1..4096` and `--after <event-id>` cursors for `runs events`,
+verify the complete chain and authoritative state sequence first, then return a
+window with `event_count`, `offset`, `has_more`, and `next_after`.
+Paged responses omit the redundant JSONL field. Rationale: CI, Paperclip,
+Hermes, and future MCP callers can inspect long runs without repeatedly
+allocating or transferring the entire verified response. Consequence: this is
+a response-size optimization, not a durable remote event sink or a change to
+`runs export`; malformed cursors and limits fail closed. Rejected: slicing
+before integrity verification or silently truncating the legacy unpaged form.
+
+## ADR-088: Bind cooperative cancellation requests to run identity
+
+Context: a local cancellation request was protected against symlink redirection
+but did not carry an identity or integrity seal, so a stale or copied request
+could be interpreted as an operator action in another run directory. Decision:
+persist the run ID and a SHA-256 seal over the request fields, and require both
+to validate before action-boundary cancellation. Rationale: prevent accidental
+cross-run control and make cancellation evidence tamper-evident while retaining
+the existing cooperative process-group boundary. Consequence: pre-v62 request
+files are rejected and require regeneration; authenticated ownership,
+replay protection, distributed cancellation, and rollback remain deferred.
+Rejected: trusting any readable request file or treating the hash as an
+authorization signature.

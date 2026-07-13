@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kujo.dev/relay/schemas/event-bundle.schema.json",
+  "title": "Kujo Relay verified run event bundle",
+  "type": "object",
+  "required": [
+    "ok",
+    "integrity_valid",
+    "chain_integrity_valid",
+    "state_consistent",
+    "receipts_valid",
+    "receipts_consistent",
+    "events",
+    "event_count",
+    "offset",
+    "has_more",
+    "next_after"
+  ],
+  "properties": {
+    "ok": {"type": "boolean"},
+    "integrity_valid": {"type": "boolean"},
+    "chain_integrity_valid": {"type": "boolean"},
+    "state_consistent": {"type": "boolean"},
+    "receipts_valid": {"type": "boolean"},
+    "receipts_consistent": {"type": "boolean"},
+    "events": {
+      "type": "array",
+      "items": {"$ref": "event.schema.json"}
+    },
+    "events_jsonl": {"type": "string"},
+    "event_count": {"type": "integer", "minimum": 0},
+    "offset": {"type": "integer", "minimum": 0},
+    "has_more": {"type": "boolean"},
+    "next_after": {"type": "string"},
+    "receipt_error": {"type": "string"}
+  },
+  "additionalProperties": true
+}

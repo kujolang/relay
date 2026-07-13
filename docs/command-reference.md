@@ -166,7 +166,9 @@ mission. The active runtime checks the request before and after each declared
 action, passes the request to Kujo's process cancellation hook for an active
 command, stops before the next action, emits a `run_cancelled` event, finishes
 the RunLedger record with failure status, and preserves the request as
-`cancel.request.json`. On Unix, Kujo runs each spawned command in its own
+`cancel.request.json`. The request is bound to the run ID and sealed with an
+integrity hash; copied, stale, or tampered requests fail closed. On Unix, Kujo
+runs each spawned command in its own
 process group so descendant processes do not keep cancellation pipes open. A
 paused run can be cancelled immediately. Cancellation does not claim rollback
 of repository changes; callers must wait for terminal state and inspect the
@@ -240,7 +242,10 @@ for completed runs; it never upgrades missing evidence into valid evidence.
 IDs and complete canonical records against authoritative run state before
 returning it. State-only payload or metadata divergence fails closed. Event
 inspection and export are bounded to an 8 MiB JSONL log to keep machine callers
-memory-safe.
+memory-safe. Machine callers may request a verified bounded window with
+`--limit 1..4096` and continue from the returned `next_after` event ID using
+`--after`; the complete chain is still verified before slicing and paged
+responses omit the redundant JSONL string.
 `runs export` emits a versioned JSON bundle containing run state, verified
 events, receipts, changes, evaluations, and the final report; it refuses to
 export tampered, inconsistent, malformed, symbolic-linked, or non-regular
