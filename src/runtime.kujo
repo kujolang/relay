@@ -1,4 +1,4 @@
-from src.common import dict_get_or, env_or, string_or, bool_or, int_or, now_iso, safe_id, read_json_or, read_json_limited, write_json, append_jsonl, safe_json, shell_quote_single, command_args, write_text_atomic, process_options, process_options_with_cancel, redact_text
+from src.common import dict_get_or, env_or, string_or, bool_or, int_or, now_iso, safe_id, read_json_or, read_json_limited, write_json, append_jsonl, safe_json, shell_quote_single, command_args, write_text_atomic, process_options, process_options_with_cancel, redact_text, path_is_symlink_safe
 from src.contracts import run_state, event, event_integrity_input, receipt, receipt_integrity_input, event_chain_integrity_valid, receipt_sequence_valid
 from src.registry import find_agent
 from src.policy import tool_decision, classify_failure, path_is_safe, path_is_within_workspace, command_is_allowed
@@ -120,10 +120,10 @@ func resume_state_safe(state, run_id, run_dir) {
     if event_chain_integrity_valid(dict_get_or(state, "events", [])) == false { return {"ok": false, "error": "run event state integrity verification failed"} }
     if receipt_sequence_valid(dict_get_or(state, "receipts", [])) == false { return {"ok": false, "error": "run receipt state integrity verification failed"} }
     source_repo := string_or(dict_get_or(spec, "repository", ""), "")
-    if source_repo == "" || path_is_dir(source_repo) == false || path_is_symlink(source_repo) || path_exists(source_repo + "/.git") == false || path_is_symlink(source_repo + "/.git") { return {"ok": false, "error": "run source repository integrity verification failed"} }
+    if source_repo == "" || path_is_dir(source_repo) == false || path_is_symlink_safe(source_repo) || path_exists(source_repo + "/.git") == false || path_is_symlink_safe(source_repo + "/.git") { return {"ok": false, "error": "run source repository integrity verification failed"} }
     repository := string_or(dict_get_or(state, "repository", ""), "")
     workspace := dict_get_or(state, "workspace", {})
-    if type(workspace) != "dict" || repository == "" || path_is_dir(repository) == false || path_is_symlink(repository) || path_exists(repository + "/.git") == false || path_is_symlink(repository + "/.git") { return {"ok": false, "error": "run workspace integrity verification failed"} }
+    if type(workspace) != "dict" || repository == "" || path_is_dir(repository) == false || path_is_symlink_safe(repository) || path_exists(repository + "/.git") == false || path_is_symlink_safe(repository + "/.git") { return {"ok": false, "error": "run workspace integrity verification failed"} }
     mode := string_or(dict_get_or(spec, "workspace_mode", "provided"), "provided")
     workspace_mode := string_or(dict_get_or(workspace, "mode", ""), "")
     workspace_path := string_or(dict_get_or(workspace, "path", ""), "")
@@ -154,12 +154,12 @@ func cleanup_state_safe(state, run_id, run_dir) {
     if event_chain_integrity_valid(dict_get_or(state, "events", [])) == false { return {"ok": false, "error": "run event state integrity verification failed"} }
     if receipt_sequence_valid(dict_get_or(state, "receipts", [])) == false { return {"ok": false, "error": "run receipt state integrity verification failed"} }
     source_repo := string_or(dict_get_or(spec, "repository", ""), "")
-    if source_repo == "" || path_is_dir(source_repo) == false || path_is_symlink(source_repo) || path_exists(source_repo + "/.git") == false || path_is_symlink(source_repo + "/.git") { return {"ok": false, "error": "run source repository integrity verification failed"} }
+    if source_repo == "" || path_is_dir(source_repo) == false || path_is_symlink_safe(source_repo) || path_exists(source_repo + "/.git") == false || path_is_symlink_safe(source_repo + "/.git") { return {"ok": false, "error": "run source repository integrity verification failed"} }
     workspace := dict_get_or(state, "workspace", {})
     expected_workspace := run_dir + "/workspace"
     if type(workspace) != "dict" || string_or(dict_get_or(state, "repository", ""), "") != expected_workspace || string_or(dict_get_or(workspace, "mode", ""), "") != "worktree" || string_or(dict_get_or(workspace, "path", ""), "") != expected_workspace || string_or(dict_get_or(workspace, "source_repository", ""), "") != source_repo { return {"ok": false, "error": "worktree identity does not match the run"} }
     if path_exists(expected_workspace) {
-        if path_is_dir(expected_workspace) == false || path_is_symlink(expected_workspace) || path_exists(expected_workspace + "/.git") == false || path_is_symlink(expected_workspace + "/.git") { return {"ok": false, "error": "run-owned worktree is missing or unsafe"} }
+        if path_is_dir(expected_workspace) == false || path_is_symlink_safe(expected_workspace) || path_exists(expected_workspace + "/.git") == false || path_is_symlink_safe(expected_workspace + "/.git") { return {"ok": false, "error": "run-owned worktree is missing or unsafe"} }
     } else if bool_or(dict_get_or(workspace, "cleaned", false), false) == false {
         return {"ok": false, "error": "run-owned worktree is missing before cleanup"}
     }
@@ -172,7 +172,7 @@ func control_state_safe(state, run_id, run_dir) {
 
 func load_spec(path) {
     if type(path) != "string" || trim(path) == "" || path_exists(path) == false { return {"ok": false, "error": "Mission file is missing or invalid JSON: " + to_string(path)} }
-    if path_is_symlink(path) { return {"ok": false, "error": "Mission file must not be a symbolic link"} }
+    if path_is_symlink_safe(path) { return {"ok": false, "error": "Mission file must not be a symbolic link"} }
     if path_is_file(path) == false { return {"ok": false, "error": "Mission file must be a regular file"} }
     if file_size(path) > MISSION_SPEC_MAX_BYTES { return {"ok": false, "error": "Mission file exceeds the 1 MiB safety limit"} }
     spec := read_json_or(path, null)
@@ -224,9 +224,9 @@ func load_spec(path) {
     workspace_mode := string_or(dict_get_or(spec, "workspace_mode", "provided"), "provided")
     if workspace_mode != "provided" && workspace_mode != "worktree" { return {"ok": false, "error": "workspace_mode must be provided or worktree"} }
     repository := string_or(dict_get_or(spec, "repository", ""), "")
-    if repository == "" || path_is_dir(repository) == false || path_is_symlink(repository) { return {"ok": false, "error": "Mission repository must be an existing non-symlink directory"} }
+    if repository == "" || path_is_dir(repository) == false || path_is_symlink_safe(repository) { return {"ok": false, "error": "Mission repository must be an existing non-symlink directory"} }
     if path_exists(repository + "/.git") == false { return {"ok": false, "error": "Mission repository must be a Git workspace"} }
-    if path_is_symlink(repository + "/.git") { return {"ok": false, "error": "Mission Git metadata must not be a symbolic link"} }
+    if path_is_symlink_safe(repository + "/.git") { return {"ok": false, "error": "Mission Git metadata must not be a symbolic link"} }
     if bool_or(dict_get_or(spec, "allow_writes", false), false) && dict_get_or(dict_get_or(spec, "approval", {}), "approved", false) != true {
         return {"ok": false, "error": "Write-enabled missions require approval.approved=true"}
     }
@@ -299,13 +299,13 @@ func execute_tool_request(request, supplied_capability) {
     if type(request) != "dict" { return {"ok": false, "error": "tool request must be an object"} }
     capability := string_or(dict_get_or(request, "capability", ""), "")
     workspace := string_or(dict_get_or(request, "workspace", ""), "")
-    if workspace == "" || path_is_dir(workspace) == false || path_is_symlink(workspace) { return {"ok": false, "error": "tool workspace is invalid"} }
+    if workspace == "" || path_is_dir(workspace) == false || path_is_symlink_safe(workspace) { return {"ok": false, "error": "tool workspace is invalid"} }
     run_id := string_or(dict_get_or(request, "run_id", ""), "")
     session_id := string_or(dict_get_or(request, "session_id", ""), "")
     expected_capability := sha256(run_id + "|" + session_id + "|" + workspace + "|relay-agent-tools")
     supplied := string_or(supplied_capability, env_or("RELAY_TOOL_CAPABILITY", ""))
     if capability == "" || capability != expected_capability || supplied != expected_capability { return {"ok": false, "error": "tool capability is invalid"} }
-    if path_exists(workspace + "/.git") == false || path_is_symlink(workspace + "/.git") { return {"ok": false, "error": "tool workspace must be a Git workspace"} }
+    if path_exists(workspace + "/.git") == false || path_is_symlink_safe(workspace + "/.git") { return {"ok": false, "error": "tool workspace must be a Git workspace"} }
     original_spec := dict_get_or(request, "mission_spec", {})
     if type(original_spec) != "dict" { return {"ok": false, "error": "mission policy is missing"} }
     spec := original_spec
@@ -328,7 +328,7 @@ func execute_tool_request(request, supplied_capability) {
 func cancellation_request(run_dir) {
     path := run_dir + "/cancel.request.json"
     if path_exists(path) == false { return {"ok": true, "requested": false} }
-    if path_is_symlink(path) { return {"ok": false, "error": "cancellation request is a symbolic link"} }
+    if path_is_symlink_safe(path) { return {"ok": false, "error": "cancellation request is a symbolic link"} }
     request := read_json_limited(path, null, 65536)
     if type(request) != "dict" { return {"ok": false, "error": "cancellation request is invalid"} }
     return {"ok": true, "requested": true, "request": request}
@@ -610,7 +610,7 @@ func cancel_run(run_id) {
     record := dict_get_or(index, run_id, null)
     if type(record) != "dict" { return {"ok": false, "error": "unknown run: " + run_id} }
     run_dir := string_or(dict_get_or(record, "run_dir", ""), "")
-    if run_dir == "" || path_is_dir(run_dir) == false || path_is_symlink(run_dir) { return {"ok": false, "error": "run directory is missing or unsafe"} }
+    if run_dir == "" || path_is_dir(run_dir) == false || path_is_symlink_safe(run_dir) { return {"ok": false, "error": "run directory is missing or unsafe"} }
     state := read_json_limited(run_dir + "/state.json", null, 67108864)
     if type(state) != "dict" { return {"ok": false, "error": "run state missing"} }
     status := string_or(dict_get_or(state, "status", ""), "")
@@ -632,13 +632,13 @@ func cancel_run(run_id) {
         return {"ok": true, "run": state, "status": "cancelled"}
     }
     request_path := run_dir + "/cancel.request.json"
-    if path_exists(request_path) && path_is_symlink(request_path) { return {"ok": false, "error": "cancellation request is a symbolic link"} }
+    if path_exists(request_path) && path_is_symlink_safe(request_path) { return {"ok": false, "error": "cancellation request is a symbolic link"} }
     request := {"requested_at": now_iso(), "requested_by": "operator", "reason": "operator_cancel"}
     if write_json(request_path, request) == false { return {"ok": false, "error": "cancellation request could not be recorded"} }
     latest := read_json_limited(run_dir + "/state.json", state, 67108864)
     latest_status := string_or(dict_get_or(latest, "status", status), status)
     if latest_status == "completed" || latest_status == "failed" || latest_status == "cancelled" {
-        if path_exists(request_path) && path_is_symlink(request_path) == false { delete_file(request_path) }
+        if path_exists(request_path) && path_is_symlink_safe(request_path) == false { delete_file(request_path) }
         return {"ok": false, "error": "run completed before cancellation was requested", "run": latest}
     }
     return {"ok": true, "status": "cancellation_requested", "run": latest, "request": request}
@@ -662,7 +662,7 @@ func cleanup_run(run_id, confirmed) {
     worktree_path := string_or(dict_get_or(workspace, "path", ""), "")
     if source_repo == "" || worktree_path == "" { return {"ok": false, "error": "worktree metadata is incomplete"} }
     expected_worktree_path := record["run_dir"] + "/workspace"
-    if worktree_path != expected_worktree_path || path_is_symlink(worktree_path) { return {"ok": false, "error": "worktree cleanup target is not the run-owned workspace"} }
+    if worktree_path != expected_worktree_path || path_is_symlink_safe(worktree_path) { return {"ok": false, "error": "worktree cleanup target is not the run-owned workspace"} }
     mission_spec := dict_get_or(state, "mission_spec", {})
     expected_source_repo := string_or(dict_get_or(mission_spec, "repository", ""), "")
     if expected_source_repo != "" && source_repo != expected_source_repo { return {"ok": false, "error": "worktree source repository does not match the mission"} }

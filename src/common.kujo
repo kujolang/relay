@@ -94,7 +94,13 @@ func safe_env_name(value) {
 }
 
 func path_is_symlink_safe(path) {
-    try { return path_is_symlink(path) } except err { return false }
+    # A probe error is not proof that the path is safe. Callers use this
+    # helper at evidence and authority boundaries, so fail closed when the
+    # runtime cannot inspect the path.
+    try {
+        if path_exists(path) == false { return false }
+        return path_is_symlink(path)
+    } except err { return true }
 }
 
 func write_text_atomic(path, content) {

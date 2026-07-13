@@ -1,6 +1,7 @@
 # Agents SDK bridge executed with the Agents SDK checkout as its working
 # directory. The SDK owns registry, approval, and runner semantics; Relay owns
 # policy and repository authority through the bounded tools worker callback.
+from src.common import path_is_symlink_safe
 from src.agents.ai.adapter import create_ai_sdk_adapter
 from src.agents.runner import create_agent_runner, run_agent
 from src.agents.core_types import create_agent, create_agent_run_request
@@ -63,7 +64,7 @@ func call_relay_worker(tool_name, input_payload, context, payload) {
     requested_kujo_bin := to_string(get(payload, "kujo_bin", configured_kujo_bin))
     if requested_relay_root != configured_relay_root { return {"ok": false, "error": {"code": "relay_root_mismatch", "message": "Agents SDK worker root must match trusted RELAY_ROOT"}} }
     if requested_kujo_bin != configured_kujo_bin { return {"ok": false, "error": {"code": "kujo_bin_mismatch", "message": "Agents SDK worker binary must match trusted KUJO_BIN"}} }
-    if path_is_dir(configured_relay_root) == false || path_is_symlink(configured_relay_root) || path_exists(configured_relay_root + "/main.kujo") == false || path_is_symlink(configured_relay_root + "/main.kujo") { return {"ok": false, "error": {"code": "relay_root_invalid", "message": "Trusted Relay worker root is missing or unsafe"}} }
+    if path_is_dir(configured_relay_root) == false || path_is_symlink_safe(configured_relay_root) || path_exists(configured_relay_root + "/main.kujo") == false || path_is_symlink_safe(configured_relay_root + "/main.kujo") { return {"ok": false, "error": {"code": "relay_root_invalid", "message": "Trusted Relay worker root is missing or unsafe"}} }
     relay_root := configured_relay_root
     kujo_bin := configured_kujo_bin
     capability := to_string(get(payload, "capability", ""))

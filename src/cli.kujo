@@ -1,4 +1,4 @@
-from src.common import dict_get_or, env_or, string_or, bool_or, int_or, read_json_limited, safe_json, write_json, now_iso
+from src.common import dict_get_or, env_or, string_or, bool_or, int_or, read_json_limited, safe_json, write_json, now_iso, path_is_symlink_safe
 from src.contracts import RELAY_VERSION, event_chain_integrity_valid, event_sequence_matches_state, receipt_sequence_valid, receipt_sequence_matches_state
 from src.registry import agent_catalog, find_agent, agent_path
 from src.adapters import ai_chat, capsule_run
@@ -192,7 +192,7 @@ func watch_run_events(record, flags) {
                 print(safe_json({"type": "relay_watch_error", "error": "run event log disappeared"}))
                 return {"ok": false, "_streamed": true}
             }
-        } else if path_is_symlink(events_path) || path_is_file(events_path) == false {
+        } else if path_is_symlink_safe(events_path) || path_is_file(events_path) == false {
             print(safe_json({"type": "relay_watch_error", "error": "run event log is a symbolic link or non-regular file"}))
             return {"ok": false, "_streamed": true}
         }
@@ -276,7 +276,7 @@ func watch_run_events(record, flags) {
 }
 
 func artifact_inventory(path, relative, max_entries) {
-    if path_is_symlink(path) { return {"ok": false, "error": "run artifact inventory encountered a symbolic link: " + relative} }
+    if path_is_symlink_safe(path) { return {"ok": false, "error": "run artifact inventory encountered a symbolic link: " + relative} }
     if path_is_dir(path) {
         mut entries := []
         mut total_bytes := 0
@@ -303,7 +303,7 @@ func artifact_inventory(path, relative, max_entries) {
 
 func run_artifact_sizes(record, run_id) {
     run_dir := string_or(dict_get_or(record, "run_dir", ""), "")
-    if run_dir == "" || path_is_dir(run_dir) == false || path_is_symlink(run_dir) { return {"ok": false, "error": "run artifact directory is missing or unsafe"} }
+    if run_dir == "" || path_is_dir(run_dir) == false || path_is_symlink_safe(run_dir) { return {"ok": false, "error": "run artifact directory is missing or unsafe"} }
     mut entries := []
     mut total_bytes := 0
     mut files := 0
@@ -343,7 +343,7 @@ func cmd_runs(tokens) {
     if sub == "inspect" { return {"ok": true, "run": read_json_limited(record["run_dir"] + "/state.json", {}, 67108864), "run_dir": record["run_dir"]} }
     if sub == "events" || sub == "export" {
         events_path := record["run_dir"] + "/events.jsonl"
-        if path_exists(events_path) == false || path_is_symlink(events_path) || path_is_file(events_path) == false || file_size(events_path) > 8388608 { return {"ok": false, "error": "run event log is missing, non-regular, symbolic-linked, or exceeds the 8 MiB inspection limit", "integrity_valid": false, "state_consistent": false} }
+        if path_exists(events_path) == false || path_is_symlink_safe(events_path) || path_is_file(events_path) == false || file_size(events_path) > 8388608 { return {"ok": false, "error": "run event log is missing, non-regular, symbolic-linked, or exceeds the 8 MiB inspection limit", "integrity_valid": false, "state_consistent": false} }
         raw_events := read_file(events_path)
         events := []
         for line in split(raw_events, "\n") {
