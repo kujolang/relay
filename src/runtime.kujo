@@ -326,6 +326,9 @@ func execute_tool_request(request, supplied_capability) {
     if type(original_spec) != "dict" { return {"ok": false, "error": "mission policy is missing"} }
     spec := original_spec
     spec["repository"] := workspace
+    if bool_or(dict_get_or(spec, "allow_writes", false), false) && dict_get_or(dict_get_or(spec, "approval", {}), "approved", false) != true {
+        return {"ok": false, "error": {"code": "permission_denial", "message": "write-enabled tool requests require approval.approved=true"}}
+    }
     tool_name := string_or(dict_get_or(request, "tool_name", ""), "")
     input := dict_get_or(request, "input", {})
     action := {}
@@ -334,7 +337,14 @@ func execute_tool_request(request, supplied_capability) {
     } else if tool_name == "relay.run_command" {
         action = {"type": "run_command", "command": dict_get_or(input, "command", ""), "timeout_ms": dict_get_or(input, "timeout_ms", 120000)}
     } else { return {"ok": false, "error": "unknown Relay tool"} }
+    timeout_ms := int_or(dict_get_or(action, "timeout_ms", 120000), -1)
+    if tool_name == "relay.run_command" && (timeout_ms <= 0 || timeout_ms > 600000) {
+        return {"ok": false, "error": {"code": "policy_violation", "message": "tool timeout_ms must be between 1 and 600000"}}
+    }
     budgets := {"max_output_bytes": int_or(dict_get_or(dict_get_or(spec, "budgets", {}), "max_output_bytes", 1048576), 1048576), "max_write_bytes": int_or(dict_get_or(dict_get_or(spec, "budgets", {}), "max_write_bytes", 1048576), 1048576)}
+    if budgets["max_output_bytes"] <= 0 || budgets["max_output_bytes"] > 8388608 || budgets["max_write_bytes"] <= 0 || budgets["max_write_bytes"] > 8388608 {
+        return {"ok": false, "error": {"code": "budget_exceeded", "message": "tool budgets must be between 1 and 8388608 bytes"}}
+    }
     state := {"repository": workspace, "budgets": budgets}
     result := execute_action(action, spec, state, state_root())
     if dict_get_or(result, "ok", false) == false { return {"ok": false, "error": {"code": dict_get_or(result, "failure_class", "tool_failure"), "message": dict_get_or(result, "error", "tool execution failed")}, "result": result} }

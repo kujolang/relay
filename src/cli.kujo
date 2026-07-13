@@ -233,7 +233,7 @@ func cmd_missions(tokens) {
     return {"ok": false, "error": "unknown missions command"}
 }
 
-func watch_run_events(record, flags) {
+func watch_run_events(record, run_id, flags) {
     run_dir := string_or(dict_get_or(record, "run_dir", ""), "")
     timeout_ms := int_or(dict_get_or(flags, "timeout-ms", 120000), 120000)
     poll_ms := int_or(dict_get_or(flags, "poll-ms", 50), 50)
@@ -313,7 +313,12 @@ func watch_run_events(record, flags) {
             print(safe_json(events[emitted]))
             emitted = emitted + 1
         }
-        state := read_json_limited(run_dir + "/state.json", {}, 67108864)
+        state_evidence := read_run_state_evidence(run_dir, run_id)
+        if dict_get_or(state_evidence, "ok", false) == false {
+            print(safe_json({"type": "relay_watch_error", "error": dict_get_or(state_evidence, "error", "run state evidence is invalid")}))
+            return {"ok": false, "_streamed": true}
+        }
+        state := state_evidence["state"]
         terminal_status = string_or(dict_get_or(state, "status", ""), "")
         if (terminal_status == "completed" || terminal_status == "failed" || terminal_status == "cancelled") && emitted == len(events) {
             state_events := dict_get_or(state, "events", [])
@@ -425,7 +430,7 @@ func cmd_runs(tokens) {
         valid := changes_valid && evaluations_valid && report_valid
         return {"ok": valid, "format": "relay-run-verification-v1", "run_id": id, "status": dict_get_or(state_evidence["state"], "status", "unknown"), "integrity_valid": valid, "state_valid": true, "events_valid": true, "receipts_valid": dict_get_or(events_result, "receipts_valid", false), "receipts_consistent": dict_get_or(events_result, "receipts_consistent", false), "changes_valid": changes_valid, "evaluations_valid": evaluations_valid, "report_valid": report_valid, "errors": [dict_get_or(changes, "error", ""), dict_get_or(evaluations, "error", ""), dict_get_or(report, "error", "")]}
     }
-    if sub == "watch" { return watch_run_events(record, parsed["flags"]) }
+    if sub == "watch" { return watch_run_events(record, id, parsed["flags"]) }
     if sub == "sizes" { return run_artifact_sizes(record, id) }
     if sub == "inspect" {
         state_evidence := read_run_state_evidence(record["run_dir"], id)

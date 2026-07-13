@@ -46,6 +46,28 @@ for attempt in $(seq 1 1000); do
   sleep 0.01
 done
 test -s "$WATCH_OUTPUT"
+
+# Watch must use the authoritative state reader and reject a symlinked state
+# object instead of treating it as ordinary run status.
+mv "$run_dir/state.json" "$run_dir/state-real.json"
+ln -s "state-real.json" "$run_dir/state.json"
+set +e
+kill -0 "$watch_pid"
+wait "$watch_pid"
+state_link_status=$?
+set -e
+test "$state_link_status" -ne 0
+grep -q 'symbolic-linked' "$WATCH_OUTPUT"
+rm "$run_dir/state.json"
+mv "$run_dir/state-real.json" "$run_dir/state.json"
+
+"$KUJO" run "$ROOT/main.kujo" -- runs watch "$run_id" --poll-ms 10 --timeout-ms 120000 --json >"$WATCH_OUTPUT" 2>&1 &
+watch_pid=$!
+for attempt in $(seq 1 1000); do
+  if [ -s "$WATCH_OUTPUT" ]; then break; fi
+  sleep 0.01
+done
+test -s "$WATCH_OUTPUT"
 rm "$run_dir/events.jsonl"
 
 set +e
