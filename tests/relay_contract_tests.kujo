@@ -2,7 +2,7 @@ from src.contracts import event, event_integrity_valid, event_chain_integrity_va
 from src.policy import classify_failure, path_is_safe, path_is_within_workspace, command_is_allowed, tool_decision
 from src.runtime import resume_state_safe, cleanup_state_safe, control_state_safe, save_state, mark_evidence_failure, cancellation_request, persist_required_json, report
 from src.common import safe_id, redact_text, shell_quote_single, command_args, process_options, process_options_with_cancel, safe_env_name, path_is_symlink_safe, path_has_symlink_component, path_has_parent_component, read_json_limited, append_jsonl, dict_get_or, bool_or, safe_json
-from src.adapters import fallback_allowed, watchdog_route_allowed
+from src.adapters import fallback_allowed, fallback_decision, watchdog_route_allowed
 from src.store import safe_run_key, store_root_safe, acquire_index_lock, acquire_index_lock_retry, release_index_lock
 from src.watchdog import safe_base, safe_correlation_id, route_policy
 
@@ -125,6 +125,9 @@ failed = failed + check("fallback allows rate limit", fallback_allowed({"error":
 failed = failed + check("fallback allows unavailable provider", fallback_allowed({"error": {"code": "provider_unavailable"}}))
 failed = failed + check("fallback rejects authentication", fallback_allowed({"error": {"code": "authentication_failure"}}) == false)
 failed = failed + check("fallback rejects policy failure", fallback_allowed({"error": {"code": "policy_violation"}}) == false)
+failed = failed + check("fallback decision attempts transient failure", dict_get_or(fallback_decision({"ok": false, "error": {"code": "timeout"}}, "primary", "backup"), "action", "") == "attempt")
+failed = failed + check("fallback decision skips policy failure", dict_get_or(fallback_decision({"ok": false, "error": {"code": "policy_violation"}}, "primary", "backup"), "reason", "") == "policy_violation")
+failed = failed + check("fallback decision records success", dict_get_or(fallback_decision({"ok": true}, "primary", "backup"), "reason", "") == "primary_succeeded")
 failed = failed + check("cancelled failure classification", classify_failure("cancelled") == "cancelled")
 failed = failed + check("timeout failure classification", classify_failure("timed_out") == "timeout")
 failed = failed + check("safe Watchdog route", watchdog_route_allowed("http://127.0.0.1:7700/proxy/v1"))

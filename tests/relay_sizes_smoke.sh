@@ -48,6 +48,20 @@ test "$overflow_status" -ne 0
 printf '%s\n' "$overflow_output" | grep -q 'entry limit'
 rm -rf "$overflow"
 
+# A byte budget is required in addition to entry/depth budgets: thousands of
+# small files can otherwise create an oversized JSON inventory while staying
+# below the entry bound.
+byte_overflow="$run_dir/byte-overflow"
+mkdir -p "$byte_overflow"
+dd if=/dev/zero of="$byte_overflow/payload.bin" bs=1048576 count=9 status=none
+set +e
+byte_output="$($KUJO run "$ROOT/main.kujo" -- runs sizes "$run_id" --json 2>&1)"
+byte_status=$?
+set -e
+test "$byte_status" -ne 0
+printf '%s\n' "$byte_output" | grep -q 'total byte limit'
+rm -rf "$byte_overflow"
+
 # Artifact inventory is bounded by both entry count and directory depth so a
 # hostile run artifact tree cannot consume unbounded recursive work.
 deep="$run_dir/deep"

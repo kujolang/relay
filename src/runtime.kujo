@@ -569,6 +569,26 @@ func run_mission(path, options) {
     planner := find_agent("planner")
     model_result := ai_chat_correlated([{"role": "system", "content": planner["mandate"]}, {"role": "user", "content": to_string(spec["goal"])}], string_or(dict_get_or(spec, "model", "fixture-model"), "fixture-model"), string_or(dict_get_or(spec, "provider", "fixture"), "fixture"), bool_or(dict_get_or(options, "offline_fixture", true), true), bool_or(dict_get_or(options, "stream", false), false), state["run_id"])
     state["telemetry"] := dict_get_or(model_result, "relay_telemetry", {})
+    fallback_decision := dict_get_or(state["telemetry"], "fallback_decision", null)
+    if type(fallback_decision) == "dict" && string_or(dict_get_or(fallback_decision, "action", "none"), "none") != "none" {
+        state["retry_id"] := "retry-model-fallback-" + to_string(current_timestamp()) + "-" + to_string(random_int(1000, 999999))
+        fallback_action := string_or(dict_get_or(fallback_decision, "action", "skipped"), "skipped")
+        fallback_status := "skipped"
+        fallback_kind := "model_fallback_skipped"
+        if fallback_action == "attempt" {
+            fallback_status = "completed"
+            fallback_kind = "model_fallback_selected"
+        }
+        fallback_payload := {
+            "decision": fallback_decision,
+            "telemetry": state["telemetry"],
+            "retry_id": state["retry_id"]
+        }
+        fallback_receipt_result := record_receipt(state, run_dir, "fallback", "plan", "planner", "model/fallback", fallback_status, fallback_payload)
+        state = apply_receipt_result(state, fallback_receipt_result)
+        fallback_receipt := fallback_receipt_result["receipt"]
+        state := add_event(state, run_dir, fallback_kind, "plan", "planner", {"decision": fallback_decision, "retry_id": state["retry_id"], "receipt_id": fallback_receipt["receipt_id"]})
+    }
     usage := dict_get_or(model_result, "usage", {})
     used_tokens := int_or(dict_get_or(usage, "total_tokens", 0), 0)
     budgets := dict_get_or(state, "budgets", {})

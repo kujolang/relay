@@ -34,5 +34,14 @@ run_dir="$(printf '%s' "$resumed" | ruby -rjson -e 'print JSON.parse(STDIN.read)
 jq -e '.receipts | length >= 7 and (map(.receipt_id) as $ids | (($ids | unique | length) == ($ids | length))) and (all(.[]; (.metadata.workflow == "verified-feature" and .metadata.model == "fixture-model" and .metadata.provider == "fixture" and (.metadata.packet_revision == 0 or .metadata.packet_revision == 1) and (.metadata.runledger_id != null))))' "$run_dir/state.json" >/dev/null
 test -f "$run_dir/receipts.json"
 
+# A configured fallback decision must be persisted as typed evidence even when
+# the primary failure is non-retryable and the fallback is skipped.
+set +e
+fallback_run="$(RELAY_OFFLINE_FIXTURE=false RELAY_FALLBACK_MODEL=backup "$KUJO" run "$ROOT/main.kujo" -- missions run "$ROOT/examples/fixture-mission.json" --skip-agent-smoke --json 2>&1)"
+fallback_status=$?
+set -e
+test "$fallback_status" -ne 0
+printf '%s' "$fallback_run" | jq -e '.run.status == "failed" and (.run.events | map(.kind) | index("model_fallback_skipped")) != null and (.run.receipts | map(select(.kind == "fallback" and .status == "skipped")) | length) == 1' >/dev/null
+
 test -f "$WORK/RELAY_OUTPUT.txt"
 echo "PASS relay mission smoke"

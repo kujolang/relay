@@ -151,24 +151,45 @@ func fallback_allowed(result) {
     return contains_any(code, ["timeout", "timed_out", "rate", "429", "allowance", "provider_unavailable", "temporarily_unavailable", "overloaded", "model_not_found", "connection", "network"])
 }
 
+func fallback_decision(result, primary_model, fallback_model) {
+    primary_id := string_or(primary_model, "")
+    fallback_id := string_or(fallback_model, "")
+    if dict_get_or(result, "ok", false) {
+        return {"action": "none", "reason": "primary_succeeded", "primary_model": primary_id, "fallback_model": fallback_id}
+    }
+    reason := string_or(dict_get_or(dict_get_or(result, "error", {}), "code", "primary_failed"), "primary_failed")
+    if fallback_id == "" {
+        return {"action": "skipped", "reason": "fallback_not_configured", "failure_class": reason, "primary_model": primary_id, "fallback_model": fallback_id}
+    }
+    if fallback_id == primary_id {
+        return {"action": "skipped", "reason": "fallback_matches_primary", "failure_class": reason, "primary_model": primary_id, "fallback_model": fallback_id}
+    }
+    if fallback_allowed(result) == false {
+        return {"action": "skipped", "reason": reason, "failure_class": reason, "primary_model": primary_id, "fallback_model": fallback_id}
+    }
+    return {"action": "attempt", "reason": reason, "failure_class": reason, "primary_model": primary_id, "fallback_model": fallback_id}
+}
+
 func ai_chat_correlated(messages, model, provider, offline, stream, correlation_id) {
     base := watchdog_url()
     if base == "" { base = "https://api.openai.com/v1" }
     api_key_env := env_or("RELAY_API_KEY_ENV", "OPENAI_API_KEY")
     primary := call_ai(messages, model, provider, base, api_key_env, offline, stream, correlation_id)
     fallback_model := env_or("RELAY_FALLBACK_MODEL", "")
-    if dict_get_or(primary, "ok", false) == false && fallback_model != "" && fallback_model != model {
-        reason := dict_get_or(dict_get_or(primary, "error", {}), "code", "primary_failed")
-        if fallback_allowed(primary) {
+    if dict_get_or(primary, "ok", false) == false {
+        decision := fallback_decision(primary, model, fallback_model)
+        if decision["action"] == "attempt" {
             fallback := call_ai(messages, fallback_model, provider, base, api_key_env, offline, stream, correlation_id)
             telemetry := dict_get_or(fallback, "relay_telemetry", {})
             telemetry["fallback_from"] := model
-            telemetry["fallback_reason"] := reason
+            telemetry["fallback_reason"] := decision["reason"]
+            telemetry["fallback_decision"] := decision
             fallback["relay_telemetry"] := telemetry
             return fallback
         }
         telemetry := dict_get_or(primary, "relay_telemetry", {})
-        telemetry["fallback_skipped_reason"] := reason
+        telemetry["fallback_skipped_reason"] := decision["reason"]
+        telemetry["fallback_decision"] := decision
         primary["relay_telemetry"] := telemetry
     }
     return primary
@@ -267,6 +288,7 @@ export watchdog_route_allowed := watchdog_route_allowed
 export ai_chat := ai_chat
 export ai_chat_correlated := ai_chat_correlated
 export fallback_allowed := fallback_allowed
+export fallback_decision := fallback_decision
 export agents_sdk_smoke := agents_sdk_smoke
 export agents_sdk_tool_run := agents_sdk_tool_run
 export packwrite_generate := packwrite_generate
