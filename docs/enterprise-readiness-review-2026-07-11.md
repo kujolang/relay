@@ -778,3 +778,14 @@ cancellation checks pass. This does not establish live provider compatibility,
 authenticated tenancy, recoverable workcells, durable storage, signed
 manifests, or release-gate completion; the v69 backlog records those remaining
 boundaries.
+
+## Seventy-first 2026-07-13 review
+
+Relay now creates and verifies a bounded recursive PackWrite packet manifest,
+including every regular file under `agent/`, instead of relying on only
+`MASTER.md`. `runs verify` and valid export fail closed on changed, missing,
+extra, or unsafe packet files. The Agents SDK bridge preserves exact mission
+script hashes for delegated shell calls. Focused store and Agents SDK smokes
+prove both protections. This improves local artifact authority but does not
+establish signed remote provenance, live provider compatibility, authenticated
+tenancy, recoverable workcells, durable storage, or release readiness.

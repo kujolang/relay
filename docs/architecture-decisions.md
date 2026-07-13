@@ -1157,3 +1157,29 @@ ownership remain future work.
 
 Rejected: hashing by default, scanning the excluded workspace, or persisting a
 parallel manifest store from a read-only command.
+
+## ADR-100: Bind PackWrite completion to a recursive packet manifest
+
+Context: PackWrite completion previously required a safe `MASTER.md` artifact
+and recorded only that file's digest. A changed or newly added packet file could
+therefore escape the local read-side evidence boundary while the run remained
+valid.
+
+Decision: after PackWrite generation, Relay walks the `agent/` packet tree under
+bounded depth, entry, byte, regular-file, and symlink checks; it persists a
+versioned `relay-packwrite-manifest-v1` outside the packet tree; and `runs
+verify` plus valid export recompute and compare the full manifest. Agents SDK
+delegation also preserves the mission's exact script-hash map.
+
+Rationale: make the existing PackWrite artifact the authoritative packet input
+without creating a second packet format or trusting a single sentinel file.
+The manifest is local tamper evidence, not a signed multi-tenant provenance
+system.
+
+Consequences: packet file changes, missing files, extra files, unsafe links, and
+digest mismatches fail machine verification. Existing bounded PackWrite
+generation remains the owner of packet contents; future signed manifests,
+retention, and remote handoff remain open.
+
+Rejected: hashing only `MASTER.md`, persisting the manifest inside the tree it
+describes, following links, or silently accepting changed packet contents.

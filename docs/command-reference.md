@@ -257,7 +257,11 @@ the authoritative state, complete event chain, persisted receipts, state/log
 consistency, persisted ChangeBucket/Eval artifact shapes, and the JSON/Markdown
 report identity and presence,
 returning `relay-run-verification-v1` with individual boolean fields and
-`integrity_valid`. It does not repair, mutate, or replace any evidence.
+`integrity_valid`. Completed or packet-producing runs also require the
+recursively verified `packet-manifest.json` (`relay-packwrite-manifest-v1`),
+which covers every regular file in the PackWrite agent packet and detects
+content, omission, addition, symlink, and path-integrity changes. It does not
+repair, mutate, or replace any evidence.
 
 `missions report <run-id>` also verifies that `report.json` matches the
 authoritative run ID, mission ID, and status and that `report.md` is a bounded
@@ -290,6 +294,13 @@ same run, and byte-for-byte consistent with the state-recorded SHA-256.
 Tampering or deletion therefore invalidates the machine-facing verdict instead
 of leaving tool execution as an unverified side artifact.
 
+When a run records `packet_manifest_required`, `runs verify` and valid
+`runs export` additionally require `packet-manifest.json` to be present,
+bounded, regular, identity-consistent, and byte-for-byte consistent with the
+state-recorded digest and recursive PackWrite file inventory. Older runs that
+do not record the requirement remain readable for compatibility; new packet
+artifacts fail closed if the manifest cannot be created.
+
 For a paused or failed run whose post-verification artifacts were never
 supposed to exist, `runs export <run-id> --partial` returns the explicit
 `relay-run-export-partial-v1` contract. It reports `completeness: "partial"`,
@@ -307,8 +318,8 @@ memory-safe. Machine callers may request a verified bounded window with
 `--after`; the complete chain is still verified before slicing and paged
 responses omit the redundant JSONL string.
 `runs export` emits a versioned JSON bundle containing run state, verified
-events, receipts, changes, evaluations, the final report, and provider tool
-results when present; it refuses to
+events, receipts, changes, evaluations, the final report, the recursive
+PackWrite packet manifest, and provider tool results when present; it refuses to
 export tampered, inconsistent, malformed, symbolic-linked, or non-regular
 event/receipt evidence. Run JSON reads and event appends also reject symbolic
 links rather than following them into another filesystem location.

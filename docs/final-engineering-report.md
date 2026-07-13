@@ -776,3 +776,17 @@ passed. These are local security and observability improvements; live provider
 compatibility, authenticated tenancy, recoverable workcells, durable storage,
 and release gates remain open. The next-session work is tracked in
 `docs/next-session-enhancement-backlog-2026-07-13-v69.md`.
+
+## Seventy-first 2026-07-13 review
+
+This review makes PackWrite evidence recursive rather than sentinel-based.
+Relay now persists a bounded `relay-packwrite-manifest-v1` for every regular
+file under `agent/`, verifies packet contents and digests at `runs verify` and
+valid export boundaries, and publishes `packet-manifest.schema.json`. The
+Agents SDK worker also preserves `allowed_script_hashes`, so delegated shell
+actions retain the same content authority as direct mission actions. Store and
+Agents SDK smokes prove packet tamper rejection and delegated script execution.
+This remains local unsigned tamper evidence; live provider compatibility,
+authenticated tenancy, recoverable workcells, durable storage, and release
+gates remain open. The next-session work is tracked in
+`docs/next-session-enhancement-backlog-2026-07-13-v70.md`.
