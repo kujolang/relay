@@ -177,9 +177,15 @@ the `artifact_persistence` metadata identifies the required artifact checks.
 
 `runs verify <run-id>` is a compact machine-facing integrity check. It validates
 the authoritative state, complete event chain, persisted receipts, state/log
-consistency, persisted ChangeBucket/Eval artifact shapes, and the JSON report,
+consistency, persisted ChangeBucket/Eval artifact shapes, and the JSON/Markdown
+report identity and presence,
 returning `relay-run-verification-v1` with individual boolean fields and
 `integrity_valid`. It does not repair, mutate, or replace any evidence.
+
+`missions report <run-id>` also verifies that `report.json` matches the
+authoritative run ID, mission ID, and status and that `report.md` is a bounded
+regular file. A path-only response is never returned for missing or mismatched
+report evidence.
 
 Runtime adapters normalize relative `KUJO_BIN` and configured sibling-tool
 paths against the Relay root before changing cwd. This preserves the
@@ -196,9 +202,9 @@ authoritative rebuild or an explicit missing-state error.
 Each AgentEvent-compatible JSONL record includes a deterministic `integrity_sha256` field covering its identity, parent, payload, and metadata. The hash detects accidental or unauthorized record mutation; signed export and durable retention remain future work.
 
 `runs export` refuses to claim a valid bundle unless `changes.json`,
-`evaluations.json`, and `report.json` are present, bounded, regular, and have
-the expected JSON shapes. A missing result or report is an incomplete export,
-not an empty successful field.
+`evaluations.json`, and both reports are present, bounded, regular, and have
+the expected shapes and identity. A missing, mismatched, or incomplete result
+or report is an incomplete export, not an empty successful field.
 
 For a paused or failed run whose post-verification artifacts were never
 supposed to exist, `runs export <run-id> --partial` returns the explicit

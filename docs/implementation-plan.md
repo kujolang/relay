@@ -54,12 +54,16 @@
 - Hardened `runs export` to require persisted ChangeBucket, Eval, and report artifacts with expected JSON shapes; incomplete bundles now fail closed instead of exporting empty fallbacks as valid evidence, while explicit `--partial` exports preserve paused/failed evidence with `integrity_valid: false`.
 - Bounded `runs sizes` recursion to 16 directory levels and removed a redundant run-tree scan during index registration; cache records now preserve `updated_at`, avoiding needless rebuilds on subsequent reads.
 - Required mission completion to verify persisted ChangeBucket, Eval, Markdown/JSON report, and RunLedger finish artifacts; injected artifact-write failures now fail closed with typed evidence failures and focused contract coverage.
+- Hardened read-side evidence authority: `runs verify`, `runs export`, and `missions report` now require report identity/status agreement and a bounded regular Markdown report; the run index rejects placeholder records when authoritative state is absent; artifact inventory rejects oversized single directories before recursive flattening.
 
 ## Deferred
 
  Live Ollama Cloud proof, a live Watchdog-backed mission against a real external provider, provider-driven model tool planning, richer Agents SDK runner/tool-result artifact integration, Dispatch workflow import, dynamic agent discovery, full workcell isolation/rollback/recovery, CaseFile failure bundles, full Redact integration, MCP adapter, adaptive routing, Capsule A/B scoring, durable concurrent storage, signed export, richer retry/repair/cancellation receipts, remote event sinks, aggregate metrics, artifact retention/compaction, crash recovery, and ShipCheck/Concord release gates. Local real-Watchdog/stub-provider correlation, one fixture mission through the Agents SDK Tool Registry, complete event-sequence and receipt verification, exact Git argv policy, bounded lock backoff, incremental bounded live event watch, bounded duration evidence, bounded artifact size inventory with depth denial, cooperative cancellation, symlink-safe evidence access including parent-component store checks, bounded mission-spec input, bounded persisted JSON parsing, required persisted receipt/state read boundaries, failure-aware fallback, trusted worker-root binding, bounded bridge payloads, validated live Watchdog routes, HTTPS enforcement for non-loopback routes, secret-safe doctor route posture, route telemetry non-disclosure, endpoint-independent Watchdog diagnostics, integrity-bound resume checkpoints, integrity-bound worktree cleanup, integrity-bound pause/cancel controls, structured local credential/token/private-key redaction, dependency-integrity doctor checks, deterministic upstream version probes, optional SHA-256 dependency pinning, credential-environment injection deny rules, fail-closed symlink probe errors and dangling-symlink detection, explicit cancellation/timeout action classes, descendant-safe timeout termination evidence, PackWrite atomic pack writes, fail-closed evidence persistence including required ChangeBucket/Eval/report artifacts and RunLedger finish, state-store symlink rejection, sealed receipt execution context, the read-only `runs verify` contract, complete export artifact checks, explicit non-valid partial export checks, cache-consistent index metadata, and single-scan registration are proven. See `docs/next-session-enhancement-backlog-2026-07-13-v54.md`.
 
-Current follow-on backlog: `docs/next-session-enhancement-backlog-2026-07-13-v54.md`.
+Current follow-on backlog: `docs/next-session-enhancement-backlog-2026-07-13-v55.md`.
+
+The v55 handoff supersedes the earlier v54 review backlog after the read-side
+evidence and artifact-inventory hardening delivered in this session.
 
 ## Dependency order
 
@@ -127,3 +131,10 @@ verified after writing; injected write failures produce `evidence_failure`
 instead of a successful run. Contract, mission, store, size, resume, and Agent
 SDK tool smokes pass; crash recovery, live external-provider proof, and durable
 storage remain open.
+
+The v55 review closes read-side evidence gaps: report identity/status and
+Markdown presence are required for verification, export, and report lookup;
+the run-index validator rejects placeholder entries when state is absent; and
+artifact inventory rejects a directory larger than its entry budget before
+recursive flattening. Focused store, sizes, mission, and watch smokes pass;
+live external providers, crash recovery, and durable storage remain open.

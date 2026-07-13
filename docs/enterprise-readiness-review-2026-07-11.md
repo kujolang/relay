@@ -565,4 +565,15 @@ tests cover directory-backed artifact paths and report persistence failure;
 mission, store, sizes, resume-integrity, and Agents SDK tool smokes pass. This
 improves local evidence truthfulness but does not provide crash recovery,
 durable transactions, signed export, live external-provider proof, or
-enterprise readiness.
+ enterprise readiness.
+
+## Fifty-fifth 2026-07-13 review
+
+Read-side evidence now verifies report run/mission/status identity and bounded
+Markdown presence for `runs verify`, `runs export`, and `missions report`. The
+run index rejects placeholder entries without matching authoritative state, and
+`runs sizes` rejects a single directory beyond its entry budget before recursive
+flattening. Store, sizes, mission, watch, and resume-integrity smokes pass.
+Relay remains a hardened local alpha/showcase; live provider proof,
+provider-generated tools, workcell crash recovery, authenticated machine mode,
+durable storage, and signed export remain open.

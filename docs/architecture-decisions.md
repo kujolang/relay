@@ -740,3 +740,32 @@ an index or embedded state fallback; durable transactions, crash recovery, and
 signed export remain open. Rejected: trusting adapter return values, emitting
 `run_completed` before RunLedger finish, or silently omitting a required
 artifact.
+
+## ADR-074: Verify report identity and Markdown evidence at read boundaries
+
+Context: `report.json` was shape-checked, but a copied or tampered dictionary
+could still satisfy a generic object check, and `missions report` returned
+paths without proving that the Markdown companion remained present. Decision:
+require report run ID, mission ID, and status to match authoritative state and
+require a bounded regular `report.md` for verification, export, and report
+lookup. Rationale: machine consumers need semantic evidence completeness, not
+just parseable JSON. Consequence: stale or copied reports fail closed while the
+existing report format remains compatible; signed manifests and durable
+retention remain open. Rejected: trusting filenames, accepting any JSON object,
+or returning report paths without validation.
+
+## ADR-075: Reject placeholder index records and oversized artifact directories
+
+Context: the rebuildable index could accept its own empty fallback fields when
+a run directory existed but authoritative `state.json` was missing. Artifact
+inventory also flattened a directory before enforcing the total entry limit,
+creating avoidable memory and latency pressure. Decision: require each indexed
+run to have a dictionary state with a matching run ID, and reject a directory
+whose immediate entry count already exceeds the inventory budget before
+recursive flattening. Rationale: the cache must never manufacture evidence, and
+resource limits should be enforced at the cheapest boundary. Consequence:
+incomplete runs disappear from listing until state is restored, and oversized
+artifact directories fail with a clear bound; the index remains a rebuildable
+cache and durable multi-host storage remains deferred. Rejected: treating
+placeholder metadata as valid, or flattening unbounded directories before
+checking limits.

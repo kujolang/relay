@@ -82,6 +82,11 @@ Implemented and truthful in this slice:
 
 Mission actions are declarative and policy checked. Write-enabled missions require `allow_writes: true` plus `approval.approved: true`; paths must remain inside the real workspace and cannot traverse `.git`, `.env`, or symlinked parents. Commands must match an explicit allowlist, reject shell syntax, and execute as direct argv without `/bin/sh`; destructive Git operations, credential paths, force-push, and traversal patterns are denied. Subprocesses run with an explicit bounded environment instead of inheriting the host environment wholesale; provider credential selectors also reject dynamic-loader, interpreter-injection, Git override, and trust-store override names before the AI bridge is spawned. stdout/stderr and command receipts are redacted before evidence persistence. Relay does not expose unrestricted shell, root, credential files, publishing, or production access.
 
+Read-side evidence is also fail closed: report JSON must match the authoritative
+run and status, report Markdown must exist as a bounded regular file, the run
+index cannot substitute placeholder metadata for missing state, and artifact
+inventory rejects oversized directories before recursive flattening.
+
 ## Repository map
 
 - `main.kujo`: thin CLI entrypoint
@@ -98,7 +103,7 @@ Mission actions are declarative and policy checked. Write-enabled missions requi
 - `tests/relay_mission_smoke.sh`: real write, pause/resume, required ChangeBucket/Eval/report persistence, and RunLedger smoke test
 - `tests/relay_budget_smoke.sh`: bounded step-budget failure smoke test
 - `tests/relay_worktree_smoke.sh`: isolated worktree creation, source protection, and confirmed cleanup smoke test
-- `tests/relay_store_smoke.sh`: bounded-index, event-symlink, receipt-tamper, truncation, and authoritative run-state rebuild smoke test
+- `tests/relay_store_smoke.sh`: bounded-index, missing-state cache rejection, report identity/Markdown validation, event-symlink, receipt-tamper, truncation, and authoritative run-state rebuild smoke test
 - `tests/relay_lock_stress_smoke.sh`: bounded index-lock backoff and concurrent rebuild smoke test
 - `tests/relay_watch_smoke.sh`: bounded live event observation with terminal evidence verification
 - `tests/relay_watch_integrity_smoke.sh`: fail-closed event-log disappearance observation
@@ -149,4 +154,4 @@ bash tests/relay_symlink_probe_smoke.sh
 git diff --check
 ```
 
-For the full integration evidence boundary and deferred enterprise work, see [`docs/enterprise-readiness-review-2026-07-11.md`](docs/enterprise-readiness-review-2026-07-11.md), [`docs/command-reference.md`](docs/command-reference.md), and the current [`docs/next-session-enhancement-backlog-2026-07-13-v54.md`](docs/next-session-enhancement-backlog-2026-07-13-v54.md).
+For the full integration evidence boundary and deferred enterprise work, see [`docs/enterprise-readiness-review-2026-07-11.md`](docs/enterprise-readiness-review-2026-07-11.md), [`docs/command-reference.md`](docs/command-reference.md), and the current [`docs/next-session-enhancement-backlog-2026-07-13-v55.md`](docs/next-session-enhancement-backlog-2026-07-13-v55.md).
