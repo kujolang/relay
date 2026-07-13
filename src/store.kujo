@@ -164,9 +164,17 @@ func load_run_index(state_root) {
     if cached_index_is_safe(state_root, cached) && run_directories_match_index(state_root, cached) {
         return cached
     }
-    rebuilt := rebuild_run_index(state_root)
-    persist_run_index(state_root, rebuilt)
-    return rebuilt
+    return rebuild_and_persist_run_index(state_root)
+}
+
+func rebuild_and_persist_run_index(state_root) {
+    if store_root_safe(state_root) == false { return {} }
+    lock := acquire_index_lock_retry(state_root, 4, 20)
+    if lock["ok"] == false { return rebuild_run_index(state_root) }
+    authoritative := rebuild_run_index(state_root)
+    write_json(state_root + "/index.json", authoritative)
+    release_index_lock(state_root, lock["token"])
+    return authoritative
 }
 
 func persist_run_index(state_root, index) {
@@ -190,5 +198,6 @@ export acquire_index_lock := acquire_index_lock
 export acquire_index_lock_retry := acquire_index_lock_retry
 export release_index_lock := release_index_lock
 export rebuild_run_index := rebuild_run_index
+export rebuild_and_persist_run_index := rebuild_and_persist_run_index
 export load_run_index := load_run_index
 export persist_run_index := persist_run_index
