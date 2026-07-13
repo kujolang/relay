@@ -43,9 +43,9 @@
         "required": ["type"],
         "properties": {
           "type": {"enum": ["write_file", "run_command"]},
-          "path": {"type": "string"},
-          "content": {"type": "string"},
-          "command": {"type": "string"},
+          "path": {"type": "string", "maxLength": 4096},
+          "content": {"type": "string", "maxLength": 1048576},
+          "command": {"type": "string", "maxLength": 16384},
           "timeout_ms": {"type": "integer", "minimum": 1, "maximum": 600000}
         }
       }

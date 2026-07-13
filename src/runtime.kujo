@@ -1,4 +1,4 @@
-from src.common import dict_get_or, env_or, string_or, bool_or, int_or, now_iso, safe_id, read_json_or, read_json_limited, write_json, append_jsonl, safe_json, shell_quote_single, command_args, write_text_atomic, process_options, process_options_with_cancel, redact_text, path_is_symlink_safe, path_has_symlink_component
+from src.common import dict_get_or, env_or, string_or, bool_or, int_or, now_iso, safe_id, read_json_or, read_json_limited, write_json, append_jsonl_bounded, safe_json, shell_quote_single, command_args, write_text_atomic, process_options, process_options_with_cancel, redact_text, path_is_symlink_safe, path_has_symlink_component
 from src.contracts import run_state, event, event_integrity_input, receipt, receipt_integrity_input, event_chain_integrity_valid, receipt_sequence_valid, state_integrity_input, state_integrity_valid
 from src.registry import find_agent
 from src.policy import tool_decision, classify_failure, path_is_safe, path_is_within_workspace, command_is_allowed
@@ -6,6 +6,7 @@ from src.adapters import ai_chat_correlated, ai_chat_correlated_with_tools, norm
 from src.store import rebuild_run_index, load_run_index, persist_run_index, store_root_safe
 
 export MISSION_SPEC_MAX_BYTES := 1048576
+export MISSION_COMMAND_MAX_BYTES := 16384
 
 func ensure_dir(path) {
     if path == "" || path == "." || path_is_dir(path) { return }
@@ -74,6 +75,7 @@ func record_receipt(state, run_dir, kind, step_id, agent_id, artifact_ref, statu
     }
     item["integrity_sha256"] := sha256(receipt_integrity_input(item))
     receipts := push(dict_get_or(state, "receipts", []), item)
+    if len(safe_json(receipts)) > 8388608 { return {"receipt": item, "receipts": receipts, "evidence_failure": {"class": "evidence_failure", "message": "run receipt index exceeds the 8 MiB evidence limit"}} }
     if write_json(run_dir + "/receipts.json", receipts) == false { return {"receipt": item, "receipts": receipts, "evidence_failure": {"class": "evidence_failure", "message": "run receipt index could not be persisted"}} }
     return {"receipt": item, "receipts": receipts}
 }
@@ -112,7 +114,7 @@ func add_event(state, run_dir, kind, step_id, agent_id, payload) {
     item["metadata"] := metadata
     item["integrity_sha256"] := sha256(event_integrity_input(item))
     state["events"] := push(state["events"], item)
-    if append_jsonl(run_dir + "/events.jsonl", item) == false { state = mark_evidence_failure(state, "run event log could not be persisted") }
+    if append_jsonl_bounded(run_dir + "/events.jsonl", item, 8388608) == false { state = mark_evidence_failure(state, "run event log could not be persisted or exceeded the 8 MiB evidence limit") }
     return state
 }
 
@@ -293,10 +295,12 @@ func load_spec(path) {
             relative := string_or(dict_get_or(action, "path", ""), "")
             content := dict_get_or(action, "content", null)
             if relative == "" || type(content) != "string" { return {"ok": false, "error": "write_file requires path and string content"} }
+            if len(relative) > 4096 { return {"ok": false, "error": "write_file path exceeds the 4 KiB safety limit"} }
             if len(content) > max_write_bytes { return {"ok": false, "error": "write_file content exceeds max_write_bytes"} }
         } else if kind == "run_command" {
             command := string_or(dict_get_or(action, "command", ""), "")
             if command == "" { return {"ok": false, "error": "run_command requires command"} }
+            if len(command) > MISSION_COMMAND_MAX_BYTES { return {"ok": false, "error": "run_command exceeds the 16 KiB safety limit"} }
             timeout_ms := int_or(dict_get_or(action, "timeout_ms", 120000), -1)
             if timeout_ms <= 0 || timeout_ms > 600000 { return {"ok": false, "error": "run_command timeout_ms must be between 1 and 600000"} }
         } else { return {"ok": false, "error": "Mission action type is not supported: " + kind} }
@@ -316,8 +320,10 @@ func load_spec(path) {
         if type(input) != "dict" { return {"ok": false, "error": "Mission agent tool input must be an object"} }
         if tool_name == "relay.write_file" {
             if string_or(dict_get_or(input, "path", ""), "") == "" || type(dict_get_or(input, "content", null)) != "string" { return {"ok": false, "error": "relay.write_file requires path and string content"} }
+            if len(string_or(dict_get_or(input, "path", ""), "")) > 4096 || len(dict_get_or(input, "content", "")) > max_write_bytes { return {"ok": false, "error": "relay.write_file input exceeds its path or write-byte safety limit"} }
         } else if tool_name == "relay.run_command" {
             if string_or(dict_get_or(input, "command", ""), "") == "" { return {"ok": false, "error": "relay.run_command requires command"} }
+            if len(string_or(dict_get_or(input, "command", ""), "")) > MISSION_COMMAND_MAX_BYTES { return {"ok": false, "error": "relay.run_command exceeds the 16 KiB safety limit"} }
             tool_timeout := int_or(dict_get_or(input, "timeout_ms", 120000), -1)
             if tool_timeout <= 0 || tool_timeout > 600000 { return {"ok": false, "error": "relay.run_command timeout_ms must be between 1 and 600000"} }
         } else { return {"ok": false, "error": "Mission agent tool is not supported: " + tool_name} }
@@ -366,8 +372,8 @@ func provision_worktree(source_repo, worktree_path, requested_commit) {
 func write_prompt(run_dir, spec) {
     prompt := "# Relay mission\n\nName: " + to_string(spec["name"]) + "\nGoal: " + to_string(spec["goal"]) + "\n\nAcceptance criteria:\n"
     for criterion in dict_get_or(spec, "acceptance_criteria", []) { prompt = prompt + "- " + to_string(criterion) + "\n" }
-    write_text_atomic(run_dir + "/MEGA_PROMPT.md", prompt)
-    return run_dir + "/MEGA_PROMPT.md"
+    path := run_dir + "/MEGA_PROMPT.md"
+    return {"ok": write_text_atomic(path, prompt), "path": path}
 }
 
 func execute_action(action, spec, state, run_dir) {
@@ -616,7 +622,8 @@ func run_mission(path, options) {
     register_run(state, run_dir)
     state := add_event(state, run_dir, "run_started", "", "relay", {"workflow": state["workflow"], "repository": repo, "source_repository": source_repo, "workspace": workspace, "receipt_id": ledger_receipt["receipt_id"]})
     prompt := write_prompt(run_dir, spec)
-    packet := packwrite_generate(run_dir, "MEGA_PROMPT.md", run_dir + "/agent")
+    packet := {"ok": false, "artifact_dir": run_dir + "/agent", "packet_path": run_dir + "/agent", "error": "mission prompt could not be persisted"}
+    if dict_get_or(prompt, "ok", false) { packet = packwrite_generate(run_dir, "MEGA_PROMPT.md", run_dir + "/agent") }
     packet_artifact := {"kind": "packwrite_agent_pack", "path": packet["artifact_dir"], "ok": packet["ok"], "revision": 1}
     if path_exists(run_dir + "/agent/MASTER.md") { packet_artifact["integrity_sha256"] := sha256_file(run_dir + "/agent/MASTER.md") }
     state["artifacts"] := push(state["artifacts"], packet_artifact)
@@ -637,7 +644,7 @@ func run_mission(path, options) {
     agent_sdk_tools := {"ok": true, "skipped": true, "reason": "no mission agent_tools configured"}
     configured_agent_tools := dict_get_or(spec, "agent_tools", [])
     if agent_tool_mode == "provider" {
-        agent_sdk_tools = {"ok": true, "skipped": true, "reason": "deferred until provider tool planning"}
+        agent_sdk_tools = {"ok": true, "skipped": true, "reason": "provider-generated tool planning runs after the initial Agents SDK readiness check"}
     } else if type(configured_agent_tools) == "array" && len(configured_agent_tools) > 0 {
         agent_sdk_tools = agents_sdk_tool_run(repo, spec, state["run_id"], state["run_id"] + "-session")
     }

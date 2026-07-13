@@ -136,6 +136,7 @@ func tool_definitions(allowlist) {
 func normalize_provider_tool_calls(raw_calls) {
     if type(raw_calls) != "array" { return {"ok": false, "error": "provider tool call payload must be an array"} }
     calls := []
+    seen_ids := {}
     mut call_index := 0
     for item in raw_calls {
         if type(item) != "dict" { return {"ok": false, "error": "provider tool call must be an object"} }
@@ -148,12 +149,24 @@ func normalize_provider_tool_calls(raw_calls) {
             try { input = parse_json(raw_input) } except err { return {"ok": false, "error": "provider tool arguments are not valid JSON", "tool_name": name} }
         }
         if name == "" || type(input) != "dict" { return {"ok": false, "error": "provider tool call is missing a valid name or object input", "tool_name": name} }
+        if len(safe_json(input)) > 65536 { return {"ok": false, "error": "provider tool arguments exceed the 64 KiB safety limit", "tool_name": name} }
         provider_call_id := string_or(dict_get_or(item, "id", ""), "")
         if provider_call_id == "" { provider_call_id = "relay-call-" + to_string(call_index) }
+        if len(provider_call_id) > 256 || contains(provider_call_id, "\n") || contains(provider_call_id, "\r") || contains(provider_call_id, "\t") { return {"ok": false, "error": "provider tool call ID is invalid", "tool_name": name} }
+        if has_key(seen_ids, provider_call_id) { return {"ok": false, "error": "provider tool call IDs must be unique", "tool_name": name} }
+        seen_ids[provider_call_id] := true
         calls := push(calls, {"name": name, "input": input, "provider_call_id": provider_call_id})
         call_index = call_index + 1
     }
     return {"ok": true, "calls": calls}
+}
+
+func provider_payload_size(payload) {
+    return len(safe_json(payload))
+}
+
+func provider_payload_allowed(payload) {
+    return provider_payload_size(payload) <= 114688
 }
 
 func call_ai_with_tools(messages, model, provider, base_url, api_key_env, offline, stream, correlation_id, tools) {
@@ -185,6 +198,9 @@ func call_ai_with_tools(messages, model, provider, base_url, api_key_env, offlin
     if type(tools) == "array" && len(tools) > 0 {
         payload["tools"] := tools
         payload["tool_choice"] := "auto"
+    }
+    if provider_payload_allowed(payload) == false {
+        return {"ok": false, "error": {"code": "ai_payload_too_large", "message": "AI request payload exceeds the 112 KiB Relay safety limit"}, "relay_telemetry": {"route": "blocked_payload_size", "provider": provider, "model": model, "payload_bytes": provider_payload_size(payload)}}
     }
     env_map := {"RELAY_AI_PAYLOAD": safe_json(payload), "AI_SDK_PATH": ai_sdk_root()}
     watchdog_token := env_or("RELAY_WATCHDOG_PROXY_TOKEN", "")
@@ -229,7 +245,7 @@ func ai_chat(messages, model, provider, offline, stream) {
 func fallback_allowed(result) {
     code := to_lower(string_or(dict_get_or(dict_get_or(result, "error", {}), "code", ""), ""))
     if code == "" { return false }
-    return contains_any(code, ["timeout", "timed_out", "rate", "429", "allowance", "provider_unavailable", "temporarily_unavailable", "overloaded", "model_not_found", "connection", "network"])
+    return contains_any(code, ["timeout", "timed_out", "rate", "429", "allowance", "provider_unavailable", "temporarily_unavailable", "overloaded", "model_not_found", "connection", "network", "provider_response_too_large"])
 }
 
 func fallback_decision(result, primary_model, fallback_model) {
@@ -325,7 +341,13 @@ func packwrite_generate(run_dir, prompt_path, packet_path) {
     fake_file := rooted_path(env_or("RELAY_PACKWRITE_FAKE_RESPONSE", relay_root() + "/examples/packwrite-response.json"))
     command := ["/usr/bin/env", "-C", run_dir, packwrite, "init", prompt_path, "--output", "agent", "--overwrite"]
     result := run_process(command, "", {"KUJO": kujo_bin(), "PACKWRITE_FAKE_RESPONSE_FILE": fake_file}, 120000)
-    return {"ok": dict_get_or(result, "success", false), "command": command, "stdout": dict_get_or(result, "stdout", ""), "stderr": dict_get_or(result, "stderr", ""), "artifact_dir": run_dir + "/agent", "packet_path": packet_path, "duration_ms": dict_get_or(result, "duration_ms", 0)}
+    artifact_dir := run_dir + "/agent"
+    master_path := artifact_dir + "/MASTER.md"
+    artifact_safe := path_is_dir(artifact_dir) && path_is_symlink_safe(artifact_dir) == false && path_has_symlink_component(artifact_dir) == false && path_is_file(master_path) && path_is_symlink_safe(master_path) == false && path_has_symlink_component(master_path) == false
+    ok := dict_get_or(result, "success", false) && artifact_safe
+    error := ""
+    if ok == false && dict_get_or(result, "success", false) { error = "PackWrite completed without a safe MASTER.md artifact" }
+    return {"ok": ok, "command": command, "stdout": dict_get_or(result, "stdout", ""), "stderr": dict_get_or(result, "stderr", ""), "artifact_dir": artifact_dir, "packet_path": packet_path, "artifact_safe": artifact_safe, "error": error, "duration_ms": dict_get_or(result, "duration_ms", 0)}
 }
 
 func runledger_start(run_dir, model, provider, task, repo) {
@@ -379,6 +401,8 @@ export ai_chat := ai_chat
 export ai_chat_correlated := ai_chat_correlated
 export ai_chat_correlated_with_tools := ai_chat_correlated_with_tools
 export normalize_provider_tool_calls := normalize_provider_tool_calls
+export provider_payload_size := provider_payload_size
+export provider_payload_allowed := provider_payload_allowed
 export tool_definitions := tool_definitions
 export fallback_allowed := fallback_allowed
 export fallback_decision := fallback_decision

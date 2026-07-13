@@ -45,4 +45,7 @@ if type(correlation_id) == "string" && trim(correlation_id) != "" {
     options["headers"] := headers
 }
 result := chat_completion(client, messages, options)
-print(to_json(result))
+serialized_result := ""
+try { serialized_result = to_json(result) } except err { print(to_json({"ok": false, "error": {"code": "provider_response_serialization_failed"}})); exit(1) }
+if len(serialized_result) > 1048576 { print(to_json({"ok": false, "error": {"code": "provider_response_too_large", "message": "AI provider response exceeds the 1 MiB Relay safety limit"}})); exit(1) }
+print(serialized_result)

@@ -1,8 +1,8 @@
 from src.contracts import event, event_integrity_valid, event_chain_integrity_valid, event_sequence_matches_state, receipt, receipt_integrity_valid, receipt_sequence_valid, receipt_sequence_matches_state, state_integrity_input, state_integrity_valid, run_state, agent_profile, RELAY_VERSION, EVENT_CONTRACT, RECEIPT_CONTRACT
 from src.policy import classify_failure, path_is_safe, path_is_within_workspace, command_is_allowed, tool_decision
 from src.runtime import resume_state_safe, cleanup_state_safe, control_state_safe, save_state, mark_evidence_failure, cancellation_request, cancellation_integrity_input, persist_required_json, report
-from src.common import safe_id, redact_text, shell_quote_single, command_args, process_options, process_options_with_cancel, safe_process_path, safe_env_name, path_is_symlink_safe, path_has_symlink_component, path_has_parent_component, read_json_limited, append_jsonl, write_json, dict_get_or, bool_or, safe_json
-from src.adapters import fallback_allowed, fallback_decision, watchdog_route_allowed, tool_definitions, normalize_provider_tool_calls
+from src.common import safe_id, redact_text, shell_quote_single, command_args, process_options, process_options_with_cancel, safe_process_path, safe_env_name, path_is_symlink_safe, path_has_symlink_component, path_has_parent_component, read_json_limited, append_jsonl, append_jsonl_bounded, write_json, dict_get_or, bool_or, safe_json
+from src.adapters import fallback_allowed, fallback_decision, watchdog_route_allowed, tool_definitions, normalize_provider_tool_calls, provider_payload_size, provider_payload_allowed
 from src.store import safe_run_key, store_root_safe, acquire_index_lock, acquire_index_lock_retry, release_index_lock
 from src.watchdog import safe_base, safe_correlation_id, route_policy
 
@@ -86,6 +86,7 @@ failed = failed + check("invalid API env name denied", safe_env_name("OPENAI-API
 failed = failed + check("dynamic loader env denied", safe_env_name("LD_PRELOAD") == false && safe_env_name("DYLD_INSERT_LIBRARIES") == false)
 failed = failed + check("interpreter injection env denied", safe_env_name("PYTHONPATH") == false && safe_env_name("BASH_ENV") == false && safe_env_name("NODE_OPTIONS") == false)
 failed = failed + check("Git override env denied", safe_env_name("GIT_CONFIG_GLOBAL") == false && safe_env_name("GIT_EXTERNAL_DIFF") == false)
+failed = failed + check("proxy environment denied", safe_env_name("HTTP_PROXY") == false && safe_env_name("HTTPS_PROXY") == false && safe_env_name("ALL_PROXY") == false && safe_env_name("NO_PROXY") == false)
 failed = failed + check("missing symlink probe is safe", path_is_symlink_safe("/tmp/relay-contract-missing-symlink") == false)
 failed = failed + check("symlink probe errors fail closed", path_is_symlink_safe(123) == true)
 probe_path := env_or("RELAY_SYMLINK_PROBE_PATH", "/tmp/relay-contract-missing-symlink")
@@ -136,9 +137,14 @@ write_file(bounded_json_path, "{\"ok\":true}")
 failed = failed + check("bounded JSON read accepts small file", dict_get_or(read_json_limited(bounded_json_path, {}, 64), "ok", false) == true)
 failed = failed + check("bounded JSON read rejects oversized file", len(keys(read_json_limited(bounded_json_path, {"fallback": true}, 4))) == 1 && dict_get_or(read_json_limited(bounded_json_path, {"fallback": true}, 4), "fallback", false) == true)
 delete_file(bounded_json_path)
+bounded_jsonl_path := "/tmp/relay-contract-bounded-jsonl-" + to_string(current_timestamp())
+write_file(bounded_jsonl_path, "123456789\n")
+failed = failed + check("bounded JSONL append rejects oversized evidence", append_jsonl_bounded(bounded_jsonl_path, {"more": true}, 12) == false)
+delete_file(bounded_jsonl_path)
 failed = failed + check("fallback allows timeout", fallback_allowed({"error": {"code": "timeout"}}))
 failed = failed + check("fallback allows rate limit", fallback_allowed({"error": {"code": "rate_limit"}}))
 failed = failed + check("fallback allows unavailable provider", fallback_allowed({"error": {"code": "provider_unavailable"}}))
+failed = failed + check("fallback allows oversized provider response", fallback_allowed({"error": {"code": "provider_response_too_large"}}))
 failed = failed + check("fallback rejects authentication", fallback_allowed({"error": {"code": "authentication_failure"}}) == false)
 failed = failed + check("fallback rejects policy failure", fallback_allowed({"error": {"code": "policy_violation"}}) == false)
 failed = failed + check("fallback decision attempts transient failure", dict_get_or(fallback_decision({"ok": false, "error": {"code": "timeout"}}, "primary", "backup"), "action", "") == "attempt")
@@ -149,6 +155,18 @@ failed = failed + check("provider tool definitions are bounded", len(provider_to
 normalized_provider_tools := normalize_provider_tool_calls([{"id": "call-1", "function": {"name": "relay.write_file", "arguments": "{\"path\":\"out.txt\",\"content\":\"ok\"}"}}])
 failed = failed + check("provider tool calls normalize", normalized_provider_tools["ok"] && normalized_provider_tools["calls"][0]["name"] == "relay.write_file" && normalized_provider_tools["calls"][0]["input"]["path"] == "out.txt")
 failed = failed + check("malformed provider tool arguments reject", normalize_provider_tool_calls([{"function": {"name": "relay.write_file", "arguments": "not-json"}}])["ok"] == false)
+duplicate_provider_tools := normalize_provider_tool_calls([{"id": "same", "function": {"name": "relay.write_file", "arguments": "{\"path\":\"a\",\"content\":\"x\"}"}}, {"id": "same", "function": {"name": "relay.write_file", "arguments": "{\"path\":\"b\",\"content\":\"y\"}"}}])
+failed = failed + check("duplicate provider tool IDs reject", duplicate_provider_tools["ok"] == false)
+mut oversized_provider_content := ""
+mut provider_content_index := 0
+while provider_content_index < 65537 { oversized_provider_content = oversized_provider_content + "x"; provider_content_index = provider_content_index + 1 }
+oversized_provider_tools := normalize_provider_tool_calls([{"id": "large", "function": {"name": "relay.write_file", "arguments": safe_json({"path": "large.txt", "content": oversized_provider_content})}}])
+failed = failed + check("oversized provider tool arguments reject", oversized_provider_tools["ok"] == false)
+mut oversized_payload_content := ""
+mut payload_index := 0
+while payload_index < 114700 { oversized_payload_content = oversized_payload_content + "x"; payload_index = payload_index + 1 }
+oversized_payload := {"messages": [{"role": "user", "content": oversized_payload_content}]}
+failed = failed + check("provider payload bound", provider_payload_size(oversized_payload) > 114688 && provider_payload_allowed(oversized_payload) == false)
 failed = failed + check("cancelled failure classification", classify_failure("cancelled") == "cancelled")
 failed = failed + check("timeout failure classification", classify_failure("timed_out") == "timeout")
 failed = failed + check("policy failure classification", classify_failure("tool_policy_violation") == "policy_violation")
