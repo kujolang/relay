@@ -135,4 +135,4 @@ bash tests/relay_symlink_probe_smoke.sh
 git diff --check
 ```
 
-For the full integration evidence boundary and deferred enterprise work, see [`docs/enterprise-readiness-review-2026-07-11.md`](docs/enterprise-readiness-review-2026-07-11.md), [`docs/command-reference.md`](docs/command-reference.md), and the current [`docs/next-session-enhancement-backlog-2026-07-12-v44.md`](docs/next-session-enhancement-backlog-2026-07-12-v44.md).
+For the full integration evidence boundary and deferred enterprise work, see [`docs/enterprise-readiness-review-2026-07-11.md`](docs/enterprise-readiness-review-2026-07-11.md), [`docs/command-reference.md`](docs/command-reference.md), and the current [`docs/next-session-enhancement-backlog-2026-07-12-v45.md`](docs/next-session-enhancement-backlog-2026-07-12-v45.md).

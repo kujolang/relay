@@ -59,7 +59,10 @@ an absent path. This prevents filesystem inspection failures from being
 interpreted as proof that an evidence, workspace, worker, dependency, or
 control path is safe. The state store also checks every existing parent path
 component, so a symlinked directory above `.relay` or `.relay/runs` cannot
-redirect evidence while the final path itself remains non-symbolic.
+redirect evidence while the final path itself remains non-symbolic. The same
+component walk now protects doctor dependency targets and the trusted Agents
+SDK worker root/source; a symlinked parent fails readiness or worker binding
+even when the leaf itself is not symbolic.
 
 ## Commands
 

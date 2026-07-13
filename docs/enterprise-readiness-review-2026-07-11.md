@@ -453,3 +453,13 @@ The state-store contract covers root, runs-directory, and parent redirection
 shapes. This strengthens local evidence authority but does not provide
 kernel-level no-follow primitives, authenticated ownership, durable storage, or
 enterprise deployment assurance.
+
+## Forty-fifth 2026-07-12 review
+
+The fail-closed path-component walk now protects doctor dependency targets and
+the trusted Agents SDK worker root/source in addition to the state store. A
+parent symlink probe was added to the contract and dedicated smoke. Focused
+Kujo source checks, the contract suite, and the symlink smoke pass. This closes
+local path-policy drift; kernel no-follow primitives, authenticated ownership,
+live provider evidence, full workcell isolation, durable storage, and release
+attestation remain open.

@@ -443,6 +443,15 @@ boundary is now safer against broken-link redirection, while kernel no-follow
 primitives, authenticated ownership, durable storage, and enterprise
 deployment attestation remain open.
 
+## Forty-fifth 2026-07-12 review
+
+Extended the shared fail-closed path-component policy to `doctor` dependency
+targets and the trusted Agents SDK worker root/source. The contract and
+dedicated symlink smoke cover dependency-parent redirection. Focused Kujo
+checks, contracts, and the smoke pass. Relay remains a local alpha; live
+Ollama/Watchdog proof, authenticated service ownership, full workcells,
+durable storage, and release gates are not claimed.
+
 ## Forty-fourth 2026-07-12 review
 
 The state-store safety boundary now walks existing parent components as well as

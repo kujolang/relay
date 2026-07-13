@@ -552,3 +552,21 @@ remain creatable. Kernel no-follow operations, authenticated ownership, and
 durable multi-host storage remain open. Rejected: validating only the leaf,
 resolving symlinks and trusting the resolved target, or silently canonicalizing
 an operator-supplied path.
+
+## ADR-063: Extend parent-component protection to readiness and worker boundaries
+
+Context: the state-store walk closed parent-directory redirection for Relay's
+evidence paths, but `doctor` dependency checks and the Agents SDK worker-root
+binding still validated only the final executable or root directory. A symlinked
+parent could therefore redirect a dependency probe or trusted worker source
+before the leaf-level check ran. Decision: reuse
+`path_has_symlink_component` in doctor path/dependency checks and in the trusted
+Agents SDK worker-root and `main.kujo` validation. Add a dependency-parent
+probe to the contract and symlink smoke. Rationale: all path-sensitive trust
+boundaries should share one fail-closed component policy rather than relying on
+caller-specific leaf checks. Consequence: symlinked parent paths are rejected
+for readiness and worker execution, including platform-managed links; missing
+non-symlink components remain valid where creation is expected. Kernel
+no-follow primitives, authenticated ownership, and durable multi-host storage
+remain open. Rejected: resolving links to a supposedly trusted target, or
+maintaining separate parent checks in each caller.

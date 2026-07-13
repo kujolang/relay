@@ -42,3 +42,12 @@
 | Tools | Agents SDK registry/MCP patterns | `src/agent_bridge.kujo` registers `relay.write_file` and `relay.run_command`; worker delegates to `execute_tool_request` with workspace-bound capability and tool-call budget | broader tool catalog, model-driven tool loops, typed tool-result artifact persistence, and authenticated service mode pending | isolated mission tool, approval denial, and budget denial smokes | high |
 | Workspace isolation | Git worktree/workcell conventions | `workspace_mode: worktree` provisions a detached worktree from an immutable commit; provided mode remains available | full workcell/container isolation, rollback-on-failure, and crash recovery pending | worktree smoke protects source HEAD and requires confirmed cleanup | high |
 | Resource and cache bounds | Kujo runtime + Relay store | mission budgets, bounded process output, fixed subprocess PATH, bounded Agents SDK tool calls, atomic state, atomic index lock with four-attempt backoff, race-safe symlink probes, rebuildable index | database-backed retention, crash recovery, and multi-host concurrency pending | output-budget, store/export, tool-budget, lock-contention stress, and index-lock smokes | medium |
+
+## Current review delta
+
+The shared path-component safety contract now also covers doctor dependency
+targets and the trusted Agents SDK worker root/source. This closes the gap
+between state-store safety and other local trust boundaries without creating a
+second filesystem policy. The focused source checks, contract suite, and
+dedicated dangling/parent symlink smoke provide local evidence; kernel no-follow
+operations, authenticated ownership, and multi-host storage remain deferred.
