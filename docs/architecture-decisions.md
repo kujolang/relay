@@ -521,3 +521,18 @@ operator retry; missing paths retain their prior absent-path semantics. This
 does not replace kernel no-follow primitives or multi-user ownership. Rejected:
 treating probe exceptions as non-symlinks, duplicating ad hoc try/catch logic,
 or silently continuing with an unverified path.
+
+## ADR-061: Check symlink metadata before existence semantics
+
+Context: a fail-closed helper that called `path_exists` before
+`path_is_symlink` could misclassify a dangling symbolic link as an absent
+path on runtimes whose ordinary existence check follows links. Decision: ask
+the runtime's symlink-metadata primitive first; only after a probe exception,
+classify a genuinely missing path as absent, and treat all other probe errors
+as unsafe. Add a dedicated dangling-link smoke and expose the helper through
+all path-sensitive Relay boundaries. Rationale: broken links are still
+redirectable filesystem objects and must not bypass evidence or authority
+checks. Consequence: dangling links fail closed and missing-path behavior is
+preserved; kernel no-follow primitives and authenticated multi-user ownership
+remain future work. Rejected: existence-first checks, treating broken links as
+missing, or duplicating the ordering logic across callers.

@@ -435,3 +435,12 @@ The Kujo source checks, contract suite, Agents SDK tool smoke, and CLI smoke
 pass. This closes a local fail-open inspection path but does not provide
 kernel-level no-follow primitives, multi-user ownership, durable storage, or
 enterprise deployment assurance.
+
+## Forty-third 2026-07-12 review
+
+The shared symlink helper now checks symlink metadata before ordinary existence
+semantics, so dangling links cannot be mistaken for missing paths. A dedicated
+smoke creates a dangling link and proves fail-closed rejection; source checks,
+contracts, and the CLI/Agents SDK smokes remain passing. This is stronger local
+path authority, not kernel-level no-follow support, authenticated ownership,
+durable storage, or enterprise deployment assurance.

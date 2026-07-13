@@ -433,3 +433,12 @@ worker boundaries. Source checks, contract tests, Agents SDK tool smoke, and
 CLI smoke pass. This is a local authority hardening, not kernel-level no-follow
 support, multi-user ownership, durable storage, or enterprise deployment
 attestation.
+
+## Forty-third 2026-07-12 review
+
+Corrected the fail-closed symlink helper ordering: metadata is checked before
+ordinary existence semantics, preserving detection of dangling links. Added a
+dedicated dangling-symlink smoke and a configurable contract probe. The local
+boundary is now safer against broken-link redirection, while kernel no-follow
+primitives, authenticated ownership, durable storage, and enterprise
+deployment attestation remain open.

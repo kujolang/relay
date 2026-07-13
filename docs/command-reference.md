@@ -53,9 +53,11 @@ outside the configured Relay root; the failure is reported as
 
 All Relay symlink checks use the same fail-closed probe boundary. A missing
 path is treated as absent, but a runtime error while inspecting an existing or
-caller-supplied path is treated as unsafe. This prevents filesystem inspection
-failures from being interpreted as proof that an evidence, workspace, worker,
-dependency, or control path is safe.
+caller-supplied path is treated as unsafe. Symlink metadata is checked before
+ordinary existence semantics so a dangling symlink cannot be misclassified as
+an absent path. This prevents filesystem inspection failures from being
+interpreted as proof that an evidence, workspace, worker, dependency, or
+control path is safe.
 
 ## Commands
 
