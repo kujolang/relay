@@ -139,8 +139,21 @@ inspected="$($KUJO run "$ROOT/main.kujo" -- runs inspect "$run_id" --json)"
 printf '%s' "$inspected" | jq -e --arg run_id "$run_id" '.ok == true and .run.run_id == $run_id' >/dev/null
 
 verified="$($KUJO run "$ROOT/main.kujo" -- runs verify "$run_id" --json)"
-printf '%s' "$verified" | jq -e --arg run_id "$run_id" '.ok == true and .format == "relay-run-verification-v1" and .run_id == $run_id and .integrity_valid == true and .state_valid == true and .events_valid == true and .receipts_valid == true and .receipts_consistent == true and .changes_valid == true and .evaluations_valid == true and .tool_results_required == false and .tool_results_valid == true' >/dev/null
+printf '%s' "$verified" | jq -e --arg run_id "$run_id" '.ok == true and .format == "relay-run-verification-v1" and .run_id == $run_id and .integrity_valid == true and .state_valid == true and .events_valid == true and .receipts_valid == true and .receipts_consistent == true and .changes_valid == true and .evaluations_valid == true and .tool_results_required == false and .tool_results_valid == true and .packet_manifest_required == true and .packet_manifest_valid == true' >/dev/null
 printf '%s' "$verified" | jq -e '.report_valid == true' >/dev/null
+
+# PackWrite output is a recursive, integrity-bound artifact rather than only a
+# hash of MASTER.md. A changed packet file must invalidate verification.
+master_path="$run_dir/agent/MASTER.md"
+cp "$master_path" "$master_path.packet-backup"
+printf '\npacket-integrity-tamper\n' >> "$master_path"
+set +e
+tampered_packet="$($KUJO run "$ROOT/main.kujo" -- runs verify "$run_id" --json 2>&1)"
+tampered_packet_rc=$?
+set -e
+test "$tampered_packet_rc" -ne 0
+printf '%s' "$tampered_packet" | jq -e '.ok == false and .packet_manifest_required == true and .packet_manifest_valid == false and .integrity_valid == false' >/dev/null
+mv "$master_path.packet-backup" "$master_path"
 
 # Machine callers can page a verified event stream without requesting the full
 # JSONL payload. Integrity is still checked against the complete authoritative

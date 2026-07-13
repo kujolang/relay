@@ -23,6 +23,18 @@ result="$($KUJO run "$ROOT/main.kujo" -- missions run "$ROOT/examples/agents-sdk
 test -f "$WORK/RELAY_AGENT_TOOL_OUTPUT.txt"
 grep -q 'Agents SDK tool registry' "$WORK/RELAY_AGENT_TOOL_OUTPUT.txt"
 
+# Provider/Agents SDK workers must preserve the mission's script provenance
+# policy when they delegate a command to Relay.
+mkdir -p "$WORK/scripts"
+printf '#!/bin/sh\nprintf pinned-agent-script\n' > "$WORK/scripts/pinned.sh"
+chmod +x "$WORK/scripts/pinned.sh"
+script_sha="$(ruby -rdigest -e 'print Digest::SHA256.file(ARGV.fetch(0)).hexdigest' "$WORK/scripts/pinned.sh")"
+script_nonce="relay-script-provenance-smoke-private-nonce"
+script_capability="$(printf '%s' "relay-script-provenance|relay-script-provenance-session|$WORK|$script_nonce|relay-agent-tools" | shasum -a 256 | awk '{print $1}')"
+script_payload="$(jq -cn --arg root "$ROOT" --arg kujo "$KUJO" --arg work "$WORK" --arg capability "$script_capability" --arg nonce "$script_nonce" --arg sha "$script_sha" '{relay_root:$root,kujo_bin:$kujo,capability:$capability,capability_nonce:$nonce,run_id:"relay-script-provenance",session_id:"relay-script-provenance-session",workspace:$work,approval_approved:false,mission_spec:{allow_writes:false,approval:{approved:false},allowed_commands:["bash"],allowed_script_hashes:{"scripts/pinned.sh":$sha},budgets:{max_tool_calls:1,max_output_bytes:1048576,max_write_bytes:1048576}},tool_calls:[{name:"relay.run_command",input:{command:"bash scripts/pinned.sh"}}]}')"
+script_output="$(cd "$AGENTS_SDK" && RELAY_AGENT_PAYLOAD="$script_payload" "$KUJO" run "$ROOT/src/agent_bridge.kujo" --interpreter 2>&1)"
+printf '%s' "$script_output" | jq -e '.ok == true and (.tool_calls | any(.tool_name == "relay.run_command" and .ok == true and (.output.stdout | contains("pinned-agent-script"))))' >/dev/null
+
 denied_nonce="relay-denied-smoke-private-nonce"
 denied_capability="$(printf '%s' "relay-denied-smoke|relay-denied-smoke-session|$WORK|$denied_nonce|relay-agent-tools" | shasum -a 256 | awk '{print $1}')"
 denied_payload="$(jq -cn --arg root "$ROOT" --arg kujo "$KUJO" --arg work "$WORK" --arg capability "$denied_capability" --arg nonce "$denied_nonce" '{relay_root:$root,kujo_bin:$kujo,capability:$capability,capability_nonce:$nonce,run_id:"relay-denied-smoke",session_id:"relay-denied-smoke-session",workspace:$work,approval_approved:false,mission_spec:{allow_writes:true,approval:{approved:false},allowed_commands:["git"],budgets:{max_output_bytes:1048576,max_write_bytes:1048576}},tool_calls:[{name:"relay.write_file",input:{path:"RELAY_AGENT_TOOL_DENIED.txt",content:"must not be written\n"}}]}')"

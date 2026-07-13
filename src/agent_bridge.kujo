@@ -94,7 +94,7 @@ func call_relay_worker(tool_name, input_payload, context, payload) {
     if tool_name == "relay.write_file" { clean_input = {"path": to_string(get(input_payload, "path", "")), "content": to_string(get(input_payload, "content", ""))} }
     if tool_name == "relay.run_command" { clean_input = {"command": to_string(get(input_payload, "command", "")), "timeout_ms": get(input_payload, "timeout_ms", 120000)} }
     raw_spec := get(payload, "mission_spec", {})
-    clean_spec := {"allow_writes": get(raw_spec, "allow_writes", false), "approval": get(raw_spec, "approval", {}), "allowed_commands": get(raw_spec, "allowed_commands", ["git", "kujo"]), "budgets": get(raw_spec, "budgets", {})}
+    clean_spec := {"allow_writes": get(raw_spec, "allow_writes", false), "approval": get(raw_spec, "approval", {}), "allowed_commands": get(raw_spec, "allowed_commands", ["git", "kujo"]), "allowed_script_hashes": get(raw_spec, "allowed_script_hashes", {}), "budgets": get(raw_spec, "budgets", {})}
     request := {
         "tool_name": tool_name,
         "input": clean_input,

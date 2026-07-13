@@ -25,3 +25,4 @@ so upstream evidence can be carried without Relay silently dropping it. The
 | `tool-result-bundle.schema.json` | persisted provider-generated tool results for a bounded multi-turn mission |
 | `run-verification.schema.json` | `runs verify --json` integrity verdict |
 | `run-sizes.schema.json` | `runs sizes --json`, including optional artifact digests |
+| `packet-manifest.schema.json` | recursive PackWrite packet integrity manifest |

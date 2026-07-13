@@ -121,7 +121,16 @@ func script_argv_allowed(argv, interpreter, policy) {
     if path_is_symlink_safe(script_path) || path_has_symlink_component(script_path) || path_is_file(script_path) == false { return false }
     expected_hash := string_or(dict_get_or(dict_get_or(policy, "allowed_script_hashes", {}), target, ""), "")
     if len(expected_hash) != 64 { return false }
-    return to_lower(expected_hash) == to_lower(to_string(sha256_file(script_path)))
+    try { return to_lower(expected_hash) == to_lower(to_string(sha256_file(script_path))) } except err { return false }
+}
+
+func script_hash_policy_valid(workspace, hashes) {
+    if type(hashes) != "dict" || len(keys(hashes)) > 16 { return false }
+    for script_path in keys(hashes) {
+        expected_hash := string_or(dict_get_or(hashes, script_path, ""), "")
+        if starts_with(script_path, "scripts/") == false || ends_with(script_path, ".sh") == false || path_is_safe(workspace, script_path) == false || len(expected_hash) != 64 || regex_match(to_lower(expected_hash), "^[0-9a-f]{64}$") == false { return false }
+    }
+    return true
 }
 
 func command_is_allowed(command, policy) {
@@ -179,4 +188,5 @@ export path_is_within_root := path_is_within_root
 export path_is_within_workspace := path_is_within_workspace
 export real_path := real_path
 export command_is_allowed := command_is_allowed
+export script_hash_policy_valid := script_hash_policy_valid
 export tool_decision := tool_decision

@@ -18,6 +18,7 @@ schemas=(
   tool-result-bundle
   run-verification
   run-sizes
+  packet-manifest
 )
 for name in "${schemas[@]}"; do
   path="$ROOT/schemas/$name.schema.json"

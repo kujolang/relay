@@ -1,7 +1,7 @@
 from src.common import dict_get_or, env_or, string_or, bool_or, int_or, now_iso, safe_id, read_json_or, read_json_limited, write_json, append_jsonl_bounded, safe_json, shell_quote_single, command_args, write_text_atomic, process_options, process_options_with_cancel, redact_text, path_is_symlink_safe, path_has_symlink_component
 from src.contracts import run_state, event, event_integrity_input, receipt, receipt_integrity_input, event_chain_integrity_valid, receipt_sequence_valid, state_integrity_input, state_integrity_valid
 from src.registry import find_agent
-from src.policy import tool_decision, classify_failure, path_is_safe, path_is_within_workspace, command_is_allowed
+from src.policy import tool_decision, classify_failure, path_is_safe, path_is_within_workspace, command_is_allowed, script_hash_policy_valid
 from src.adapters import ai_chat_correlated, ai_chat_correlated_with_tools, normalize_provider_tool_calls, tool_definitions, agents_sdk_smoke, agents_sdk_tool_run, packwrite_generate, runledger_start, runledger_finish, changebucket, eval_run
 from src.store import rebuild_run_index, load_run_index, persist_run_index, store_root_safe
 
@@ -131,6 +131,72 @@ func persist_required_json(path, value, expected_type, label) {
         return {"ok": false, "error": name + " artifact persistence has an invalid JSON shape"}
     }
     return {"ok": true, "path": path}
+}
+
+func packet_manifest_walk(root, relative, depth) {
+    if depth > 16 { return {"ok": false, "error": "PackWrite packet exceeds the 16-level directory depth limit"} }
+    target := root
+    if relative != "" { target = root + "/" + relative }
+    if path_is_symlink_safe(target) || path_has_symlink_component(target) { return {"ok": false, "error": "PackWrite packet contains a symbolic link"} }
+    if path_is_dir(target) {
+        names := sort(list_dir(target))
+        if len(names) > 256 { return {"ok": false, "error": "PackWrite packet exceeds the 256-entry directory limit"} }
+        mut entries := []
+        mut bytes := 0
+        mut files := 0
+        mut directories := 1
+        for name in names {
+            child_relative := name
+            if relative != "" { child_relative = relative + "/" + name }
+            if path_is_safe(root, child_relative) == false { return {"ok": false, "error": "PackWrite packet contains an unsafe path"} }
+            child := packet_manifest_walk(root, child_relative, depth + 1)
+            if dict_get_or(child, "ok", false) == false { return child }
+            for entry in dict_get_or(child, "entries", []) { entries := push(entries, entry) }
+            bytes = bytes + int_or(dict_get_or(child, "bytes", 0), 0)
+            files = files + int_or(dict_get_or(child, "files", 0), 0)
+            directories = directories + int_or(dict_get_or(child, "directories", 0), 0)
+            if len(entries) > 256 || bytes > 8388608 { return {"ok": false, "error": "PackWrite packet exceeds its bounded manifest limits"} }
+        }
+        return {"ok": true, "entries": entries, "bytes": bytes, "files": files, "directories": directories}
+    }
+    if path_is_file(target) == false { return {"ok": false, "error": "PackWrite packet contains an unsupported artifact path"} }
+    bytes := file_size(target)
+    if bytes > 8388608 { return {"ok": false, "error": "PackWrite packet contains an oversized artifact"} }
+    digest := ""
+    try { digest = to_string(sha256_file(target)) } except err { return {"ok": false, "error": "PackWrite packet artifact digest failed"} }
+    return {"ok": true, "entries": [{"path": relative, "kind": "file", "bytes": bytes, "integrity_sha256": digest}], "bytes": bytes, "files": 1, "directories": 0}
+}
+
+func create_packet_manifest(run_dir, state) {
+    root := run_dir + "/agent"
+    walked := packet_manifest_walk(root, "", 0)
+    if dict_get_or(walked, "ok", false) == false { return walked }
+    has_master := false
+    for entry in dict_get_or(walked, "entries", []) { if string_or(dict_get_or(entry, "path", ""), "") == "MASTER.md" { has_master = true } }
+    if has_master == false { return {"ok": false, "error": "PackWrite packet manifest requires MASTER.md"} }
+    manifest := {"contract_version": "relay-packwrite-manifest-v1", "run_id": state["run_id"], "mission_id": state["mission_id"], "packet_revision": int_or(dict_get_or(state, "packet_revision", 1), 1), "root": "agent", "summary": {"bytes": walked["bytes"], "files": walked["files"], "directories": walked["directories"]}, "entries": walked["entries"]}
+    path := run_dir + "/packet-manifest.json"
+    persisted := persist_required_json(path, manifest, "dict", "PackWrite packet manifest")
+    if dict_get_or(persisted, "ok", false) == false { return persisted }
+    persisted["path"] := path
+    persisted["integrity_sha256"] := sha256_file(path)
+    persisted["manifest"] := manifest
+    return persisted
+}
+
+func verify_packet_manifest(run_dir, state) {
+    required := bool_or(dict_get_or(state, "packet_manifest_required", false), false)
+    if required == false { return {"required": false, "ok": true, "error": ""} }
+    path := run_dir + "/packet-manifest.json"
+    if path_is_symlink_safe(path) || path_exists(path) == false || path_is_file(path) == false || file_size(path) > 8388608 { return {"required": true, "ok": false, "error": "PackWrite packet manifest is missing or unsafe"} }
+    expected_hash := string_or(dict_get_or(dict_get_or(state, "packet_manifest", {}), "integrity_sha256", ""), "")
+    actual_hash := sha256_file(path)
+    if expected_hash == "" || actual_hash == "" || expected_hash != actual_hash { return {"required": true, "ok": false, "error": "PackWrite packet manifest integrity does not match authoritative state"} }
+    manifest := read_json_limited(path, null, 8388608)
+    if type(manifest) != "dict" || string_or(dict_get_or(manifest, "contract_version", ""), "") != "relay-packwrite-manifest-v1" || string_or(dict_get_or(manifest, "run_id", ""), "") != string_or(dict_get_or(state, "run_id", ""), "") { return {"required": true, "ok": false, "error": "PackWrite packet manifest identity is invalid"} }
+    walked := packet_manifest_walk(run_dir + "/agent", "", 0)
+    if dict_get_or(walked, "ok", false) == false || safe_json(dict_get_or(walked, "entries", [])) != safe_json(dict_get_or(manifest, "entries", [])) { return {"required": true, "ok": false, "error": "PackWrite packet contents do not match the manifest"} }
+    return {"required": true, "ok": true, "error": "", "path": path, "integrity_sha256": actual_hash, "entries": len(dict_get_or(manifest, "entries", []))}
 }
 
 func provider_assistant_tool_calls(calls) {
@@ -347,12 +413,7 @@ func load_spec(path) {
     if path_exists(repository + "/.git") == false { return {"ok": false, "error": "Mission repository must be a Git workspace"} }
     if path_is_symlink_safe(repository + "/.git") || path_has_symlink_component(repository + "/.git") { return {"ok": false, "error": "Mission Git metadata must not be a symbolic link"} }
     allowed_script_hashes := dict_get_or(spec, "allowed_script_hashes", {})
-    if type(allowed_script_hashes) != "dict" { return {"ok": false, "error": "Mission allowed_script_hashes must be an object"} }
-    if len(keys(allowed_script_hashes)) > 16 { return {"ok": false, "error": "Mission allowed_script_hashes exceeds the 16-entry safety limit"} }
-    for script_path in keys(allowed_script_hashes) {
-        expected_hash := string_or(dict_get_or(allowed_script_hashes, script_path, ""), "")
-        if starts_with(script_path, "scripts/") == false || ends_with(script_path, ".sh") == false || path_is_safe(repository, script_path) == false || len(expected_hash) != 64 || regex_match(to_lower(expected_hash), "^[0-9a-f]{64}$") == false { return {"ok": false, "error": "Mission allowed_script_hashes contains an invalid scripts path or SHA-256"} }
-    }
+    if script_hash_policy_valid(repository, allowed_script_hashes) == false { return {"ok": false, "error": "Mission allowed_script_hashes contains an invalid scripts path or SHA-256"} }
     action_policy := {"workspace": repository, "allow_writes": bool_or(dict_get_or(spec, "allow_writes", false), false), "allowed_commands": allowed_commands, "allowed_script_hashes": allowed_script_hashes}
     for action in actions {
         if dict_get_or(action, "type", "") == "run_command" && command_is_allowed(dict_get_or(action, "command", ""), action_policy) == false {
@@ -444,6 +505,7 @@ func execute_tool_request(request, supplied_capability) {
     if type(original_spec) != "dict" { return {"ok": false, "error": "mission policy is missing"} }
     spec := original_spec
     spec["repository"] := workspace
+    if script_hash_policy_valid(workspace, dict_get_or(spec, "allowed_script_hashes", {})) == false { return {"ok": false, "error": "mission allowed_script_hashes is invalid"} }
     if bool_or(dict_get_or(spec, "allow_writes", false), false) && dict_get_or(dict_get_or(spec, "approval", {}), "approved", false) != true {
         return {"ok": false, "error": {"code": "permission_denial", "message": "write-enabled tool requests require approval.approved=true"}}
     }
@@ -632,8 +694,15 @@ func run_mission(path, options) {
     prompt := write_prompt(run_dir, spec)
     packet := {"ok": false, "artifact_dir": run_dir + "/agent", "packet_path": run_dir + "/agent", "error": "mission prompt could not be persisted"}
     if dict_get_or(prompt, "ok", false) { packet = packwrite_generate(run_dir, "MEGA_PROMPT.md", run_dir + "/agent") }
+    state["packet_manifest_required"] := true
+    packet_manifest := {"ok": false, "error": "PackWrite packet was not generated"}
+    if dict_get_or(packet, "ok", false) { packet_manifest = create_packet_manifest(run_dir, state) }
+    state["packet_manifest"] := {"required": true, "path": dict_get_or(packet_manifest, "path", run_dir + "/packet-manifest.json"), "integrity_sha256": dict_get_or(packet_manifest, "integrity_sha256", ""), "entries": int_or(dict_get_or(packet_manifest, "entries", len(dict_get_or(dict_get_or(packet_manifest, "manifest", {}), "entries", []))), 0)}
+    if dict_get_or(packet, "ok", false) && dict_get_or(packet_manifest, "ok", false) == false { packet["ok"] := false; packet["error"] := dict_get_or(packet_manifest, "error", "PackWrite packet manifest could not be persisted") }
     packet_artifact := {"kind": "packwrite_agent_pack", "path": packet["artifact_dir"], "ok": packet["ok"], "revision": 1}
     if path_exists(run_dir + "/agent/MASTER.md") { packet_artifact["integrity_sha256"] := sha256_file(run_dir + "/agent/MASTER.md") }
+    packet_artifact["manifest_path"] := state["packet_manifest"]["path"]
+    packet_artifact["manifest_integrity_sha256"] := state["packet_manifest"]["integrity_sha256"]
     state["artifacts"] := push(state["artifacts"], packet_artifact)
     state["packet_revision"] := 1
     packet_receipt_result := record_receipt(state, run_dir, "artifact", "packet", "planner", run_dir + "/agent", evidence_status(packet["ok"]), packet_artifact)
@@ -1086,6 +1155,9 @@ export ensure_dir := ensure_dir
 export save_state := save_state
 export mark_evidence_failure := mark_evidence_failure
 export persist_required_json := persist_required_json
+export packet_manifest_walk := packet_manifest_walk
+export create_packet_manifest := create_packet_manifest
+export verify_packet_manifest := verify_packet_manifest
 export report := report
 export load_spec := load_spec
 export create_mission := create_mission
