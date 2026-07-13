@@ -123,3 +123,10 @@ limits, records `packet-manifest.json` in run state, and makes `runs verify` and
 valid export fail closed when packet contents change. The Agents SDK worker now
 preserves `allowed_script_hashes` for delegated shell actions. Store and Agents
 SDK smokes prove packet tamper rejection and delegated script provenance.
+
+The v79 review applies the same exclusive, symlink-safe directory primitive to
+mission state creation. `create_mission`, `run_mission`, and per-run evidence
+roots now fail closed when a state component is unsafe or cannot be created;
+the acceptance suite proves state-root/runs symlink rejection and full fixture
+execution with the hardened path. This remains local single-host protection,
+not durable multi-host storage or kernel no-follow enforcement.

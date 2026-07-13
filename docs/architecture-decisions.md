@@ -1370,3 +1370,30 @@ storage remain open.
 Rejected: deleting without a lock, using idempotent directory creation as an
 exclusive lock, force-removing active lock directories, or silently treating
 malformed lock objects as idle records.
+
+## ADR-108: Create mission state directories with exclusive, symlink-safe mkdir
+
+Context: Relay mission and run state directories were previously created with
+Kujo's idempotent `create_dir`. That is suitable for ordinary convenience
+directories but does not provide an explicit exclusive-create boundary and
+leaves a time-of-check/time-of-use gap when a state path is replaced during
+creation.
+
+Decision: use the shared fail-closed path probes for every mission state
+directory component and create missing components with the fixed native
+`/bin/mkdir` exclusive primitive. Mission creation and run execution fail with
+`state_store_failure` when the requested state path is unsafe or cannot be
+created; existing safe directories remain reusable.
+
+Rationale: keep state-directory authority aligned with the v78 lock contract,
+avoid a second filesystem primitive, and prevent state writes from silently
+following symlinked components. The implementation remains Kujo-native and
+uses no shell command interpolation.
+
+Consequences: local single-host state creation is more conservative and
+truthful under races, while missing kernel no-follow APIs, durable multi-host
+storage, authenticated ownership, and crash recovery remain future work.
+
+Rejected: idempotent `create_dir` for state authority, shell-based `mkdir -p`,
+best-effort continuation after unsafe directory creation, or a parallel state
+directory implementation in the CLI.

@@ -880,3 +880,14 @@ repair and are cleaned after unlock. This closes a local lifecycle race without
 claiming crash recovery, durable multi-host storage, authenticated tenancy,
 external-provider proof, or release readiness. The next session backlog is
 `docs/next-session-enhancement-backlog-2026-07-13-v78.md`.
+
+The v79 review extends that filesystem boundary to mission state directories.
+Relay now checks every state path component for symlink redirection and creates
+missing mission/run directories with the shared exclusive native `mkdir`
+primitive. Unsafe or unavailable paths fail closed as `state_store_failure`,
+and the existing state-store smoke plus the full acceptance suite provide local
+evidence. This is a local race and redirection hardening step; it does not
+establish durable storage, authenticated ownership, kernel no-follow
+guarantees, or enterprise readiness.
+
+Current follow-on backlog: `docs/next-session-enhancement-backlog-2026-07-13-v79.md`.

@@ -881,3 +881,16 @@ but does not provide crash-lock reconciliation, durable multi-host locking,
 authenticated ownership, external-provider proof, or enterprise release gates.
 The next-session backlog is
 `docs/next-session-enhancement-backlog-2026-07-13-v78.md`.
+
+## Seventy-ninth 2026-07-13 review
+
+Mission and run state directories now use fail-closed symlink-component checks
+and the same exclusive fixed-path native `mkdir` primitive used by authority
+locks. `create_mission` and `run_mission` stop with `state_store_failure`
+before evidence work if a state path is unsafe or unavailable. The full
+25-script acceptance suite and Loop Engineering workflow pass with this
+change. This improves local state-creation race behavior but does not provide
+kernel no-follow operations, durable multi-host storage, authenticated
+ownership, crash recovery, live-provider proof, or enterprise release gates.
+The next-session backlog is
+`docs/next-session-enhancement-backlog-2026-07-13-v79.md`.

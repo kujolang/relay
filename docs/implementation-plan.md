@@ -72,6 +72,7 @@
 - Required provider-generated tool runs to carry a persisted `relay-tool-result-bundle-v1` whose run identity and SHA-256 are verified by `runs verify` and valid `runs export`; exports now include the verified bundle.
 - Required exact SHA-256 declarations for repository `bash`/`sh` scripts, preserved that policy through Agents SDK delegation, added opt-in `runs sizes --hashes` artifact digests while keeping the default inventory fast, and added recursive PackWrite packet manifests; published run-verification, run-sizes, and packet-manifest schemas.
 - Bounded model output requests to the positive mission `max_tokens` budget (capped at 16,384), passed remaining tokens to provider follow-ups, normalized negative usage to zero, and removed caller-controlled `PWD` from child environment overrides.
+- Hardened mission, run-root, and per-run state-directory creation with fail-closed symlink-component checks and the shared exclusive native `mkdir` primitive; unsafe or unavailable state paths now return `state_store_failure` before mission evidence work begins.
 
 ## Deferred
 
