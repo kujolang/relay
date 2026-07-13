@@ -613,3 +613,22 @@ capabilities, `tool_planning: false`, and declared-mission-only tool execution;
 the previous optimistic `tool_calls` claim was removed. This is a machine
 contract and adoption-quality improvement, not provider-generated tool proof or
 enterprise readiness.
+
+## Sixty-first 2026-07-13 review
+
+Persisted run state now carries an integrity seal over the state excluding the
+seal field, and read, resume, cleanup, and report boundaries verify it before
+trusting state authority. Mission IDs are bounded to a filesystem-safe
+alphabet, while mission names, goals, action types, and write payloads receive
+earlier fail-fast validation. This improves local tamper evidence and input
+resource control without claiming signed state, authenticated ownership, or
+durable recovery.
+
+Relay also publishes forward-compatible JSON Schemas for mission, run/report,
+AgentEvent, receipt, doctor, model probe, and tool-result boundaries. The new
+aggregate acceptance runner discovers every committed smoke test, runs the
+contract and schema suites, and checks the diff, making the local verification
+surface easier for adopters and machine callers to reproduce. Live external
+provider proof, provider-generated tool planning, full workcells,
+authenticated machine mode, durable storage, signed export, and release gates
+remain deliberately deferred.

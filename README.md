@@ -2,7 +2,7 @@
 
 Kujo Relay is a Kujo-native composition and execution layer for bounded agent missions. The CLI is a thin wrapper over reusable runtime modules. It composes existing AI SDK, Agents SDK, PackWrite, RunLedger, ChangeBucket, Eval, Capsule, and Chain of Command contracts instead of replacing them.
 
-Status: `0.1.0` hardened local alpha. Offline execution, bounded repository work, bounded mission-spec inputs, bounded JSON evidence parsing, bounded AI/Agents SDK/tool bridge payloads, validated and secret-safe live Watchdog route posture with HTTPS required for non-loopback hosts, non-disclosing Watchdog route posture in diagnostics and AI telemetry, bounded safe correlation IDs, dependency-integrity doctor checks that reject unsafe required files and symlinked executables, deterministic upstream version probes and optional SHA-256 dependency pinning in `doctor --json`, dangerous dynamic-loader/interpreter/Git override credential environment names rejected before bridge spawn, explicit cancellation/timeout failure classes in action evidence, race-safe concurrent store probes, descendant-safe cancellation through the Kujo process-group runtime, trusted Agents SDK worker-root binding, trusted in-tree AI bridge source enforcement, integrity-bound resume, pause, cancel, and worktree cleanup controls, fail-closed evidence persistence, required ChangeBucket/Eval/report artifact verification, RunLedger finish authority before completion, state-store symlink rejection across parent path components, cooperative mission cancellation, symlink-safe evidence reads that fail closed on probe errors and preserve dangling-symlink detection, structured credential/token/private-key redaction in persisted evidence, incremental bounded `runs watch` event parsing with append-prefix and disappearance integrity checks, change-triggered chain validation, context-rich sealed RunLedger receipts, bounded adapter duration metrics, read-only run artifact size inventory with a directory-depth bound, redacted subprocess evidence, explicit environment isolation, fixed executable search paths, shell-free command execution with exact read-only Git argv profiles, bounded lock backoff with contention evidence, cache-consistent run-index metadata with single-scan registration, failure-aware model fallback, budgets, deterministic evaluation, detached worktree missions, locked/self-healing run-index rebuilds, complete event-sequence verification, integrity-verified event export, required persisted receipt/state evidence for inspection and export, real local Watchdog correlation, and one isolated fixture mission using the Agents SDK Tool Registry are verified locally. Relay is not yet enterprise-production-ready or universally useful: external live-provider proof, authenticated multi-tenant operation, full workcell isolation/recovery, provider-driven tool execution, durable concurrent storage, and release gates remain open.
+Status: `0.1.0` hardened local alpha. Offline execution, bounded repository work, bounded mission-spec inputs, bounded JSON evidence parsing, bounded AI/Agents SDK/tool bridge payloads, validated and secret-safe live Watchdog route posture with HTTPS required for non-loopback hosts, non-disclosing Watchdog route posture in diagnostics and AI telemetry, bounded safe correlation IDs, dependency-integrity doctor checks that reject unsafe required files and symlinked executables, deterministic upstream version probes and optional SHA-256 dependency pinning in `doctor --json`, dangerous dynamic-loader/interpreter/Git override credential environment names rejected before bridge spawn, explicit cancellation/timeout failure classes in action evidence, race-safe concurrent store probes, descendant-safe cancellation through the Kujo process-group runtime, trusted Agents SDK worker-root binding, trusted in-tree AI bridge source enforcement, integrity-bound run state, resume, pause, cancel, and worktree cleanup controls, fail-closed evidence persistence, required ChangeBucket/Eval/report artifact verification, RunLedger finish authority before completion, state-store symlink rejection across parent path components, cooperative mission cancellation, symlink-safe evidence reads that fail closed on probe errors and preserve dangling-symlink detection, structured credential/token/private-key redaction in persisted evidence, incremental bounded `runs watch` event parsing with append-prefix and disappearance integrity checks, change-triggered chain validation, context-rich sealed RunLedger receipts, bounded adapter duration metrics, read-only run artifact size inventory with a directory-depth bound, redacted subprocess evidence, explicit environment isolation, fixed executable search paths, shell-free command execution with exact read-only Git argv profiles, bounded lock backoff with contention evidence, cache-consistent run-index metadata with single-scan registration, failure-aware model fallback, budgets, deterministic evaluation, detached worktree missions, locked/self-healing run-index rebuilds, complete event-sequence verification, integrity-verified event export, required persisted receipt/state evidence for inspection and export, machine-readable JSON Schemas, and one aggregate acceptance runner covering all local smokes are verified locally. Relay is not yet enterprise-production-ready or universally useful: external live-provider proof, authenticated multi-tenant operation, full workcell isolation/recovery, provider-driven tool execution, durable concurrent storage, and release gates remain open.
 
 The current review also makes JSON/JSONL reads and appends, cancellation
 requests, and live event watching metadata-first for symlink safety. `runs watch`
@@ -98,7 +98,9 @@ inventory rejects oversized directories before recursive flattening.
 - `src/store.kujo`: locked, validated/rebuildable run-index cache
 - `src/registry.kujo`: Chain of Command role registry
 - `docs/`: discovery report, integration matrix, ADRs, plan, final report
+- `schemas/`: machine-readable mission, run, event, receipt, doctor, probe, and tool-result contracts
 - `tests/relay_contract_tests.kujo`: deterministic contract tests
+- `tests/relay_acceptance.sh`: contract suite plus every committed smoke test and `git diff --check`
 - `tests/relay_cli_smoke.sh`: CLI, doctor, probe, normalized boolean-environment, AI-bridge source-boundary, approval-boundary, and Watchdog-route telemetry non-disclosure smoke test
 - `tests/relay_mission_smoke.sh`: real write, pause/resume, required ChangeBucket/Eval/report persistence, and RunLedger smoke test
 - `tests/relay_budget_smoke.sh`: bounded step-budget failure smoke test
@@ -112,6 +114,7 @@ inventory rejects oversized directories before recursive flattening.
 - `tests/relay_cancel_smoke.sh`: process-group cancellation, bounded return time, and terminal evidence
 - `tests/relay_timeout_smoke.sh`: process-group timeout termination, bounded return time, and typed timeout evidence
 - `tests/relay_spec_safety_smoke.sh`: mission-spec size and symlink input rejection
+- `tests/relay_schema_smoke.sh`: committed JSON Schema parse, identity, and title checks
 - `tests/relay_output_budget_smoke.sh`: bounded command evidence and explicit truncation smoke test
 - `tests/relay_watchdog_smoke.sh`: configured Watchdog health/config/request-correlation contract smoke test
 - `tests/relay_watchdog_real_smoke.sh`: actual local Watchdog server, token auth, stub upstream, and correlation smoke test
@@ -133,25 +136,11 @@ The local acceptance set is:
 
 ```bash
 export KUJO_BIN=/Users/robertdevore/2026/Kujolang/kujo-repos/kujo/target/release/kujo
-"$KUJO_BIN" run tests/relay_contract_tests.kujo --interpreter
-bash tests/relay_cli_smoke.sh
-bash tests/relay_mission_smoke.sh
-bash tests/relay_budget_smoke.sh
-bash tests/relay_worktree_smoke.sh
-bash tests/relay_store_smoke.sh
-bash tests/relay_lock_stress_smoke.sh
-bash tests/relay_watch_smoke.sh
-bash tests/relay_metrics_smoke.sh
-bash tests/relay_cancel_smoke.sh
-bash tests/relay_spec_safety_smoke.sh
-bash tests/relay_output_budget_smoke.sh
-bash tests/relay_watchdog_smoke.sh
-bash tests/relay_watchdog_real_smoke.sh
-bash tests/relay_agents_tool_smoke.sh
-bash tests/relay_resume_integrity_smoke.sh
-bash tests/relay_state_store_safety_smoke.sh
-bash tests/relay_symlink_probe_smoke.sh
-git diff --check
+bash tests/relay_acceptance.sh
 ```
 
-For the full integration evidence boundary and deferred enterprise work, see [`docs/enterprise-readiness-review-2026-07-11.md`](docs/enterprise-readiness-review-2026-07-11.md), [`docs/command-reference.md`](docs/command-reference.md), and the current [`docs/next-session-enhancement-backlog-2026-07-13-v59.md`](docs/next-session-enhancement-backlog-2026-07-13-v59.md).
+The aggregate runner executes the contract suite, all committed `*_smoke.sh`
+tests, the schema smoke, and `git diff --check`, so new smoke coverage is
+automatically included without maintaining a second hand-written test list.
+
+For the full integration evidence boundary and deferred enterprise work, see [`docs/enterprise-readiness-review-2026-07-11.md`](docs/enterprise-readiness-review-2026-07-11.md), [`docs/command-reference.md`](docs/command-reference.md), the machine contracts in [`schemas/`](schemas/), and the current [`docs/next-session-enhancement-backlog-2026-07-13-v61.md`](docs/next-session-enhancement-backlog-2026-07-13-v61.md).

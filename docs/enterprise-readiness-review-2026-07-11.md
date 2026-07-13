@@ -626,3 +626,23 @@ Direct-worker policy and watcher-integrity smokes pass. These are local defense-
 in-depth improvements; provider-generated tools, authenticated machine access,
 workcell crash recovery, durable storage, and enterprise deployment evidence
 remain open.
+
+## Sixty-first 2026-07-13 review
+
+Relay now seals persisted `state.json` with an integrity hash that excludes the
+seal field itself. Read, resume, cleanup, and report boundaries reject mutated
+or unsealed state before trusting status, workspace, budget, or completion
+authority. Mission IDs are also reduced to a bounded filesystem-safe alphabet,
+and mission names, goals, action types, and write payloads receive earlier
+input bounds and fail-fast validation. These are local tamper-evidence and
+input-DoS improvements, not signed state, authenticated ownership, or durable
+multi-host recovery.
+
+The repository now publishes forward-compatible JSON Schemas for the
+machine-facing mission, run/report, AgentEvent, receipt, doctor, model probe,
+and tool-result contracts. A single `tests/relay_acceptance.sh` runner executes
+the Kujo contract suite, every committed smoke test, schema checks, and
+`git diff --check`, reducing verification drift. Relay remains a hardened
+local alpha/showcase; live external-provider proof, provider-generated tools,
+full workcells, authenticated machine mode, durable storage, signed export,
+and release gates remain open.

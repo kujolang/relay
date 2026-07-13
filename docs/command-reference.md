@@ -311,6 +311,25 @@ State, receipt, and event persistence failures are recorded as
 `evidence_failure`; the run is forced to `failed` before a terminal success can
 be reported. Temporary-file cleanup is attempted when an atomic write fails.
 
+Persisted `state.json` records carry an `integrity_sha256` seal over the state
+without the seal field itself. Read, resume, cleanup, and report boundaries
+verify that seal before trusting status, workspace, budget, or completion data.
+If the seal is invalid, the rebuildable run index keeps the run discoverable but
+marks its status as `integrity_invalid` rather than presenting the tampered
+status as authoritative.
+This is tamper evidence, not a signed multi-user authorization mechanism;
+signed export and authenticated ownership remain deferred.
+
+Machine callers can use the committed JSON Schemas under `schemas/` for
+mission, run, report, AgentEvent, receipt, doctor, model probe, and tool-result
+interoperability. The schemas are forward-compatible and supplement Relay's
+in-code checks and the upstream SDK contracts.
+
+`tests/relay_acceptance.sh` is the canonical local acceptance entrypoint. It
+runs the Kujo contract suite, every committed `relay_*_smoke.sh` test (including
+the schema smoke), and `git diff --check`, so newly added smoke tests are not
+silently omitted from the documented verification path.
+
 ## Exit-code guidance
 
 - `0`: command or mission succeeded and required evidence passed.

@@ -852,3 +852,47 @@ evaluated. Consequence: clients can safely gate tool-planning workflows and the
 profile can grow when authentic provider evidence exists. Rejected: retaining
 the optimistic `tool_calls` claim, hiding the limitation in prose, or silently
 attempting provider tools.
+
+## ADR-082: Seal persisted run state without claiming signed authority
+
+Context: events and receipts already carried integrity hashes, but the
+authoritative `state.json` could be edited while retaining a valid event and
+receipt sequence. Decision: every persisted state record carries an
+`integrity_sha256` computed over the state with that field excluded, and read,
+resume, cleanup, and report boundaries verify it before trusting state.
+Rationale: status, workspace, budget, and completion state are security- and
+evidence-sensitive; a consistent local seal detects accidental or unauthorized
+mutation without creating a second store. Consequence: pre-seal legacy state
+is rejected at strict read/control boundaries and requires regeneration or a
+future signed migration; the seal is not a cryptographic signature or
+multi-user authorization mechanism. Rejected: trusting only event/receipt
+hashes, silently accepting unsealed state, or inventing a parallel database.
+
+## ADR-083: Publish versioned machine schemas and one aggregate local gate
+
+Context: Relay's JSON boundary was documented across command prose and tests,
+but machine callers lacked committed schemas and the verification list could
+drift as smoke tests were added. Decision: publish forward-compatible JSON
+Schemas under `schemas/` for mission, run/report, event, receipt, doctor,
+probe, and tool-result contracts, and provide `tests/relay_acceptance.sh` as
+the canonical local gate that discovers every committed smoke script.
+Rationale: Paperclip, Hermes, CI, MCP, and Kujo callers need discoverable
+contracts, while one aggregate gate improves regression coverage and lowers
+maintenance cost. Consequence: schemas remain adapters over upstream owners,
+not replacements; external-provider, CI, release, and schema-negotiation gates
+remain deferred. Rejected: copying upstream provider schemas into Relay,
+hand-maintaining a second smoke inventory, or returning undocumented JSON.
+
+## ADR-084: Normalize evidence correlation fields at the Relay boundary
+
+Context: event and receipt records carried many identifiers, but tool, artifact,
+evaluation, retry, and repair context was inconsistently nested in payloads.
+Decision: Relay adds stable metadata keys for mission, run, workflow, step,
+agent, model, provider, packet, tool, artifact, evaluation, retry, repair,
+RunLedger, and AI correlation context while preserving upstream payloads.
+Rationale: machine callers and later RunLedger/Watchdog adapters need one
+searchable correlation surface without inventing a second event or telemetry
+store. Consequence: empty retry/repair fields are explicit until their owning
+policy is implemented; typed retry receipts and provider-generated tool loops
+remain deferred. Rejected: requiring downstream consumers to parse every
+payload shape or duplicating Watchdog/RunLedger stores.
