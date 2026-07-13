@@ -1474,3 +1474,26 @@ multi-host coordination, crash recovery, and retention remain deferred.
 
 Rejected: trusting the supplied cache after lock acquisition, removing the
 lock from persistence, or adding a second durable index store.
+
+## ADR-112: Serialize capability revocation with the authority lock
+
+Context: capability issuance, consumption, and repair already used the
+per-record exclusive lock, but revocation deleted the record without taking
+that lock. A parent revoking while a worker consumed a capability could unlink
+the record and allow the worker's subsequent usage write to recreate it.
+
+Decision: revocation acquires the same per-record lock with four bounded
+backoff attempts, rechecks the record under that lock, deletes only a regular
+non-symlinked record, and releases the lock. Contention or unsafe metadata
+returns failure instead of claiming revocation succeeded.
+
+Rationale: make issuance, consumption, repair, and revocation share one local
+authority protocol. The contract suite proves an active lock prevents
+revocation and that a released lock permits removal.
+
+Consequences: local capability shutdown is race-safe within the bounded
+single-host protocol. Crash recovery, authenticated remote authorization, and
+multi-host ownership remain deferred.
+
+Rejected: deleting without coordination, force-removing active locks, or
+introducing a second revocation store.

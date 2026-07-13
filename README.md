@@ -23,6 +23,13 @@ versioned [`event-bundle` schema](schemas/event-bundle.schema.json). Cancellatio
 requests now carry the target run ID and a tamper-evident seal, so copied,
 stale-format, or modified request files fail closed.
 
+The v83 review makes capability revocation use the same bounded per-record lock
+as issuance, consumption, and repair. Revocation rechecks the record under the
+lock and fails closed on contention or unsafe metadata; the Agents SDK smoke
+also isolates its fixture capability registry so repeated acceptance runs are
+deterministic. This remains local single-host authority, not authenticated
+multi-host authorization.
+
 The v67 review adds a hard provider request boundary below the bridge transport
 ceiling, a 1 MiB provider-response bound, duplicate/oversized provider-tool
 argument rejection, proxy-environment denial at child-process boundaries, and
@@ -200,4 +207,4 @@ The aggregate runner executes the contract suite, all committed `*_smoke.sh`
 tests, the schema smoke, and `git diff --check`, so new smoke coverage is
 automatically included without maintaining a second hand-written test list.
 
-For the full integration evidence boundary and deferred enterprise work, see [`docs/enterprise-readiness-review-2026-07-11.md`](docs/enterprise-readiness-review-2026-07-11.md), [`docs/command-reference.md`](docs/command-reference.md), the machine contracts in [`schemas/`](schemas/), and the current [`docs/next-session-enhancement-backlog-2026-07-13-v82.md`](docs/next-session-enhancement-backlog-2026-07-13-v82.md).
+For the full integration evidence boundary and deferred enterprise work, see [`docs/enterprise-readiness-review-2026-07-11.md`](docs/enterprise-readiness-review-2026-07-11.md), [`docs/command-reference.md`](docs/command-reference.md), the machine contracts in [`schemas/`](schemas/), and the current [`docs/next-session-enhancement-backlog-2026-07-13-v83.md`](docs/next-session-enhancement-backlog-2026-07-13-v83.md).

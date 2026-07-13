@@ -146,3 +146,8 @@ The v82 review adds a locked `rebuild_and_persist_run_index` path so invalid
 cache recovery performs one authoritative filesystem scan instead of two.
 Contract, store, acceptance, and Loop Engineering coverage remain required;
 durable transactional storage and multi-host concurrency remain open.
+
+The v83 review serializes capability revocation with the existing per-record
+authority lock. A held lock denies removal, while a released lock permits
+deletion of the regular record; the Agents SDK smoke is isolated from stale
+capability state between repeated runs.

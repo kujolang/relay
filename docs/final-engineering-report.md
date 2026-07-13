@@ -917,3 +917,9 @@ recovery. `load_run_index` now uses one bounded locked rebuild to produce and
 persist the authoritative cache result. This is a measured-scope local
 performance improvement; durable storage and multi-host authority remain
 deliberately unimplemented.
+
+The v83 review closes the matching capability-revocation race. Revocation now
+shares the per-record authority lock, rechecks the regular record under that
+lock, and fails closed on contention or unsafe metadata. The Agents SDK smoke
+also clears its test-owned capability registry before and after execution so
+repeated acceptance runs do not inherit stale fixture identities.

@@ -929,3 +929,15 @@ performance improvement; it does not provide durable transactions,
 multi-host concurrency, retention, live-provider proof, or enterprise
 readiness. The next-session backlog is
 `docs/next-session-enhancement-backlog-2026-07-13-v82.md`.
+
+## Eighty-third 2026-07-13 review
+
+Capability revocation now acquires the same per-record lock used by issuance,
+consumption, and repair, rechecks the record under that lock, and fails closed
+on contention or unsafe metadata. Contract coverage proves active-lock denial
+and successful removal after release; the full 25-script acceptance suite and
+Loop Engineering remain required evidence. This closes a local single-host
+revocation race but does not provide authenticated remote authorization,
+multi-host ownership, durable storage, live-provider proof, or enterprise
+readiness. The next-session backlog is
+`docs/next-session-enhancement-backlog-2026-07-13-v83.md`.

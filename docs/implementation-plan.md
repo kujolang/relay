@@ -255,3 +255,11 @@ the existing bounded lock, rebuilds from authoritative per-run state once, and
 persists the returned index. The contract suite proves the returned and stored
 records agree. Explicit rebuild/register callers retain the existing
 authoritative persistence path.
+
+## v83 delivered — locked capability revocation
+
+Capability revocation now uses the same per-record exclusive lock as issuance,
+consumption, and repair. It retries contention four times with bounded
+backoff, rechecks record metadata under the lock, and fails closed for unsafe
+or non-regular records. The contract suite covers active-lock denial and
+successful post-lock removal.
