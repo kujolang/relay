@@ -13,6 +13,21 @@ func state_store_check() {
     return {"ok": true}
 }
 
+func read_receipt_evidence(run_dir) {
+    path := run_dir + "/receipts.json"
+    # A missing receipt file must not silently fall back to the copy embedded
+    # in state.json. The file is the persisted evidence boundary; accepting the
+    # state fallback would let an incomplete run appear fully receipted.
+    if path_is_symlink_safe(path) || path_exists(path) == false || path_is_file(path) == false || file_size(path) > 8388608 {
+        return {"ok": false, "receipts": [], "error": "run receipt evidence is missing, non-regular, symbolic-linked, or exceeds the 8 MiB inspection limit"}
+    }
+    receipts := read_json_limited(path, null, 8388608)
+    if type(receipts) != "array" {
+        return {"ok": false, "receipts": [], "error": "run receipt evidence is invalid JSON"}
+    }
+    return {"ok": true, "receipts": receipts}
+}
+
 func positional(values, index, fallback) {
     if type(values) != "array" || index < 0 || index >= len(values) { return fallback }
     return values[index]
@@ -264,10 +279,12 @@ func watch_run_events(record, flags) {
                 continue
             }
             state_consistent := event_sequence_matches_state(state_events, events)
-            receipts := read_json_limited(run_dir + "/receipts.json", dict_get_or(state, "receipts", []), 8388608)
-            receipts_valid := receipt_sequence_valid(receipts) && receipt_sequence_matches_state(dict_get_or(state, "receipts", []), receipts)
-            if state_consistent == false || receipts_valid == false {
-                print(safe_json({"type": "relay_watch_error", "error": "terminal run evidence is inconsistent", "state_consistent": state_consistent, "receipts_valid": receipts_valid}))
+            receipt_evidence := read_receipt_evidence(run_dir)
+            receipts := dict_get_or(receipt_evidence, "receipts", [])
+            receipts_valid := dict_get_or(receipt_evidence, "ok", false) && receipt_sequence_valid(receipts)
+            receipts_consistent := receipts_valid && receipt_sequence_matches_state(dict_get_or(state, "receipts", []), receipts)
+            if state_consistent == false || receipts_valid == false || receipts_consistent == false {
+                print(safe_json({"type": "relay_watch_error", "error": "terminal run evidence is inconsistent", "state_consistent": state_consistent, "receipts_valid": receipts_valid, "receipts_consistent": receipts_consistent, "receipt_error": dict_get_or(receipt_evidence, "error", "")}))
                 return {"ok": false, "_streamed": true}
             }
             return {"ok": terminal_status == "completed", "_streamed": true, "events": emitted, "status": terminal_status}
@@ -356,11 +373,12 @@ func cmd_runs(tokens) {
         state := read_json_limited(record["run_dir"] + "/state.json", {}, 67108864)
         chain_valid := event_chain_integrity_valid(events)
         state_consistent := event_sequence_matches_state(dict_get_or(state, "events", []), events)
-        receipts := read_json_limited(record["run_dir"] + "/receipts.json", dict_get_or(state, "receipts", []), 8388608)
-        receipts_valid := receipt_sequence_valid(receipts)
-        receipts_consistent := receipt_sequence_matches_state(dict_get_or(state, "receipts", []), receipts)
+        receipt_evidence := read_receipt_evidence(record["run_dir"])
+        receipts := dict_get_or(receipt_evidence, "receipts", [])
+        receipts_valid := dict_get_or(receipt_evidence, "ok", false) && receipt_sequence_valid(receipts)
+        receipts_consistent := receipts_valid && receipt_sequence_matches_state(dict_get_or(state, "receipts", []), receipts)
         valid := chain_valid && state_consistent && receipts_valid && receipts_consistent
-        event_bundle := {"integrity_valid": valid, "chain_integrity_valid": chain_valid, "state_consistent": state_consistent, "receipts_valid": receipts_valid, "receipts_consistent": receipts_consistent, "events": events, "events_jsonl": raw_events}
+        event_bundle := {"integrity_valid": valid, "chain_integrity_valid": chain_valid, "state_consistent": state_consistent, "receipts_valid": receipts_valid, "receipts_consistent": receipts_consistent, "receipt_error": dict_get_or(receipt_evidence, "error", ""), "events": events, "events_jsonl": raw_events}
         if sub == "events" { event_bundle["ok"] := valid; return event_bundle }
         if valid == false { event_bundle["ok"] := false; event_bundle["error"] := "run event integrity verification failed"; return event_bundle }
         bundle := {"format": "relay-run-export-v1", "run_id": id, "integrity_valid": true, "chain_integrity_valid": chain_valid, "state_consistent": state_consistent, "receipts_valid": receipts_valid, "receipts_consistent": receipts_consistent, "run": state, "events": events, "receipts": receipts, "changes": read_json_limited(record["run_dir"] + "/changes.json", {}, 8388608), "evaluations": read_json_limited(record["run_dir"] + "/evaluations.json", [], 8388608), "report": read_json_limited(record["run_dir"] + "/report.json", {}, 8388608)}

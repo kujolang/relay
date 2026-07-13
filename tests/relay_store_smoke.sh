@@ -75,6 +75,18 @@ test "$receipts_rc" -ne 0
 printf '%s' "$tampered_receipts" | grep -q '"receipts_valid":false'
 mv "$receipts_path.backup" "$receipts_path"
 
+# The state copy is not a substitute for the persisted receipt evidence file.
+# Removing the file must fail inspection instead of silently passing through
+# the state.json fallback.
+mv "$receipts_path" "$receipts_path.missing"
+set +e
+missing_receipts="$($KUJO run "$ROOT/main.kujo" -- runs events "$run_id" --json 2>&1)"
+missing_receipts_rc=$?
+set -e
+test "$missing_receipts_rc" -ne 0
+printf '%s' "$missing_receipts" | grep -q '"receipts_valid":false'
+mv "$receipts_path.missing" "$receipts_path"
+
 # The authoritative state event list must match the verified JSONL payloads,
 # not merely carry the same event IDs. A state-only payload edit is evidence
 # divergence and must fail inspection/export.
