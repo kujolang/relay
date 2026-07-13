@@ -124,6 +124,27 @@ verified="$($KUJO run "$ROOT/main.kujo" -- runs verify "$run_id" --json)"
 printf '%s' "$verified" | jq -e --arg run_id "$run_id" '.ok == true and .format == "relay-run-verification-v1" and .run_id == $run_id and .integrity_valid == true and .state_valid == true and .events_valid == true and .receipts_valid == true and .receipts_consistent == true and .changes_valid == true and .evaluations_valid == true' >/dev/null
 printf '%s' "$verified" | jq -e '.report_valid == true' >/dev/null
 
+# Machine callers can page a verified event stream without requesting the full
+# JSONL payload. Integrity is still checked against the complete authoritative
+# chain before the window is returned.
+window="$($KUJO run "$ROOT/main.kujo" -- runs events "$run_id" --limit 2 --json)"
+printf '%s' "$window" | jq -e '.ok == true and .integrity_valid == true and .event_count > 2 and (.events | length) == 2 and .has_more == true and (.next_after | length) > 0 and .events_jsonl == ""' >/dev/null
+cursor="$(printf '%s' "$window" | jq -r '.next_after')"
+next_window="$($KUJO run "$ROOT/main.kujo" -- runs events "$run_id" --after "$cursor" --limit 2 --json)"
+printf '%s' "$next_window" | jq -e '.ok == true and .integrity_valid == true and .offset == 2 and (.events | length) > 0' >/dev/null
+set +e
+bad_limit="$($KUJO run "$ROOT/main.kujo" -- runs events "$run_id" --limit 4097 --json 2>&1)"
+bad_limit_status=$?
+set -e
+test "$bad_limit_status" -ne 0
+printf '%s' "$bad_limit" | grep -q 'event limit must be between 1 and 4096'
+set +e
+zero_limit="$($KUJO run "$ROOT/main.kujo" -- runs events "$run_id" --limit 0 --json 2>&1)"
+zero_limit_status=$?
+set -e
+test "$zero_limit_status" -ne 0
+printf '%s' "$zero_limit" | grep -q 'event limit must be between 1 and 4096'
+
 # The authoritative state seal must also protect read-side status and
 # workspace authority, not only resume and event-sequence checks.
 cp "$run_dir/state.json" "$run_dir/state.json.sealed-backup"

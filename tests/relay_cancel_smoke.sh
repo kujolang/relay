@@ -50,5 +50,6 @@ test "$elapsed_wait" -lt 8
 state="$($KUJO run "$ROOT/main.kujo" -- missions inspect "$run_id" --json)"
 printf '%s' "$state" | jq -e '.ok == true and .run.status == "cancelled" and (.run.events | map(.kind) | index("run_cancelled")) != null and (.run.events | map(.kind) | index("run_completed")) == null and (.run.action_results | any(.cancelled == true and .failure_class == "cancelled"))' >/dev/null
 test -f "$run_dir/cancel.request.json"
+jq -e --arg run_id "$run_id" '.run_id == $run_id and (.integrity_sha256 | length) == 64' "$run_dir/cancel.request.json" >/dev/null
 
 echo "PASS relay cancel smoke"

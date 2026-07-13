@@ -389,12 +389,23 @@ func execute_tool_request(request, supplied_capability) {
     return {"ok": true, "tool_name": tool_name, "result": result, "artifacts": []}
 }
 
-func cancellation_request(run_dir) {
+func cancellation_integrity_input(request) {
+    return to_string(dict_get_or(request, "run_id", "")) + "|" +
+        to_string(dict_get_or(request, "requested_at", "")) + "|" +
+        to_string(dict_get_or(request, "requested_by", "")) + "|" +
+        to_string(dict_get_or(request, "reason", ""))
+}
+
+func cancellation_request(run_dir, expected_run_id) {
     path := run_dir + "/cancel.request.json"
     if path_is_symlink_safe(path) { return {"ok": false, "error": "cancellation request is a symbolic link"} }
     if path_exists(path) == false { return {"ok": true, "requested": false} }
     request := read_json_limited(path, null, 65536)
     if type(request) != "dict" { return {"ok": false, "error": "cancellation request is invalid"} }
+    expected_id := string_or(expected_run_id, "")
+    if expected_id != "" && string_or(dict_get_or(request, "run_id", ""), "") != expected_id { return {"ok": false, "error": "cancellation request run identity does not match"} }
+    integrity := string_or(dict_get_or(request, "integrity_sha256", ""), "")
+    if integrity == "" || integrity != sha256(cancellation_integrity_input(request)) { return {"ok": false, "error": "cancellation request integrity verification failed"} }
     return {"ok": true, "requested": true, "request": request}
 }
 
@@ -402,7 +413,7 @@ func execute_actions(spec, state, run_dir) {
     actions := dict_get_or(spec, "actions", [])
     results := []
     for action in actions {
-        cancellation := cancellation_request(run_dir)
+        cancellation := cancellation_request(run_dir, state["run_id"])
         if dict_get_or(cancellation, "ok", false) == false {
             return {"ok": false, "cancelled": false, "results": results, "state": state, "failure": {"failure_class": "evidence_failure", "error": dict_get_or(cancellation, "error", "cancellation request is invalid")}}
         }
@@ -415,7 +426,7 @@ func execute_actions(spec, state, run_dir) {
         result := execute_action(action, spec, state, run_dir)
         results := push(results, result)
         state["attempt"] := state["attempt"] + 1
-        cancellation := cancellation_request(run_dir)
+        cancellation := cancellation_request(run_dir, state["run_id"])
         if dict_get_or(cancellation, "ok", false) == false {
             return {"ok": false, "cancelled": false, "results": results, "state": state, "failure": {"failure_class": "evidence_failure", "error": dict_get_or(cancellation, "error", "cancellation request is invalid")}}
         }
@@ -752,7 +763,8 @@ func cancel_run(run_id) {
     }
     request_path := run_dir + "/cancel.request.json"
     if path_is_symlink_safe(request_path) { return {"ok": false, "error": "cancellation request is a symbolic link"} }
-    request := {"requested_at": now_iso(), "requested_by": "operator", "reason": "operator_cancel"}
+    request := {"run_id": run_id, "requested_at": now_iso(), "requested_by": "operator", "reason": "operator_cancel"}
+    request["integrity_sha256"] := sha256(cancellation_integrity_input(request))
     if write_json(request_path, request) == false { return {"ok": false, "error": "cancellation request could not be recorded"} }
     latest := read_json_limited(run_dir + "/state.json", state, 67108864)
     latest_status := string_or(dict_get_or(latest, "status", status), status)
@@ -906,6 +918,7 @@ export cleanup_run := cleanup_run
 export resume_run := resume_run
 export execute_tool_request := execute_tool_request
 export cancellation_request := cancellation_request
+export cancellation_integrity_input := cancellation_integrity_input
 export state_root := state_root
 export run_root := run_root
 export resume_state_safe := resume_state_safe

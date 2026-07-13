@@ -123,7 +123,7 @@ func help_text() {
         "  missions create [spec.json] [--output path]\n" +
         "  missions run <spec.json> [--fixture] [--pause-after-plan] [--skip-agent-smoke] [--json]\n" +
         "  missions inspect <run-id>|pause <run-id>|resume <run-id>|cancel <run-id>|cleanup <run-id> --confirm|report <run-id>\n" +
-        "  runs list|rebuild|inspect <run-id>|verify <run-id>|events <run-id>|watch <run-id>|sizes <run-id>|changes <run-id>|evaluations <run-id>|export <run-id> [--partial] [--output path]\n" +
+        "  runs list|rebuild|inspect <run-id>|verify <run-id>|events <run-id> [--after event-id] [--limit n]|watch <run-id>|sizes <run-id>|changes <run-id>|evaluations <run-id>|export <run-id> [--partial] [--output path]\n" +
         "  tools execute --json (bounded Agents SDK worker callback)\n" +
         "  benchmark run <repo> [--json] (Capsule discovery slice)"
 }
@@ -408,6 +408,45 @@ func run_artifact_sizes(record, run_id) {
     return {"ok": true, "format": "relay-run-sizes-v1", "run_id": run_id, "run_dir": run_dir, "generated_at": now_iso(), "summary": {"bytes": total_bytes, "files": files, "directories": directories}, "entries": entries, "excluded": excluded}
 }
 
+func event_window(events, flags) {
+    if type(events) != "array" { return {"ok": false, "error": "event window source is invalid"} }
+    after := string_or(dict_get_or(flags, "after", ""), "")
+    limit_value := dict_get_or(flags, "limit", 0)
+    limit := 0
+    if has_key(flags, "limit") == 0 { limit = 0 }
+    else if type(limit_value) == "string" && trim(limit_value) != "" {
+        limit = int_or(limit_value, -1)
+    } else {
+        limit = int_or(limit_value, -1)
+    }
+    if (has_key(flags, "limit") && (limit <= 0 || limit > 4096)) { return {"ok": false, "error": "event limit must be between 1 and 4096"} }
+    mut start := 0
+    if after != "" {
+        mut found := false
+        mut i := 0
+        while i < len(events) {
+            if string_or(dict_get_or(events[i], "event_id", ""), "") == after {
+                start = i + 1
+                found = true
+                break
+            }
+            i = i + 1
+        }
+        if found == false { return {"ok": false, "error": "event cursor was not found in the verified run"} }
+    }
+    end := len(events)
+    if limit > 0 && start + limit < end { end = start + limit }
+    window := []
+    mut cursor := start
+    while cursor < end {
+        window = push(window, events[cursor])
+        cursor = cursor + 1
+    }
+    next_after := ""
+    if len(window) > 0 { next_after = string_or(dict_get_or(window[len(window) - 1], "event_id", ""), "") }
+    return {"ok": true, "events": window, "event_count": len(events), "offset": start, "has_more": end < len(events), "next_after": next_after}
+}
+
 func cmd_runs(tokens) {
     parsed := parse_tokens(tokens)
     sub := positional(parsed["positionals"], 0, "list")
@@ -467,8 +506,20 @@ func cmd_runs(tokens) {
         receipts_valid := dict_get_or(receipt_evidence, "ok", false) && receipt_sequence_valid(receipts)
         receipts_consistent := receipts_valid && receipt_sequence_matches_state(dict_get_or(state, "receipts", []), receipts)
         valid := chain_valid && state_consistent && receipts_valid && receipts_consistent
-        event_bundle := {"integrity_valid": valid, "chain_integrity_valid": chain_valid, "state_consistent": state_consistent, "receipts_valid": receipts_valid, "receipts_consistent": receipts_consistent, "receipt_error": dict_get_or(receipt_evidence, "error", ""), "events": events, "events_jsonl": raw_events}
-        if sub == "events" { event_bundle["ok"] := valid; return event_bundle }
+        event_bundle := {"integrity_valid": valid, "chain_integrity_valid": chain_valid, "state_consistent": state_consistent, "receipts_valid": receipts_valid, "receipts_consistent": receipts_consistent, "receipt_error": dict_get_or(receipt_evidence, "error", ""), "events": events, "events_jsonl": raw_events, "event_count": len(events), "offset": 0, "has_more": false, "next_after": ""}
+        if sub == "events" {
+            if valid == false { event_bundle["ok"] := false; return event_bundle }
+            window := event_window(events, parsed["flags"])
+            if dict_get_or(window, "ok", false) == false { return {"ok": false, "integrity_valid": true, "chain_integrity_valid": chain_valid, "state_consistent": state_consistent, "receipts_valid": receipts_valid, "receipts_consistent": receipts_consistent, "error": dict_get_or(window, "error", "event window is invalid")} }
+            event_bundle["events"] := window["events"]
+            event_bundle["events_jsonl"] := ""
+            event_bundle["event_count"] := window["event_count"]
+            event_bundle["offset"] := window["offset"]
+            event_bundle["has_more"] := window["has_more"]
+            event_bundle["next_after"] := window["next_after"]
+            event_bundle["ok"] := true
+            return event_bundle
+        }
         if valid == false { event_bundle["ok"] := false; event_bundle["error"] := "run event integrity verification failed"; return event_bundle }
         changes_evidence := read_run_artifact_evidence(record["run_dir"], "changes.json", "dict", 8388608)
         evaluations_evidence := read_run_artifact_evidence(record["run_dir"], "evaluations.json", "array", 8388608)

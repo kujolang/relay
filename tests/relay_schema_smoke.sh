@@ -8,6 +8,7 @@ schemas=(
   run
   report
   event
+  event-bundle
   receipt
   doctor
   probe
