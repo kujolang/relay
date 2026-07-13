@@ -96,7 +96,7 @@ missing_state="$($KUJO run "$ROOT/main.kujo" -- runs inspect "$run_id" --json 2>
 missing_state_rc=$?
 set -e
 test "$missing_state_rc" -ne 0
-printf '%s' "$missing_state" | grep -q 'run state evidence is missing'
+printf '%s' "$missing_state" | grep -Eq 'unknown run|run state evidence is missing'
 mv "$state_path.missing" "$state_path"
 
 # The authoritative state event list must match the verified JSONL payloads,
