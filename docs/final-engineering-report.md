@@ -46,7 +46,7 @@ The current run engine still accepts explicit action plans, but missions may now
 
 ## 2026-07-11 enterprise-readiness review
 
-The current posture is local-first hardened alpha/showcase, not universal enterprise production. This review added realpath workspace checks, shell/Git command deny rules, explicit write approvals, subprocess redaction, packet digest metadata, unique run suffixes, preflight failure handling, ChangeBucket/Eval completion authority, atomic JSON persistence, efficient JSONL append, generated file-existence acceptance checks, shared Capsule process handling, and a real pause-after-plan/resume checkpoint. See `docs/enterprise-readiness-review-2026-07-11.md` and the current `docs/next-session-enhancement-backlog-2026-07-12-v48.md` for the evidence boundary and prioritized remaining work.
+The current posture is local-first hardened alpha/showcase, not universal enterprise production. This review added realpath workspace checks, shell/Git command deny rules, explicit write approvals, subprocess redaction, packet digest metadata, unique run suffixes, preflight failure handling, ChangeBucket/Eval completion authority, atomic JSON persistence, efficient JSONL append, generated file-existence acceptance checks, shared Capsule process handling, and a real pause-after-plan/resume checkpoint. See `docs/enterprise-readiness-review-2026-07-11.md` and the current `docs/next-session-enhancement-backlog-2026-07-12-v49.md` for the evidence boundary and prioritized remaining work.
 
 ## Forty-seventh 2026-07-12 review
 
@@ -63,6 +63,14 @@ gates remain open.
 state events and the verified JSONL log even when event IDs still match. A
 contract test and store smoke prove the state-only payload tamper case. Relay
 remains a local alpha; signed exports, durable retention, live provider proof,
+authenticated ownership, workcells, and release gates remain open.
+
+## Forty-ninth 2026-07-12 review
+
+Persisted read boundaries now require `receipts.json` and an identity-matching
+`state.json`. Store smoke coverage proves that deleting either artifact fails
+inspection rather than trusting an embedded or indexed fallback. Relay remains
+a local alpha; durable storage, signed export, live provider proof,
 authenticated ownership, workcells, and release gates remain open.
 
 ## Second 2026-07-11 review

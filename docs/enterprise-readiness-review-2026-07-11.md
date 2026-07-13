@@ -70,7 +70,7 @@ The correct posture is: **local-first hardened alpha / ecosystem showcase**. The
 | Worktree cleanup authority | Cleanup rejects tampered paths and requires the run-owned workspace target | `src/runtime.kujo`, `tests/relay_worktree_smoke.sh` |
 | Agents SDK tools | A Kujo bridge registers `relay.write_file` and `relay.run_command`, applies Agents SDK approval providers, and delegates to Relay's capability-bound policy worker | `src/agent_bridge.kujo`, `src/runtime.kujo`, `tests/relay_agents_tool_smoke.sh` |
 | Process and evidence boundary | Fixed subprocess PATH, workspace-bound worker capabilities, bounded tool-call budgets, event-chain verification, and versioned run export | `src/common.kujo`, `src/agent_bridge.kujo`, `src/contracts.kujo`, `src/cli.kujo`, store/tool smokes |
-| Evidence completeness | Event reads/exports compare the verified log sequence with authoritative state and enforce an 8 MiB inspection bound | `src/contracts.kujo`, `src/cli.kujo`, `tests/relay_store_smoke.sh` |
+| Evidence completeness | Event reads/exports compare the verified log sequence with authoritative state, require persisted receipt/state evidence, and enforce an 8 MiB inspection bound | `src/contracts.kujo`, `src/cli.kujo`, `tests/relay_store_smoke.sh` |
 
 ## Remaining enterprise gaps
 
@@ -495,3 +495,13 @@ log, not only IDs and ordering. Contract and store-smoke coverage prove a
 state-only payload mutation fails inspection. This strengthens local evidence
 truthfulness; signed export, durable retention, live providers, authenticated
 ownership, workcells, and release attestation remain open.
+
+## Forty-ninth 2026-07-12 review
+
+Read boundaries now require the persisted `receipts.json` file and a bounded,
+identity-matching `state.json`. Missing receipt evidence no longer falls back
+to the embedded state copy, and missing run state no longer produces a
+successful empty inspection. Store smoke coverage proves both failure cases.
+This closes an evidence-completeness gap in the local alpha; it does not add
+durable storage, signed exports, authenticated ownership, live provider proof,
+or enterprise readiness.

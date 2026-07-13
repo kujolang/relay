@@ -154,6 +154,16 @@ Set `workspace_mode: "worktree"` to have Relay create a detached worktree from t
 
 `runs list` validates the cached `.relay/index.json` against authoritative per-run `state.json` directories and rebuilds it when it is malformed, unsafe, stale, oversized, symlinked, or incomplete. Index refreshes use an atomic lock directory with a bounded four-attempt backoff; `runs rebuild` forces that recovery path. The index is a cache, not the source of truth.
 
+`runs events`, `runs watch`, and `runs export` also require the persisted
+`receipts.json` evidence file. They do not fall back to the copy embedded in
+`state.json`: a missing, malformed, oversized, or symlinked receipt file is
+reported as invalid evidence so an incomplete run cannot appear fully
+receipted.
+
+Run inspection also requires a bounded, regular `state.json` whose `run_id`
+matches the requested identifier; the rebuildable index cannot substitute for
+authoritative per-run state.
+
 Relay bounds JSON parsing at the store boundary as well as at the mission
 boundary: the run index is rejected before parsing when it exceeds 8 MiB, lock
 owner files are capped at 64 KiB, and authoritative run-state reads are capped

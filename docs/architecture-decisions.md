@@ -624,5 +624,21 @@ state and proves `runs events` fails closed. Rationale: event identity is not
 evidence integrity; consumers need one exact run history across state, log,
 inspection, and export. Consequence: state/log repair must restore the exact
 record rather than only its ID sequence; signed exports and durable retention
-remain separate concerns. Rejected: comparing IDs only, trusting state over the
-log, or introducing a second event store.
+remain separate concerns. Rejected: comparing IDs only, trusting state over
+the log, or introducing a second event store.
+
+## ADR-067: Require persisted receipt and state evidence at read boundaries
+
+Context: `runs events`, `runs watch`, and `runs export` previously allowed a
+missing `receipts.json` to fall back to the copy embedded in `state.json`, and
+run inspection could return an empty successful result when `state.json` was
+missing or malformed. Decision: require a bounded, regular, non-symlinked
+`receipts.json` for receipt validation and require a bounded, regular,
+identity-matching `state.json` for mission/run inspection and event export.
+Rationale: the rebuildable index and embedded state copies are not substitutes
+for the persisted evidence objects they describe; otherwise incomplete or
+partially deleted runs can be reported as valid. Consequence: operators see a
+fail-closed evidence error and must restore the missing artifact; durable
+storage, fsync/crash recovery, signed exports, and multi-host ownership remain
+open. Rejected: silently falling back to state copies, returning `{}` as a
+successful inspection result, or introducing a second receipt store.
