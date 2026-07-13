@@ -98,9 +98,15 @@ func path_is_symlink_safe(path) {
     # helper at evidence and authority boundaries, so fail closed when the
     # runtime cannot inspect the path.
     try {
-        if path_exists(path) == false { return false }
         return path_is_symlink(path)
-    } except err { return true }
+    } except err {
+        # A missing path is the only safe negative result after an inspection
+        # error. Check existence only as a fallback so dangling symlinks are
+        # still caught by symlink_metadata before they can be misclassified as
+        # absent.
+        try { if path_exists(path) == false { return false } } except nested_err {}
+        return true
+    }
 }
 
 func write_text_atomic(path, content) {
