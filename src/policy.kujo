@@ -22,6 +22,11 @@ func classify_failure(code) {
     return "provider_failure"
 }
 
+func repair_allowed(failure_class) {
+    normalized := to_lower(trim(to_string(failure_class)))
+    return normalized == "timeout" || normalized == "rate_or_allowance_limit" || normalized == "provider_failure" || normalized == "repository_failure" || normalized == "tool_failure" || normalized == "implementation_failure" || normalized == "evaluation_failure"
+}
+
 func canonicalize_path(raw_path) {
     value := replace(trim(to_string(raw_path)), "\\", "/")
     absolute := starts_with(value, "/")
@@ -181,6 +186,7 @@ func tool_decision(tool_name, input, policy) {
 }
 
 export classify_failure := classify_failure
+export repair_allowed := repair_allowed
 export git_read_argv_allowed := git_read_argv_allowed
 export path_is_safe := path_is_safe
 export canonicalize_path := canonicalize_path

@@ -1,7 +1,7 @@
 from src.common import dict_get_or, env_or, string_or, bool_or, int_or, now_iso, safe_id, read_json_or, read_json_limited, write_json, append_jsonl_bounded, safe_json, shell_quote_single, command_args, write_text_atomic, process_options, process_options_with_cancel, redact_text, path_is_symlink_safe, path_has_symlink_component
 from src.contracts import run_state, event, event_integrity_input, receipt, receipt_integrity_input, event_chain_integrity_valid, receipt_sequence_valid, state_integrity_input, state_integrity_valid
 from src.registry import find_agent
-from src.policy import tool_decision, classify_failure, path_is_safe, path_is_within_workspace, command_is_allowed, script_hash_policy_valid
+from src.policy import tool_decision, classify_failure, repair_allowed, path_is_safe, path_is_within_workspace, command_is_allowed, script_hash_policy_valid
 from src.adapters import ai_chat_correlated, ai_chat_correlated_with_tools, normalize_provider_tool_calls, tool_definitions, agents_sdk_smoke, agents_sdk_tool_run, packwrite_generate, runledger_start, runledger_finish, changebucket, eval_run
 from src.store import rebuild_run_index, load_run_index, persist_run_index, store_root_safe
 
@@ -349,6 +349,7 @@ func load_spec(path) {
             if value < 0 { return {"ok": false, "error": "Mission budget " + key + " must be a non-negative integer"} }
             if (key == "max_tool_calls" || key == "max_output_bytes" || key == "max_write_bytes") && value == 0 { return {"ok": false, "error": "Mission budget " + key + " must be greater than zero"} }
             if key == "max_tool_calls" && value > 16 { return {"ok": false, "error": "Mission budget max_tool_calls exceeds the 16-call safety limit"} }
+            if key == "max_repairs" && value > 4 { return {"ok": false, "error": "Mission budget max_repairs exceeds the 4-repair safety limit"} }
             if key == "max_tool_turns" && (value == 0 || value > 4) { return {"ok": false, "error": "Mission budget max_tool_turns must be between 1 and 4"} }
             if (key == "max_output_bytes" || key == "max_write_bytes") && value > 8388608 { return {"ok": false, "error": "Mission budget " + key + " exceeds the 8 MiB safety limit"} }
         }
@@ -1056,7 +1057,7 @@ func cleanup_run(run_id, confirmed) {
     return {"ok": true, "cleaned": true, "run": state}
 }
 
-func resume_run(run_id) {
+func resume_run(run_id, repair_requested) {
     store_check := state_store_ready()
     if store_check["ok"] == false { return {"ok": false, "failure_class": "state_store_failure", "error": store_check["error"]} }
     index := load_run_index(state_root())
@@ -1064,21 +1065,49 @@ func resume_run(run_id) {
     if type(record) != "dict" { return {"ok": false, "error": "unknown run: " + run_id} }
     state := read_json_limited(record["run_dir"] + "/state.json", null, 67108864)
     if type(state) != "dict" { return {"ok": false, "error": "run state missing"} }
-    if state["status"] != "paused" { return {"ok": false, "error": "run is not paused"} }
+    repairing := bool_or(repair_requested, false)
     checkpoint := dict_get_or(state, "checkpoint", null)
-    if type(checkpoint) != "dict" || dict_get_or(checkpoint, "step", "") != "implementation" {
-        return {"ok": false, "error": "run has no supported resumable checkpoint"}
+    prior_failure := dict_get_or(state, "failure", {})
+    if repairing {
+        if state["status"] != "failed" { return {"ok": false, "error": "repair requires a failed run"} }
+        failure_class := string_or(dict_get_or(prior_failure, "class", ""), "")
+        if repair_allowed(failure_class) == false { return {"ok": false, "failure_class": "repair_not_allowed", "error": "failure class is not eligible for bounded repair: " + failure_class} }
+        repair_attempts := int_or(dict_get_or(state, "repair_attempts", 0), 0)
+        max_repairs := int_or(dict_get_or(dict_get_or(state, "budgets", {}), "max_repairs", 0), 0)
+        if repair_attempts >= max_repairs { return {"ok": false, "failure_class": "repair_budget_exceeded", "error": "mission max_repairs budget exhausted", "repair_attempts": repair_attempts, "max_repairs": max_repairs} }
+    } else {
+        if state["status"] != "paused" { return {"ok": false, "error": "run is not paused"} }
+        if type(checkpoint) != "dict" || dict_get_or(checkpoint, "step", "") != "implementation" {
+            return {"ok": false, "error": "run has no supported resumable checkpoint"}
+        }
     }
     integrity := resume_state_safe(state, run_id, record["run_dir"])
     if integrity["ok"] == false { return {"ok": false, "failure_class": "state_integrity_failure", "error": integrity["error"]} }
     state["status"] := "running"
-    state := add_event(state, record["run_dir"], "handoff_started", "resume", "relay", {"checkpoint": checkpoint})
+    if repairing {
+        state["repair_attempts"] := int_or(dict_get_or(state, "repair_attempts", 0), 0) + 1
+        state["repair_id"] := "repair-" + to_string(current_timestamp()) + "-" + to_string(random_int(1000, 999999))
+        state["repair_mode"] := true
+        state["current_step"] := "implementation"
+        repair_receipt_result := record_receipt(state, record["run_dir"], "repair", "repair", "relay", "repair/" + state["repair_id"], "started", {"repair_id": state["repair_id"], "attempt": state["repair_attempts"], "max_repairs": state["budgets"]["max_repairs"], "failure": prior_failure})
+        state = apply_receipt_result(state, repair_receipt_result)
+        repair_receipt := repair_receipt_result["receipt"]
+        state := add_event(state, record["run_dir"], "repair_started", "repair", "relay", {"repair_id": state["repair_id"], "attempt": state["repair_attempts"], "failure": prior_failure, "receipt_id": repair_receipt["receipt_id"]})
+    } else {
+        state := add_event(state, record["run_dir"], "handoff_started", "resume", "relay", {"checkpoint": checkpoint})
+    }
     actions := execute_actions(state["mission_spec"], state, record["run_dir"])
     state := actions["state"]
     state["action_results"] := actions["results"]
     if actions["ok"] == false {
         state["status"] := "failed"
-        state["failure"] := {"class": dict_get_or(actions["failure"], "failure_class", "tool_failure"), "message": dict_get_or(actions["failure"], "error", "resumed action failed"), "repair_attempts": 0}
+        state["failure"] := {"class": dict_get_or(actions["failure"], "failure_class", "tool_failure"), "message": dict_get_or(actions["failure"], "error", "resumed action failed"), "repair_attempts": int_or(dict_get_or(state, "repair_attempts", 0), 0)}
+        if repairing {
+            repair_failure_receipt_result := record_receipt(state, record["run_dir"], "repair", "repair", "relay", "repair/" + state["repair_id"], "failed", {"repair_id": state["repair_id"], "attempt": state["repair_attempts"], "failure": state["failure"]})
+            state = apply_receipt_result(state, repair_failure_receipt_result)
+            repair_failure_receipt := repair_failure_receipt_result["receipt"]
+            state := add_event(state, record["run_dir"], "repair_failed", "repair", "relay", {"repair_id": state["repair_id"], "failure": state["failure"], "receipt_id": repair_failure_receipt["receipt_id"]})
+        }
         state := add_event(state, record["run_dir"], "run_failed", "implementation", "core-developer", state["failure"])
     } else {
         state["current_step"] := "verify"
@@ -1104,10 +1133,22 @@ func resume_run(run_id) {
         if changes_ok && evaluation_ok {
             state["status"] := "finalizing"
             state["current_step"] := ""
-            state["completion_candidate"] := {"resumed": true, "evaluation_ok": true, "changes_ok": true, "changes_receipt_id": changes_receipt["receipt_id"], "evaluation_receipt_id": evaluation_receipt["receipt_id"]}
+            if repairing {
+                repair_success_receipt_result := record_receipt(state, record["run_dir"], "repair", "repair", "relay", "repair/" + state["repair_id"], "completed", {"repair_id": state["repair_id"], "attempt": state["repair_attempts"], "evaluation_ok": true, "changes_ok": true})
+                state = apply_receipt_result(state, repair_success_receipt_result)
+                repair_success_receipt := repair_success_receipt_result["receipt"]
+                state := add_event(state, record["run_dir"], "repair_completed", "repair", "relay", {"repair_id": state["repair_id"], "attempt": state["repair_attempts"], "receipt_id": repair_success_receipt["receipt_id"]})
+            }
+            state["completion_candidate"] := {"resumed": true, "repaired": repairing, "repair_id": string_or(dict_get_or(state, "repair_id", ""), ""), "repair_attempts": int_or(dict_get_or(state, "repair_attempts", 0), 0), "evaluation_ok": true, "changes_ok": true, "changes_receipt_id": changes_receipt["receipt_id"], "evaluation_receipt_id": evaluation_receipt["receipt_id"]}
         } else {
             state["status"] := "failed"
-            state["failure"] := {"class": "evidence_failure", "message": "Resumed acceptance evidence or required artifact persistence did not pass", "repair_attempts": 0}
+            state["failure"] := {"class": "evidence_failure", "message": "Resumed acceptance evidence or required artifact persistence did not pass", "repair_attempts": int_or(dict_get_or(state, "repair_attempts", 0), 0)}
+            if repairing {
+                repair_eval_failure_receipt_result := record_receipt(state, record["run_dir"], "repair", "repair", "relay", "repair/" + state["repair_id"], "failed", {"repair_id": state["repair_id"], "attempt": state["repair_attempts"], "failure": state["failure"]})
+                state = apply_receipt_result(state, repair_eval_failure_receipt_result)
+                repair_eval_failure_receipt := repair_eval_failure_receipt_result["receipt"]
+                state := add_event(state, record["run_dir"], "repair_failed", "repair", "relay", {"repair_id": state["repair_id"], "failure": state["failure"], "receipt_id": repair_eval_failure_receipt["receipt_id"]})
+            }
             state := add_event(state, record["run_dir"], "run_failed", "resume", "release-verifier", state["failure"])
         }
     }
@@ -1115,7 +1156,9 @@ func resume_run(run_id) {
     ledger_id := string_or(dict_get_or(dict_get_or(state, "runledger", {}), "run_id", ""), run_id)
     ledger_status := "fail"
     if type(dict_get_or(state, "completion_candidate", null)) == "dict" && type(dict_get_or(state, "evidence_failure", null)) != "dict" && state["status"] != "failed" { ledger_status = "pass" }
-    finished := runledger_finish(record["run_dir"], ledger_id, ledger_status, "Relay resumed run " + state["status"], "Evidence in " + record["run_dir"])
+    finish_verb := "resumed"
+    if repairing { finish_verb = "repaired" }
+    finished := runledger_finish(record["run_dir"], ledger_id, ledger_status, "Relay " + finish_verb + " run " + state["status"], "Evidence in " + record["run_dir"])
     if ledger_status == "pass" && finished["ok"] == false {
         state["status"] := "failed"
         state["failure"] := {"class": "evidence_failure", "message": "RunLedger finish persistence did not pass", "repair_attempts": 0}
@@ -1124,7 +1167,7 @@ func resume_run(run_id) {
         finished = runledger_finish(record["run_dir"], ledger_id, ledger_status, "Relay resumed run failed: RunLedger finish persistence", "Evidence in " + record["run_dir"])
     }
     state["runledger_finish"] := finished
-    finish_receipt_result := record_receipt(state, record["run_dir"], "runledger", "finish", "relay", record["run_dir"] + "/ledger", ledger_status, {"runledger_id": ledger_id, "ok": state["runledger_finish"]["ok"], "resumed": true})
+    finish_receipt_result := record_receipt(state, record["run_dir"], "runledger", "finish", "relay", record["run_dir"] + "/ledger", ledger_status, {"runledger_id": ledger_id, "ok": state["runledger_finish"]["ok"], "resumed": true, "repaired": repairing})
     state = apply_receipt_result(state, finish_receipt_result)
     state = save_state(state, record["run_dir"])
     completion_pending := ledger_status == "pass" && finished["ok"] && type(dict_get_or(state, "evidence_failure", null)) != "dict" && state["status"] != "failed"

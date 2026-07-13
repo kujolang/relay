@@ -1,5 +1,5 @@
 from src.contracts import event, event_integrity_valid, event_chain_integrity_valid, event_sequence_matches_state, receipt, receipt_integrity_valid, receipt_sequence_valid, receipt_sequence_matches_state, state_integrity_input, state_integrity_valid, run_state, agent_profile, RELAY_VERSION, EVENT_CONTRACT, RECEIPT_CONTRACT
-from src.policy import classify_failure, path_is_safe, path_is_within_workspace, command_is_allowed, tool_decision
+from src.policy import classify_failure, repair_allowed, path_is_safe, path_is_within_workspace, command_is_allowed, tool_decision
 from src.runtime import resume_state_safe, cleanup_state_safe, control_state_safe, save_state, mark_evidence_failure, cancellation_request, cancellation_integrity_input, persist_required_json, report
 from src.common import safe_id, redact_text, shell_quote_single, command_args, process_options, process_options_with_cancel, safe_process_path, safe_env_name, path_is_symlink_safe, path_has_symlink_component, path_has_parent_component, read_json_limited, append_jsonl, append_jsonl_bounded, write_json, dict_get_or, bool_or, safe_json
 from src.adapters import fallback_allowed, fallback_decision, watchdog_route_allowed, tool_definitions, normalize_provider_tool_calls, provider_payload_size, provider_payload_allowed
@@ -189,6 +189,10 @@ failed = failed + check("invalid model failure classification", classify_failure
 failed = failed + check("missing context failure classification", classify_failure("missing_context") == "missing_context")
 failed = failed + check("implementation failure classification", classify_failure("implementation_failure") == "implementation_failure")
 failed = failed + check("evaluation failure classification", classify_failure("evaluation_failure") == "evaluation_failure")
+failed = failed + check("repair allows transient tool failure", repair_allowed("tool_failure"))
+failed = failed + check("repair allows timeout", repair_allowed("timeout"))
+failed = failed + check("repair denies policy violation", repair_allowed("policy_violation") == false)
+failed = failed + check("repair denies authentication failure", repair_allowed("authentication_failure") == false)
 failed = failed + check("safe Watchdog route", watchdog_route_allowed("http://127.0.0.1:7700/proxy/v1"))
 failed = failed + check("HTTPS external Watchdog route", watchdog_route_allowed("https://watchdog.example.com/proxy/v1"))
 failed = failed + check("HTTP external Watchdog route denied", watchdog_route_allowed("http://watchdog.example.com/proxy/v1") == false)
