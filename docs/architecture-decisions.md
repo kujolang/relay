@@ -952,3 +952,77 @@ files are rejected and require regeneration; authenticated ownership,
 replay protection, distributed cancellation, and rollback remain deferred.
 Rejected: trusting any readable request file or treating the hash as an
 authorization signature.
+
+## ADR-089: Bind Agents SDK worker capabilities to a short-lived nonce
+
+Context: the Agents SDK worker capability was previously derived entirely from
+run, session, workspace, and a fixed purpose string. Anyone who knew those
+public values could reconstruct a syntactically valid capability for the local
+worker boundary. Decision: generate a per-worker nonce in the parent runtime,
+include it only in the short-lived parent/child payload, and derive the
+capability from that nonce plus the existing identity fields. Requests missing
+the nonce or using the legacy deterministic formula fail closed. Rationale:
+capability possession should require a value that is not predictable from
+machine-visible identifiers while preserving the existing workspace and
+approval checks. Consequence: direct worker callers must obtain a fresh
+runtime-issued capability; nonce replay protection and authenticated caller
+identity remain deferred. Rejected: retaining a hash of public identifiers,
+putting a static secret in the repository, or treating the capability as a
+replacement for an authenticated service boundary.
+
+## ADR-090: Keep the child executable path authoritative at process boundaries
+
+Context: process options already supplied a fixed `PATH`, but arbitrary extra
+environment maps could overwrite it or inject loader, interpreter, Git
+override, or trust-store variables. Decision: ignore `PATH` overrides, retain
+only safe environment names (plus runtime-derived `PWD`), and reassert the
+fixed executable path in both common and Agents SDK worker process builders.
+Rationale: the child process is an authority boundary and must not resolve
+executables or interpreters through caller-controlled environment state.
+Consequence: unsupported environment overrides are dropped rather than passed
+through; deployment-specific environment configuration must use explicit safe
+names and the existing provider configuration surface. Rejected: inheriting the
+ambient environment, allowing caller-selected `PATH`, or relying on the shell
+to enforce the boundary.
+
+## ADR-091: Reject parent symlink components for repository authority
+
+Context: validating only the repository directory itself and `.git` metadata
+still allowed a path whose parent component redirected through a symbolic link.
+Decision: mission repository and Agents SDK tool-workspace paths reject any
+symbolic-linked parent component before Git or file authority is granted.
+Rationale: realpath containment alone proves the resolved destination, not that
+the caller selected a stable non-redirecting trust root; the shared fail-closed
+probe already provides this check. Consequence: symlinked checkout aliases must
+be canonicalized by the caller before use; full kernel no-follow workcells and
+multi-user ownership remain deferred. Rejected: trusting only `realpath`,
+following parent links, or adding a second path-policy implementation.
+
+## ADR-092: Preserve specific failure classes before generic tool failures
+
+Context: a generic `tool` substring could classify policy, permission, or
+malformed tool failures as `tool_failure`, weakening retry and escalation
+decisions. Decision: normalize failure codes and classify authority, workflow,
+model, context, implementation, evaluation, repository, tool, and provider
+classes with specific policy/permission checks before generic tool matching.
+Rationale: machine callers and future CaseFile/repair adapters need a stable
+failure taxonomy that does not hide why an action stopped. Consequence:
+provider-specific normalization and typed retry/repair ownership remain open;
+the local contract now distinguishes the important safety and completion
+boundaries. Rejected: treating every non-success as provider failure or letting
+substring order determine authority semantics.
+
+## ADR-093: Page validated run-index inspection without changing cache authority
+
+Context: `runs list` returned the complete validated index, which made large
+local run collections expensive to transfer to CI, Paperclip, Hermes, and
+future MCP callers. Decision: sort validated run IDs deterministically and
+support optional `--limit 1..4096` and `--after <run-id>` windows with
+`run_count`, `offset`, `has_more`, and `next_after` metadata. Validate the full
+cache/authoritative state relationship before slicing, and preserve the legacy
+unpaged response. Rationale: machine callers gain bounded response transfer
+without a second store or weaker state authority. Consequence: paging is a
+response optimization, not retention, remote subscription, or concurrent-store
+support; cursors are invalidated by missing IDs or index changes. Rejected:
+returning arbitrary dict iteration order, slicing an unvalidated cache, or
+silently truncating the legacy response.

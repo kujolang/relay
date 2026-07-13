@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kujo.dev/relay/schemas/run-index-record.schema.json",
+  "title": "Kujo Relay run index record",
+  "type": "object",
+  "required": ["run_dir", "mission_id", "status", "updated_at", "integrity_valid"],
+  "properties": {
+    "run_dir": {"type": "string", "minLength": 1},
+    "mission_id": {"type": "string"},
+    "status": {"type": "string"},
+    "updated_at": {"type": "string"},
+    "integrity_valid": {"type": "boolean"}
+  },
+  "additionalProperties": true
+}

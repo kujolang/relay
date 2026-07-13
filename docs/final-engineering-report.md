@@ -668,3 +668,37 @@ production boundary is unchanged: real Ollama Cloud and independent-provider
 evidence, provider-driven tool planning, full workcell isolation/recovery,
 authenticated Paperclip/Hermes/CI/MCP adapters, durable concurrent storage,
 signed export, and ShipCheck/Concord release gates still require future work.
+
+## Sixty-fourth 2026-07-13 review
+
+Relay added four local hardening improvements. Agents SDK worker capabilities
+now use a runtime-generated nonce in addition to run/session/workspace identity;
+legacy deterministic capabilities are rejected. Common and Agents SDK child
+process builders keep `PATH` fixed and drop unsafe environment overrides.
+
+Mission repository and tool-workspace authority now rejects parent symlink
+components, not only the final directory and `.git` path. Repository command
+evidence exposes the subprocess `exit_code` when available. Failure
+classification was expanded and reordered so policy and permission failures
+cannot be hidden under generic tool failures.
+
+Evidence: Kujo source checks, contract taxonomy and process-environment checks,
+Agents SDK legacy-capability rejection, timeout exit-code, and repository
+symlink safety smokes passed locally. Relay remains a hardened local alpha;
+live provider evidence, authenticated adapters, provider-generated tools,
+workcell recovery, durable storage, signed export, and release gates remain
+unproven.
+
+## Sixty-fifth 2026-07-13 review
+
+Relay added bounded run-index inspection for machine callers. `runs list` now
+sorts validated run IDs and supports `--limit 1..4096` plus `--after` cursors,
+returning count, offset, continuation, and next-cursor metadata. Full index and
+per-run state validation still occurs before slicing. The new
+`run-bundle.schema.json` and `run-index-record.schema.json` contracts describe
+the boundary, and the store smoke proves continuation across two independent
+runs.
+
+This is a local response-performance improvement and does not claim durable
+concurrent storage, remote subscriptions, authenticated callers, or enterprise
+readiness.

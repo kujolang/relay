@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kujo.dev/relay/schemas/run-bundle.schema.json",
+  "title": "Kujo Relay validated run index response",
+  "type": "object",
+  "required": ["ok", "runs", "index_source"],
+  "properties": {
+    "ok": {"type": "boolean"},
+    "runs": {
+      "type": "object",
+      "additionalProperties": {"$ref": "run-index-record.schema.json"}
+    },
+    "index_source": {"type": "string"},
+    "run_count": {"type": "integer", "minimum": 0},
+    "offset": {"type": "integer", "minimum": 0},
+    "has_more": {"type": "boolean"},
+    "next_after": {"type": "string"},
+    "error": {"type": "string"}
+  },
+  "additionalProperties": true
+}

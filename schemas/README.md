@@ -16,6 +16,8 @@ so upstream evidence can be carried without Relay silently dropping it. The
 | `run.schema.json` | persisted `state.json` and report JSON |
 | `event.schema.json` | AgentEvent-compatible `events.jsonl` records |
 | `event-bundle.schema.json` | verified `runs events` response, including paged windows |
+| `run-bundle.schema.json` | validated `runs list` response, including paged windows |
+| `run-index-record.schema.json` | cache record exposed inside a validated run index response |
 | `receipt.schema.json` | persisted `RelayReceipt` records |
 | `doctor.schema.json` | `doctor --json` |
 | `probe.schema.json` | `models probe --json` |

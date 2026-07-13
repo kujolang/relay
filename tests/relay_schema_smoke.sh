@@ -9,6 +9,8 @@ schemas=(
   report
   event
   event-bundle
+  run-bundle
+  run-index-record
   receipt
   doctor
   probe

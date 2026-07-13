@@ -66,12 +66,15 @@
 - Added verified event-inspection windows with bounded `--limit` and `--after` cursors; the complete event chain and authoritative state sequence are validated before any page is returned.
 - Published the `event-bundle` JSON Schema for unpaged and paged `runs events` responses, including cursor and integrity metadata.
 - Bound cooperative cancellation requests to the target run ID and a SHA-256 request seal; malformed, copied, stale-format, and tampered requests fail closed at action boundaries.
+- Hardened Agents SDK tool capabilities with a short-lived nonce, fixed child-process `PATH`, and unsafe environment override filtering; legacy deterministic capabilities fail closed.
+- Rejected mission repository and tool-workspace parent symlink components, exposed subprocess `exit_code` in command evidence, and expanded canonical failure taxonomy for policy, workflow, permission, malformed-tool, invalid-model, missing-context, implementation, and evaluation failures.
+- Added validated `runs list --limit` and `--after` windows with deterministic run-ID ordering, cursor metadata, invalid-window rejection, and versioned `run-bundle`/`run-index-record` schemas.
 
 ## Deferred
 
  Live Ollama Cloud proof, a live Watchdog-backed mission against a real external provider, provider-driven model tool planning, richer Agents SDK runner/tool-result artifact integration, Dispatch workflow import, dynamic agent discovery, full workcell isolation/rollback/recovery, CaseFile failure bundles, full Redact integration, MCP adapter, adaptive routing, Capsule A/B scoring, durable concurrent storage, signed export, richer retry/repair/cancellation receipts, remote event sinks, aggregate metrics, artifact retention/compaction, crash recovery, and ShipCheck/Concord release gates. Local real-Watchdog/stub-provider correlation, one fixture mission through the Agents SDK Tool Registry, complete event-sequence and receipt verification, exact Git argv policy, bounded lock backoff, incremental bounded live event watch, bounded duration evidence, bounded artifact size inventory with depth denial, cooperative cancellation, symlink-safe evidence access including parent-component store checks, bounded mission-spec input, bounded persisted JSON parsing, required persisted receipt/state read boundaries, failure-aware fallback, trusted worker-root binding, bounded bridge payloads, validated live Watchdog routes, HTTPS enforcement for non-loopback routes, secret-safe doctor route posture, route telemetry non-disclosure, endpoint-independent Watchdog diagnostics, integrity-bound resume checkpoints, integrity-bound worktree cleanup, integrity-bound pause/cancel controls, structured local credential/token/private-key redaction, dependency-integrity doctor checks, deterministic upstream version probes, optional SHA-256 dependency pinning, credential-environment injection deny rules, fail-closed symlink probe errors and dangling-symlink detection, explicit cancellation/timeout action classes, descendant-safe timeout termination evidence, PackWrite atomic pack writes, fail-closed evidence persistence including required ChangeBucket/Eval/report artifacts and RunLedger finish, state-store symlink rejection, sealed receipt execution context, the read-only `runs verify` contract, complete export artifact checks, explicit non-valid partial export checks, cache-consistent index metadata, and single-scan registration are proven. See `docs/next-session-enhancement-backlog-2026-07-13-v54.md`.
 
-Current follow-on backlog: `docs/next-session-enhancement-backlog-2026-07-13-v63.md`.
+Current follow-on backlog: `docs/next-session-enhancement-backlog-2026-07-13-v64.md`.
 
 The v61 handoff supersedes the earlier v60 review backlog after persisted
 state-seal, machine-schema, aggregate-acceptance, and bounded mission-ID
@@ -85,6 +88,12 @@ The v63 local hardening adds machine-callable event windows without weakening
 integrity verification and seals cancellation requests to a run identity. These
 are local evidence and control-plane safeguards, not authenticated distributed
 operation or a durable event service.
+
+The v64 local hardening adds nonce-bound Agents SDK worker capabilities, fixed
+child-process executable paths, parent-component repository/workspace symlink
+rejection, exit-code evidence, and a more discriminating failure taxonomy.
+These remain local defense-in-depth and evidence improvements; remote identity,
+nonce replay protection, workcell isolation, and durable storage are deferred.
 
 ## Dependency order
 

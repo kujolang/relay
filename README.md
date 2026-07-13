@@ -16,6 +16,15 @@ versioned [`event-bundle` schema](schemas/event-bundle.schema.json). Cancellatio
 requests now carry the target run ID and a tamper-evident seal, so copied,
 stale-format, or modified request files fail closed.
 
+The v64 review hardens the Agents SDK worker capability with a short-lived
+nonce that is not derivable from public run and workspace identifiers, keeps
+child-process `PATH` fixed while dropping unsafe environment overrides, rejects
+repository and tool-workspace parent symlink components, exposes subprocess
+`exit_code` in action evidence, and expands failure classification for policy,
+workflow, permission, malformed-tool, invalid-model, missing-context,
+implementation, and evaluation failures. These are locally tested safeguards;
+they do not replace authenticated remote authorization or a durable workcell.
+
 Sibling Kujo-tool subprocesses also receive an aligned `PWD` and module-path
 context. Relative `KUJO_BIN` and sibling-tool overrides are rooted at the
 Relay checkout before a subprocess changes cwd, so the same mission works from
@@ -80,7 +89,7 @@ Implemented and truthful in this slice:
 - `agents list|inspect|validate`
 - `doctor`, including dependency identity/version, agent-registry, secret-safe live-route posture, and credential checks
 - `missions create|run|inspect|pause|resume|cancel|cleanup|report`; cancellation is cooperative and recorded as run evidence
-- `runs list|rebuild|inspect|verify|events|watch|sizes|changes|evaluations|export`; `verify` provides a compact machine-readable evidence verdict, while event reads and exports verify the integrity chain, typed receipt index, and required result/report artifacts; `runs export --partial` is an explicit non-valid bundle for paused/failed runs
+- `runs list|rebuild|inspect|verify|events|watch|sizes|changes|evaluations|export`; `list` and `events` support bounded validated cursor windows, `verify` provides a compact machine-readable evidence verdict, while event reads and exports verify the integrity chain, typed receipt index, and required result/report artifacts; `runs export --partial` is an explicit non-valid bundle for paused/failed runs
 - `benchmark run` for the Capsule discovery slice
 
 `missions run` accepts explicit step, repair, token, output, and write budgets. A mission can set `agent_tools` to bounded `relay.write_file` or `relay.run_command` calls; the Agents SDK registry and approval provider execute them through Relay's policy worker, and the run records the result. The default Agents SDK aggregate smoke can be skipped for a deliberately configured run with `--skip-agent-smoke`; the run records that it was skipped. Not yet implemented: provider-driven model tool planning, adaptive routing, full multi-step Dispatch workflow loading, interactive approval UI, live Ollama Cloud proof, authenticated service mode, full workcell recovery, durable concurrent storage, and the complete Capsule A/B benchmark rubric. Those remain explicit follow-up work rather than placeholder commands.
@@ -112,7 +121,7 @@ inventory rejects oversized directories before recursive flattening.
 - `tests/relay_mission_smoke.sh`: real write, pause/resume, required ChangeBucket/Eval/report persistence, and RunLedger smoke test
 - `tests/relay_budget_smoke.sh`: bounded step-budget failure smoke test
 - `tests/relay_worktree_smoke.sh`: isolated worktree creation, source protection, and confirmed cleanup smoke test
-- `tests/relay_store_smoke.sh`: bounded-index, missing-state cache rejection, report identity/Markdown validation, event-symlink, receipt-tamper, truncation, and authoritative run-state rebuild smoke test
+- `tests/relay_store_smoke.sh`: bounded-index/run-list paging, missing-state cache rejection, report identity/Markdown validation, event-symlink, receipt-tamper, truncation, and authoritative run-state rebuild smoke test
 - `tests/relay_lock_stress_smoke.sh`: bounded index-lock backoff and concurrent rebuild smoke test
 - `tests/relay_watch_smoke.sh`: bounded live event observation with terminal evidence verification
 - `tests/relay_watch_integrity_smoke.sh`: fail-closed event-log disappearance observation
@@ -120,12 +129,12 @@ inventory rejects oversized directories before recursive flattening.
 - `tests/relay_sizes_smoke.sh`: bounded artifact size inventory, symlink rejection, and directory-depth denial
 - `tests/relay_cancel_smoke.sh`: process-group cancellation, bounded return time, and terminal evidence
 - `tests/relay_timeout_smoke.sh`: process-group timeout termination, bounded return time, and typed timeout evidence
-- `tests/relay_spec_safety_smoke.sh`: mission-spec size and symlink input rejection
+- `tests/relay_spec_safety_smoke.sh`: mission-spec size, input symlink, and repository parent-symlink rejection
 - `tests/relay_schema_smoke.sh`: committed JSON Schema parse, identity, and title checks
 - `tests/relay_output_budget_smoke.sh`: bounded command evidence and explicit truncation smoke test
 - `tests/relay_watchdog_smoke.sh`: configured Watchdog health/config/request-correlation contract smoke test
 - `tests/relay_watchdog_real_smoke.sh`: actual local Watchdog server, token auth, stub upstream, and correlation smoke test
-- `tests/relay_agents_tool_smoke.sh`: isolated mission, denied-write approval, direct-worker approval/budget/timeout rejection, worker-output redaction, and tampered worker-root rejection
+- `tests/relay_agents_tool_smoke.sh`: isolated mission, nonce-bound capability and legacy rejection, denied-write approval, direct-worker approval/budget/timeout rejection, worker-output redaction, and tampered worker-root rejection
 - `tests/relay_resume_integrity_smoke.sh`: tampered paused-run workspace and mission-policy rejection before resume
 - `tests/relay_state_store_safety_smoke.sh`: state-root and runs-directory symlink redirection rejection
 - `tests/relay_symlink_probe_smoke.sh`: dangling-symlink and probe-error rejection at the shared filesystem boundary
@@ -150,4 +159,4 @@ The aggregate runner executes the contract suite, all committed `*_smoke.sh`
 tests, the schema smoke, and `git diff --check`, so new smoke coverage is
 automatically included without maintaining a second hand-written test list.
 
-For the full integration evidence boundary and deferred enterprise work, see [`docs/enterprise-readiness-review-2026-07-11.md`](docs/enterprise-readiness-review-2026-07-11.md), [`docs/command-reference.md`](docs/command-reference.md), the machine contracts in [`schemas/`](schemas/), and the current [`docs/next-session-enhancement-backlog-2026-07-13-v63.md`](docs/next-session-enhancement-backlog-2026-07-13-v63.md).
+For the full integration evidence boundary and deferred enterprise work, see [`docs/enterprise-readiness-review-2026-07-11.md`](docs/enterprise-readiness-review-2026-07-11.md), [`docs/command-reference.md`](docs/command-reference.md), the machine contracts in [`schemas/`](schemas/), and the current [`docs/next-session-enhancement-backlog-2026-07-13-v64.md`](docs/next-session-enhancement-backlog-2026-07-13-v64.md).

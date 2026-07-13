@@ -93,7 +93,7 @@ relay agents list|inspect <agent>|validate [--json]
 relay missions create [spec.json] [--output <path>] [--json]
 relay missions run <spec.json> [--fixture] [--pause-after-plan] [--skip-agent-smoke] [--json]
 relay missions inspect|pause|resume|cancel|cleanup|report <run-id> [--json]
-relay runs list|rebuild|inspect|verify|events|watch|sizes|changes|evaluations <run-id> [--json]
+relay runs list [--after <run-id>] [--limit <n>]|rebuild|inspect|verify|events|watch|sizes|changes|evaluations <run-id> [--json]
 relay runs export <run-id> [--partial] [--output <path>] [--json]
 relay tools execute --json (internal capability-bound worker callback)
 relay benchmark run <repository> [--json]
@@ -129,6 +129,11 @@ approval provider run in `src/agent_bridge.kujo`; a capability-bound worker then
 delegates to Relay's policy executor. It does not grant the Agents SDK direct
 filesystem or shell authority. The worker rechecks write approval, command
 timeout, and byte-budget bounds instead of trusting only the Agents SDK caller.
+The worker capability is bound to a short-lived nonce that is not derived from
+public run, session, or workspace identifiers; legacy deterministic capability
+requests fail closed. Child processes use a fixed executable `PATH`, and unsafe
+loader, interpreter, Git override, and trust-store environment names are
+dropped before spawn.
 Provider-generated tool planning, interactive approvals, and authenticated
 remote invocation are not yet enabled. Worker model output, tool output, and
 worker error text are redacted before the summary crosses the bridge; this is a
@@ -157,7 +162,16 @@ upstream tools remain the canonical artifact owners.
 AI telemetry and bounded adapter/action results include non-negative
 `duration_ms` values. These are elapsed local measurements for the bridge or
 subprocess boundary, not provider billing, queue-time, or globally comparable
-latency guarantees.
+latency guarantees. Repository command action evidence also includes the
+subprocess `exit_code` when Kujo provides one, allowing machine callers to
+distinguish typed timeout/cancellation from an ordinary nonzero command result.
+
+Failure classification is canonicalized before policy consumers see it. Relay
+distinguishes cancellation, authentication, rate/allowance, timeout, policy,
+workflow-definition, permission, malformed-tool, invalid-model-response,
+missing-context, implementation, evaluation, repository, tool, and provider
+failures. Specific policy and permission classes take precedence over the
+generic tool class.
 
 `--pause-after-plan` creates a supported checkpoint at `implementation`. `missions resume` executes the stored pending actions and reruns ChangeBucket and Eval. Arbitrary crash replay is not yet supported.
 
@@ -176,7 +190,7 @@ evidence before cleanup. Non-Unix runtimes retain the direct-child fallback.
 
 Set `workspace_mode: "worktree"` to have Relay create a detached worktree from the immutable starting commit under the run directory. The source repository remains unchanged. The worktree is retained for inspection until an operator explicitly runs `missions cleanup <run-id> --confirm`; cleanup is refused while a run is active and is never implicit.
 
-`runs list` validates the cached `.relay/index.json` against authoritative per-run `state.json` directories and rebuilds it when it is malformed, unsafe, stale, oversized, symlinked, or incomplete. Index refreshes use an atomic lock directory with a bounded four-attempt backoff; `runs rebuild` forces that recovery path. The index is a cache, not the source of truth.
+`runs list` validates the cached `.relay/index.json` against authoritative per-run `state.json` directories and rebuilds it when it is malformed, unsafe, stale, oversized, symlinked, or incomplete. Index refreshes use an atomic lock directory with a bounded four-attempt backoff; `runs rebuild` forces that recovery path. The index is a cache, not the source of truth. Machine callers may request a bounded deterministic window with `--limit 1..4096` and continue after the returned `next_after` run ID using `--after`; invalid limits and cursors fail closed. The full index is still validated before a response window is sliced.
 
 `runs events`, `runs watch`, and `runs export` also require the persisted
 `receipts.json` evidence file. They do not fall back to the copy embedded in

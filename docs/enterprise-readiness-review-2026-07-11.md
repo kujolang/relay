@@ -680,3 +680,38 @@ cancellation, contract, and schema smokes cover the new boundaries.
 The enterprise boundary is unchanged: live external-provider proof, provider-
 generated tools, full workcells, authenticated machine mode, durable storage,
 signed export, and release gates remain open.
+
+## Sixty-fourth 2026-07-13 review
+
+The Agents SDK worker capability is now bound to a short-lived runtime nonce,
+so it is not reconstructible from public run, session, workspace, and purpose
+identifiers. Legacy deterministic capabilities fail closed. Child-process
+builders reassert the fixed executable `PATH` and drop unsafe loader,
+interpreter, Git override, and trust-store environment names.
+
+Mission repository and Agents SDK tool-workspace paths now reject parent
+symbolic-link components, closing a filesystem redirection gap that realpath
+containment alone did not close. Repository command evidence also preserves the
+Kujo subprocess `exit_code` when available.
+
+Failure classification now distinguishes policy, workflow-definition,
+permission, malformed-tool, invalid-model-response, missing-context,
+implementation, evaluation, repository, tool, and provider failures in
+addition to cancellation, authentication, rate/allowance, and timeout. Focused
+contract, Agents SDK, timeout, and specification-safety smokes cover the
+changes. These are local defenses; authenticated remote authority, nonce replay
+protection, full workcells, durable storage, and release gates remain open.
+
+## Sixty-fifth 2026-07-13 review
+
+Machine callers can now page the validated run index with deterministic
+`runs list --limit 1..4096` and `--after` run-ID cursors. Relay validates the
+complete cache/authoritative state relationship before slicing and publishes
+`run-bundle` and `run-index-record` schemas. The store smoke now proves two-run
+cursor continuation and invalid-limit rejection without depending on another
+smoke's temporary workspace.
+
+This improves response transfer and test isolation, not durable storage or
+multi-host consistency. Relay remains a hardened local alpha; live providers,
+authenticated adapters, provider-generated tools, full workcells, durable
+storage, signed export, and release gates remain open.
