@@ -165,6 +165,18 @@ func write_text_atomic(path, content) {
     }
 }
 
+func create_exclusive_dir(path) {
+    candidate := trim(to_string(path))
+    if candidate == "" || path_is_symlink_safe(candidate) || path_exists(candidate) { return false }
+    try {
+        # Kujo's create_dir is intentionally idempotent. Use the fixed native
+        # mkdir executable for the OS-level exclusive-create primitive needed
+        # by capability and index lock directories; no shell is involved.
+        result := spawn_process(["/bin/mkdir", candidate], process_options({}, 2000, 4096))
+        return result.success && result.exitcode == 0 && path_is_dir(candidate) && path_is_symlink_safe(candidate) == false
+    } except err { return false }
+}
+
 func safe_process_path() {
     # External adapters use absolute sibling-tool paths. Mission commands are
     # resolved only from these fixed system locations so a caller-controlled
@@ -288,7 +300,14 @@ func consume_agent_capability(root, request, supplied_secret) {
     if path == "" || path_is_symlink_safe(path) || path_exists(path) == false { return {"ok": false, "error": {"code": "capability_not_registered", "message": "Tool capability is not registered"}} }
     lock := path + ".lock"
     if path_is_symlink_safe(lock) { return {"ok": false, "error": {"code": "capability_lock_unsafe", "message": "Tool capability lock is unsafe"}} }
-    try { create_dir(lock) } except err { return {"ok": false, "error": {"code": "capability_busy", "message": "Tool capability is already being consumed"}} }
+    if path_exists(lock) {
+        if path_is_dir(lock) { return {"ok": false, "error": {"code": "capability_busy", "message": "Tool capability is already being consumed"}} }
+        return {"ok": false, "error": {"code": "capability_lock_unsafe", "message": "Tool capability lock is not a directory"}}
+    }
+    if create_exclusive_dir(lock) == false {
+        if path_exists(lock) && path_is_dir(lock) { return {"ok": false, "error": {"code": "capability_busy", "message": "Tool capability is already being consumed"}} }
+        return {"ok": false, "error": {"code": "capability_lock_unsafe", "message": "Tool capability lock could not be acquired"}}
+    }
     mut result := {"ok": false, "error": {"code": "capability_invalid", "message": "Tool capability is invalid"}}
     try {
         record := read_json_limited(path, null, 65536)
@@ -351,7 +370,9 @@ func capability_registry_posture(root, repair) {
                 continue
             }
             acquired := false
-            try { create_dir(lock); acquired = true } except err { locked = locked + 1 }
+            if path_exists(lock) {
+                if path_is_dir(lock) { locked = locked + 1 } else { invalid = invalid + 1 }
+            } else if create_exclusive_dir(lock) { acquired = true } else if path_exists(lock) && path_is_dir(lock) { locked = locked + 1 } else { invalid = invalid + 1 }
             if acquired {
                 current := read_json_limited(path, null, 65536)
                 if type(current) != "dict" || to_string(dict_get_or(current, "contract_version", "")) != "relay-agent-capability-v1" {
@@ -422,6 +443,7 @@ export path_is_symlink_safe := path_is_symlink_safe
 export path_has_symlink_component := path_has_symlink_component
 export path_has_parent_component := path_has_parent_component
 export write_text_atomic := write_text_atomic
+export create_exclusive_dir := create_exclusive_dir
 export safe_process_path := safe_process_path
 export process_options := process_options
 export process_options_with_cancel := process_options_with_cancel

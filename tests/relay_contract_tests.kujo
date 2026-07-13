@@ -1,7 +1,7 @@
 from src.contracts import event, event_integrity_valid, event_chain_integrity_valid, event_sequence_matches_state, receipt, receipt_integrity_valid, receipt_sequence_valid, receipt_sequence_matches_state, state_integrity_input, state_integrity_valid, run_state, agent_profile, RELAY_VERSION, EVENT_CONTRACT, RECEIPT_CONTRACT
 from src.policy import classify_failure, repair_allowed, path_is_safe, path_is_within_workspace, command_is_allowed, tool_decision
 from src.runtime import resume_state_safe, cleanup_state_safe, control_state_safe, save_state, mark_evidence_failure, cancellation_request, cancellation_integrity_input, persist_required_json, report
-from src.common import safe_id, redact_text, shell_quote_single, command_args, process_options, process_options_with_cancel, safe_process_path, safe_env_name, path_is_symlink_safe, path_has_symlink_component, path_has_parent_component, read_json_limited, append_jsonl, append_jsonl_bounded, write_json, dict_get_or, bool_or, safe_json
+from src.common import safe_id, redact_text, shell_quote_single, command_args, process_options, process_options_with_cancel, safe_process_path, safe_env_name, path_is_symlink_safe, path_has_symlink_component, path_has_parent_component, read_json_limited, append_jsonl, append_jsonl_bounded, write_json, create_exclusive_dir, dict_get_or, bool_or, safe_json
 from src.adapters import fallback_allowed, fallback_decision, watchdog_route_allowed, tool_definitions, normalize_provider_tool_calls, provider_payload_size, provider_payload_allowed, bounded_max_tokens
 from src.store import safe_run_key, store_root_safe, acquire_index_lock, acquire_index_lock_retry, release_index_lock
 from src.watchdog import safe_base, safe_correlation_id, route_policy, usage_reconciliation
@@ -231,6 +231,14 @@ retried_lock := acquire_index_lock_retry(lock_root, 2, 1)
 failed = failed + check("bounded lock retry acquires after release", retried_lock["ok"] == true && retried_lock["attempts"] == 1)
 release_index_lock(lock_root, retried_lock["token"])
 if path_is_dir(lock_root) { os_rmdir(lock_root) }
+exclusive_root := tmp_base + "/relay-contract-exclusive-dir-" + to_string(current_timestamp())
+create_dir(exclusive_root)
+exclusive_path := exclusive_root + "/lock"
+exclusive_first := create_exclusive_dir(exclusive_path)
+exclusive_second := create_exclusive_dir(exclusive_path)
+failed = failed + check("exclusive lock directory creates once", exclusive_first == true && exclusive_second == false)
+if path_is_dir(exclusive_path) { os_rmdir(exclusive_path) }
+if path_is_dir(exclusive_root) { os_rmdir(exclusive_root) }
 failed = failed + check("safe Watchdog URL", safe_base("http://127.0.0.1:7700"))
 failed = failed + check("Watchdog URL with embedded credentials denied", safe_base("http://user:secret@127.0.0.1:7700") == false)
 failed = failed + check("Watchdog URL with unsupported scheme denied", safe_base("file:///tmp/watchdog") == false)
