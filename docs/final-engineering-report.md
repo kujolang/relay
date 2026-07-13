@@ -868,3 +868,14 @@ repair, and a clean subsequent scan. This is local lifecycle hygiene only;
 durable multi-host reconciliation, authenticated ownership, signed provenance,
 live-provider proof, and release gates remain open. The next session backlog is
 `docs/next-session-enhancement-backlog-2026-07-13-v76.md`.
+
+## Seventy-eighth 2026-07-13 review
+
+Capability-registry repair now serializes cleanup with the existing per-record
+Agents SDK consumption lock and re-reads records before deletion. Active locks
+are reported and retained; malformed lock objects fail closed. The CLI smoke
+proves locked stale records survive repair and are cleaned after unlock. This
+closes a local lifecycle race without claiming crash recovery, durable
+multi-host storage, authenticated tenancy, external-provider proof, or release
+readiness. The next session backlog is
+`docs/next-session-enhancement-backlog-2026-07-13-v77.md`.

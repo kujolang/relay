@@ -231,4 +231,10 @@ execution remains read-only, the scan is capped at 1024 records, and unsafe or
 malformed registry paths fail closed. This closes local crash-leftover hygiene,
 not durable multi-host authorization or enterprise retention.
 
-Current follow-on backlog: `docs/next-session-enhancement-backlog-2026-07-13-v76.md`.
+The v77 review serializes that repair with the existing per-record Agents SDK
+consumption lock. Active records are reported as `locked` and retained; invalid
+lock objects fail closed. The repair path re-reads the record after acquiring
+the lock before deciding whether to delete it, closing a local cleanup/worker
+race without adding a second synchronization contract.
+
+Current follow-on backlog: `docs/next-session-enhancement-backlog-2026-07-13-v77.md`.

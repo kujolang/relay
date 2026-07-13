@@ -49,10 +49,12 @@ socket transport rather than an unbounded environment variable.
 Run `relay doctor --json` before a live or CI invocation. Fixture mode does not require Watchdog or credentials; live mode fails closed when either is absent.
 
 `relay doctor --repair --json` explicitly removes expired or exhausted Agents
-SDK capability records from the local registry. The default doctor command is
-read-only. Both modes report bounded registry posture counts and never emit
-capability secrets; the scan is limited to 1024 records and fails closed on
-unsafe or malformed registry paths.
+SDK capability records from the local registry. Cleanup takes each record's
+consumption lock and skips active records, reporting `locked` instead of
+deleting them. The default doctor command is read-only. Both modes report
+bounded registry posture counts and never emit capability secrets; the scan is
+limited to 1024 records and fails closed on unsafe or malformed registry
+paths.
 
 Provider credential environment names also reject dynamic-loader, interpreter
 injection, Git override, and trust-store override variables such as

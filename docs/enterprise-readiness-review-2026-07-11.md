@@ -867,3 +867,15 @@ but does not provide durable multi-host reconciliation, authenticated
 ownership, signed provenance, external-provider proof, or enterprise release
 gates. The next-session backlog is
 `docs/next-session-enhancement-backlog-2026-07-13-v76.md`.
+
+## Seventy-eighth 2026-07-13 review
+
+Capability-registry repair now acquires the same per-record lock used by Agents
+SDK tool consumption, re-reads the record under that lock, and skips active
+records with an explicit `locked` count. Non-directory or symbolic-linked lock
+objects fail closed. The CLI smoke proves an expiring locked record survives
+repair and is removed only after the lock is released. This closes a local
+cleanup/worker race but does not provide crash-lock reconciliation, durable
+multi-host locking, authenticated ownership, external-provider proof, or
+enterprise release gates. The next-session backlog is
+`docs/next-session-enhancement-backlog-2026-07-13-v77.md`.
