@@ -181,6 +181,9 @@ func watch_run_events(record, flags) {
     started_ms := current_timestamp()
     mut emitted := 0
     mut terminal_status := ""
+    mut events := []
+    mut last_raw := ""
+    mut partial_start := 0
     while current_timestamp() - started_ms <= timeout_ms {
         if path_exists(events_path) && (path_is_symlink(events_path) || path_is_file(events_path) == false) {
             print(safe_json({"type": "relay_watch_error", "error": "run event log is a symbolic link or non-regular file"}))
@@ -190,22 +193,40 @@ func watch_run_events(record, flags) {
             print(safe_json({"type": "relay_watch_error", "error": "run event log exceeds the 8 MiB inspection limit"}))
             return {"ok": false, "_streamed": true}
         }
-        events := []
         if path_exists(events_path) {
             raw := read_file(events_path)
-            lines := split(raw, "\n")
-            complete_count := len(lines)
-            if ends_with(raw, "\n") == false { complete_count = complete_count - 1 }
-            mut i := 0
-            while i < complete_count {
-                line := trim(lines[i])
-                if line != "" {
-                    try { events = push(events, parse_json(line)) } except err {
-                        print(safe_json({"type": "relay_watch_error", "error": "run event log contains invalid JSON"}))
-                        return {"ok": false, "_streamed": true}
-                    }
+            if raw != last_raw {
+                # The event file is append-only for a run. Reject replacement or
+                # truncation, then parse only the changed suffix plus any line
+                # that was incomplete during the previous poll. This keeps
+                # parsing work proportional to new events while the full event
+                # chain remains verified below on every poll.
+                if last_raw != "" && starts_with(raw, last_raw) == false {
+                    print(safe_json({"type": "relay_watch_error", "error": "run event log was replaced or truncated"}))
+                    return {"ok": false, "_streamed": true}
                 }
-                i = i + 1
+                chunk := substring(raw, partial_start, len(raw))
+                lines := split(chunk, "\n")
+                complete_count := len(lines)
+                if ends_with(chunk, "\n") == false { complete_count = complete_count - 1 }
+                mut i := 0
+                while i < complete_count {
+                    line := trim(lines[i])
+                    if line != "" {
+                        try { events = push(events, parse_json(line)) } except err {
+                            print(safe_json({"type": "relay_watch_error", "error": "run event log contains invalid JSON"}))
+                            return {"ok": false, "_streamed": true}
+                        }
+                    }
+                    i = i + 1
+                }
+                if ends_with(raw, "\n") { partial_start = len(raw) }
+                else {
+                    mut cursor := len(raw) - 1
+                    while cursor >= 0 && substring(raw, cursor, cursor + 1) != "\n" { cursor = cursor - 1 }
+                    partial_start = cursor + 1
+                }
+                last_raw = raw
             }
         }
         if event_chain_integrity_valid(events) == false {
