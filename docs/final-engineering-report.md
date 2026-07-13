@@ -595,3 +595,12 @@ Watchdog verification. `true`/`false`, `1`/`0`, and `yes`/`no` are accepted
 case-insensitively with fail-safe defaults, and the CLI smoke covers numeric and
 word spellings. No external provider or enterprise readiness claim changes;
 the v58 backlog records the remaining P0 work.
+
+## Fifty-ninth 2026-07-13 review
+
+Relay now binds `RELAY_AI_BRIDGE` to a regular, non-symlinked `.kujo` source
+file inside the Relay root. Runtime calls and `doctor` fail closed before
+spawning an external bridge, and the CLI smoke proves the rejected path is not
+disclosed. This is local configuration-source hardening; signed provenance,
+authenticated invocation, live external providers, and enterprise readiness
+remain deferred.

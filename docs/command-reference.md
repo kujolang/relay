@@ -24,6 +24,12 @@ Boolean environment controls accept `true`, `false`, `1`, `0`, `yes`, and `no`
 values use the documented default; this keeps fixture mode fail-safe and makes
 shell/CI environment conventions equivalent.
 
+The AI bridge entrypoint is also fail-closed: `RELAY_AI_BRIDGE`, when set, must
+resolve to a regular, non-symlinked `.kujo` file inside the configured Relay
+root. `chat`, `models probe`, and `doctor` reject an external or unsafe bridge
+before spawning Kujo, so an environment override cannot silently replace the
+provider adapter with arbitrary source.
+
 The environment-backed AI, Agents SDK, and tool-worker JSON bridges reject
 payloads larger than 128 KiB before parsing and return structured invalid-payload
 errors. This protects the machine boundary and stays below common process

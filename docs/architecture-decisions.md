@@ -823,3 +823,18 @@ Consequence: accepted values are `true`/`false`, `1`/`0`, and `yes`/`no`,
 case-insensitively; invalid values retain the documented default. Rejected:
 repeating literal comparisons in each command or silently treating unknown
 values as live mode.
+
+## ADR-080: Bind the AI bridge to trusted Relay source
+
+Context: the AI SDK adapter accepted `RELAY_AI_BRIDGE` as an arbitrary path and
+could execute a caller-selected Kujo source file with the trusted Kujo runtime.
+That made a configuration override an unintended source-execution boundary.
+Decision: resolve the bridge only when it is a regular, non-symlinked `.kujo`
+file inside the configured Relay root; reject invalid values before spawning
+the AI bridge, and expose the same readiness result through `doctor`.
+Rationale: provider configuration must not widen source authority, and the
+machine-facing failure must not echo the rejected path. Consequence: custom
+bridges must be reviewed into the Relay source tree or require a future signed
+adapter contract; the existing default bridge remains unchanged. Rejected:
+trusting any absolute environment path, following symlinks into an external
+checkout, or relying on the provider/Kujo process to enforce this boundary.

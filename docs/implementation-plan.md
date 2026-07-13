@@ -58,15 +58,16 @@
 - Revalidated the internal Agents SDK worker boundary for write approval, command timeout, and output/write byte budgets; `runs watch` now reads terminal state through the identity-checked authoritative evidence reader and fails closed on unsafe state links.
 - Added recursive redaction of Agents SDK worker model output, tool output, and error text before the summary crosses the bridge; the worker smoke proves credential-shaped output is not exposed.
 - Centralized boolean environment parsing for fixture mode and Watchdog verification; `true`/`false`, `1`/`0`, and `yes`/`no` now share one case-insensitive, fail-safe contract with CLI smoke coverage.
+- Bound the environment-selected AI bridge to a regular, non-symlinked `.kujo` file inside Relay; `chat`, `models probe`, and `doctor` fail closed with a non-disclosing error and CLI coverage.
 
 ## Deferred
 
  Live Ollama Cloud proof, a live Watchdog-backed mission against a real external provider, provider-driven model tool planning, richer Agents SDK runner/tool-result artifact integration, Dispatch workflow import, dynamic agent discovery, full workcell isolation/rollback/recovery, CaseFile failure bundles, full Redact integration, MCP adapter, adaptive routing, Capsule A/B scoring, durable concurrent storage, signed export, richer retry/repair/cancellation receipts, remote event sinks, aggregate metrics, artifact retention/compaction, crash recovery, and ShipCheck/Concord release gates. Local real-Watchdog/stub-provider correlation, one fixture mission through the Agents SDK Tool Registry, complete event-sequence and receipt verification, exact Git argv policy, bounded lock backoff, incremental bounded live event watch, bounded duration evidence, bounded artifact size inventory with depth denial, cooperative cancellation, symlink-safe evidence access including parent-component store checks, bounded mission-spec input, bounded persisted JSON parsing, required persisted receipt/state read boundaries, failure-aware fallback, trusted worker-root binding, bounded bridge payloads, validated live Watchdog routes, HTTPS enforcement for non-loopback routes, secret-safe doctor route posture, route telemetry non-disclosure, endpoint-independent Watchdog diagnostics, integrity-bound resume checkpoints, integrity-bound worktree cleanup, integrity-bound pause/cancel controls, structured local credential/token/private-key redaction, dependency-integrity doctor checks, deterministic upstream version probes, optional SHA-256 dependency pinning, credential-environment injection deny rules, fail-closed symlink probe errors and dangling-symlink detection, explicit cancellation/timeout action classes, descendant-safe timeout termination evidence, PackWrite atomic pack writes, fail-closed evidence persistence including required ChangeBucket/Eval/report artifacts and RunLedger finish, state-store symlink rejection, sealed receipt execution context, the read-only `runs verify` contract, complete export artifact checks, explicit non-valid partial export checks, cache-consistent index metadata, and single-scan registration are proven. See `docs/next-session-enhancement-backlog-2026-07-13-v54.md`.
 
-Current follow-on backlog: `docs/next-session-enhancement-backlog-2026-07-13-v58.md`.
+Current follow-on backlog: `docs/next-session-enhancement-backlog-2026-07-13-v59.md`.
 
-The v58 handoff supersedes the earlier v57 review backlog after the shared
-boolean-environment contract delivered in this session.
+The v59 handoff supersedes the earlier v58 review backlog after the AI bridge
+source-boundary hardening delivered in this session.
 
 ## Dependency order
 

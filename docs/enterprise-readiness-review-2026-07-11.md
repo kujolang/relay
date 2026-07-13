@@ -235,6 +235,16 @@ configuration correctness and fail-safe behavior; live provider proof,
 provider-generated tools, authenticated machine mode, workcell recovery, and
 durable storage remain open.
 
+## Fifty-ninth 2026-07-13 review
+
+The AI SDK adapter now rejects an environment-selected bridge unless it is a
+regular, non-symlinked `.kujo` file inside the Relay root. `chat`, `models
+probe`, and `doctor` share the boundary, and the CLI smoke proves an external
+bridge is rejected without echoing its path. This closes a local source-
+execution configuration gap; it does not provide signed dependency provenance,
+authenticated service mode, live provider proof, or universal enterprise
+readiness.
+
 ## Fifty-seventh 2026-07-13 review
 
 Agents SDK bridge summaries now recursively redact model output, tool-result
