@@ -83,7 +83,7 @@ relay missions create [spec.json] [--output <path>] [--json]
 relay missions run <spec.json> [--fixture] [--pause-after-plan] [--skip-agent-smoke] [--json]
 relay missions inspect|pause|resume|cancel|cleanup|report <run-id> [--json]
 relay runs list|rebuild|inspect|verify|events|watch|sizes|changes|evaluations <run-id> [--json]
-relay runs export <run-id> [--output <path>] [--json]
+relay runs export <run-id> [--partial] [--output <path>] [--json]
 relay tools execute --json (internal capability-bound worker callback)
 relay benchmark run <repository> [--json]
 ```
@@ -193,6 +193,14 @@ Each AgentEvent-compatible JSONL record includes a deterministic `integrity_sha2
 `evaluations.json`, and `report.json` are present, bounded, regular, and have
 the expected JSON shapes. A missing result or report is an incomplete export,
 not an empty successful field.
+
+For a paused or failed run whose post-verification artifacts were never
+supposed to exist, `runs export <run-id> --partial` returns the explicit
+`relay-run-export-partial-v1` contract. It reports `completeness: "partial"`,
+`integrity_valid: false`, per-artifact presence, and null for unavailable
+artifacts. The command is non-mutating and exits successfully only because the
+caller explicitly requested an incomplete bundle. Partial export is refused
+for completed runs; it never upgrades missing evidence into valid evidence.
 
 `runs events` parses and verifies the complete event chain and checks its event
 IDs and complete canonical records against authoritative run state before

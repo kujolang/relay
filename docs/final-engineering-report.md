@@ -46,7 +46,7 @@ The current run engine still accepts explicit action plans, but missions may now
 
 ## 2026-07-11 enterprise-readiness review
 
-The current posture is local-first hardened alpha/showcase, not universal enterprise production. This review added realpath workspace checks, shell/Git command deny rules, explicit write approvals, subprocess redaction, packet digest metadata, unique run suffixes, preflight failure handling, ChangeBucket/Eval completion authority, atomic JSON persistence, efficient JSONL append, generated file-existence acceptance checks, shared Capsule process handling, and a real pause-after-plan/resume checkpoint. See `docs/enterprise-readiness-review-2026-07-11.md` and the current `docs/next-session-enhancement-backlog-2026-07-13-v51.md` for the evidence boundary and prioritized remaining work.
+The current posture is local-first hardened alpha/showcase, not universal enterprise production. This review added realpath workspace checks, shell/Git command deny rules, explicit write approvals, subprocess redaction, packet digest metadata, unique run suffixes, preflight failure handling, ChangeBucket/Eval completion authority, atomic JSON persistence, efficient JSONL append, generated file-existence acceptance checks, shared Capsule process handling, and a real pause-after-plan/resume checkpoint. See `docs/enterprise-readiness-review-2026-07-11.md` and the current `docs/next-session-enhancement-backlog-2026-07-13-v52.md` for the evidence boundary and prioritized remaining work.
 
 ## Forty-seventh 2026-07-12 review
 
@@ -94,6 +94,17 @@ and JSON report artifacts must now be present, bounded, regular, and correctly
 shaped before export can claim `integrity_valid: true`; `runs verify` reports
 `report_valid` as well. Store-smoke coverage proves missing changes and report
 artifacts fail closed. Relay remains a local alpha; external provider proof,
+authenticated ownership, full workcells, durable storage, and release gates
+remain open.
+
+## Fifty-second 2026-07-13 review
+
+Added explicit `relay-run-export-partial-v1` output through opt-in
+`runs export --partial` for paused/failed runs that lack post-verification
+artifacts. Partial output always reports `integrity_valid: false`, per-artifact
+presence, and null unavailable fields; completed runs cannot use the downgrade
+path. Store-smoke coverage proves full export remains fail-closed and partial
+export is explicit. Relay remains a local alpha; external provider proof,
 authenticated ownership, full workcells, durable storage, and release gates
 remain open.
 

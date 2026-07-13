@@ -532,3 +532,13 @@ exported as empty fallback fields under an `integrity_valid: true` bundle. The
 store smoke proves missing changes and report artifacts fail closed. Relay
 remains a local alpha; external provider proof, authenticated ownership, full
 workcells, durable storage, and release gates remain open.
+
+## Fifty-second 2026-07-13 review
+
+This review adds an explicit `relay-run-export-partial-v1` contract through
+opt-in `runs export --partial` for paused or failed runs whose post-verification
+artifacts were not produced. Partial output always carries
+`integrity_valid: false`, completeness and artifact-presence fields, and null
+unavailable artifacts. Completed runs cannot use the downgrade path. Relay
+remains a local alpha; external provider proof, authenticated ownership, full
+workcells, durable storage, and release gates remain open.

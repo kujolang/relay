@@ -689,3 +689,20 @@ Consequence: failed or partially persisted runs return an explicit incomplete
 export error until a future partial-export contract is defined; no evidence is
 silently synthesized. Rejected: empty fallbacks, embedding only state copies,
 or letting the export command define a second result store.
+
+## ADR-071: Make incomplete exports explicit and opt-in
+
+Context: valid exports must reject missing result artifacts, but paused and
+failed runs can legitimately stop before ChangeBucket and Eval artifacts are
+created. A hard failure alone leaves machine callers unable to inspect those
+runs without scraping state files. Decision: add an explicit
+`runs export --partial` path for non-completed runs, returning the versioned
+`relay-run-export-partial-v1` contract with `integrity_valid: false`,
+`completeness: "partial"`, artifact-presence booleans, and null unavailable
+artifacts. Completed runs never qualify for this path. Rationale: preserve
+truthful failure evidence and resumability without weakening the valid export
+boundary or inventing a second store. Consequence: callers must branch on
+format and integrity status; signed exports, durable storage, and authenticated
+authorization remain open. Rejected: silently treating partial output as a
+valid export, allowing completed runs to downgrade, or exposing raw files as
+an undocumented machine contract.
