@@ -12,8 +12,10 @@ INVALID_PROVIDER="/tmp/relay-invalid-provider-tool-mission.json"
 INVALID_TURNS="/tmp/relay-invalid-tool-turns-mission.json"
 OVERSIZED_COMMAND="/tmp/relay-oversized-command-mission.json"
 INVALID_REPAIRS="/tmp/relay-invalid-repairs-mission.json"
+INVALID_TOKENS="/tmp/relay-invalid-tokens-mission.json"
+INVALID_ZERO_TOKENS="/tmp/relay-invalid-zero-tokens-mission.json"
 
-rm -rf "$WORK" "$ROOT/.relay" "$LARGE" "$SYMLINK" "$REPO_LINK" "$INVALID_ACTION" "$INVALID_PROVIDER" "$INVALID_TURNS" "$OVERSIZED_COMMAND" "$INVALID_REPAIRS"
+rm -rf "$WORK" "$ROOT/.relay" "$LARGE" "$SYMLINK" "$REPO_LINK" "$INVALID_ACTION" "$INVALID_PROVIDER" "$INVALID_TURNS" "$OVERSIZED_COMMAND" "$INVALID_REPAIRS" "$INVALID_TOKENS" "$INVALID_ZERO_TOKENS"
 mkdir -p "$WORK"
 git init -q "$WORK"
 git -C "$WORK" config user.email relay@example.invalid
@@ -89,5 +91,21 @@ invalid_repairs_status=$?
 set -e
 test "$invalid_repairs_status" -ne 0
 printf '%s' "$invalid_repairs_output" | grep -q 'max_repairs'
+
+ruby -rjson -e 'path=ARGV.fetch(0); repo=ARGV.fetch(1); File.write(path, JSON.generate({name:"invalid-tokens",goal:"must reject unbounded model output",repository:repo,budgets:{max_tokens:16385},actions:[]}))' "$INVALID_TOKENS" "$WORK"
+set +e
+invalid_tokens_output="$($KUJO run "$ROOT/main.kujo" -- missions run "$INVALID_TOKENS" --fixture --skip-agent-smoke --json 2>&1)"
+invalid_tokens_status=$?
+set -e
+test "$invalid_tokens_status" -ne 0
+printf '%s' "$invalid_tokens_output" | grep -q 'max_tokens'
+
+ruby -rjson -e 'path=ARGV.fetch(0); repo=ARGV.fetch(1); File.write(path, JSON.generate({name:"invalid-zero-tokens",goal:"must reject a zero model budget",repository:repo,budgets:{max_tokens:0},actions:[]}))' "$INVALID_ZERO_TOKENS" "$WORK"
+set +e
+invalid_zero_tokens_output="$($KUJO run "$ROOT/main.kujo" -- missions run "$INVALID_ZERO_TOKENS" --fixture --skip-agent-smoke --json 2>&1)"
+invalid_zero_tokens_status=$?
+set -e
+test "$invalid_zero_tokens_status" -ne 0
+printf '%s' "$invalid_zero_tokens_output" | grep -q 'max_tokens'
 
 echo "PASS relay spec safety smoke"

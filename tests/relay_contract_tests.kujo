@@ -2,7 +2,7 @@ from src.contracts import event, event_integrity_valid, event_chain_integrity_va
 from src.policy import classify_failure, repair_allowed, path_is_safe, path_is_within_workspace, command_is_allowed, tool_decision
 from src.runtime import resume_state_safe, cleanup_state_safe, control_state_safe, save_state, mark_evidence_failure, cancellation_request, cancellation_integrity_input, persist_required_json, report
 from src.common import safe_id, redact_text, shell_quote_single, command_args, process_options, process_options_with_cancel, safe_process_path, safe_env_name, path_is_symlink_safe, path_has_symlink_component, path_has_parent_component, read_json_limited, append_jsonl, append_jsonl_bounded, write_json, dict_get_or, bool_or, safe_json
-from src.adapters import fallback_allowed, fallback_decision, watchdog_route_allowed, tool_definitions, normalize_provider_tool_calls, provider_payload_size, provider_payload_allowed
+from src.adapters import fallback_allowed, fallback_decision, watchdog_route_allowed, tool_definitions, normalize_provider_tool_calls, provider_payload_size, provider_payload_allowed, bounded_max_tokens
 from src.store import safe_run_key, store_root_safe, acquire_index_lock, acquire_index_lock_retry, release_index_lock
 from src.watchdog import safe_base, safe_correlation_id, route_policy
 
@@ -141,9 +141,10 @@ json_redaction := redact_text("{\"api_key\":\"json-secret\",\"access_token\":\"a
 failed = failed + check("JSON credential redaction", bool_or(contains(json_redaction, "json-secret"), true) == false && bool_or(contains(json_redaction, "access-secret"), true) == false && bool_or(contains(json_redaction, "pw-secret"), true) == false && bool_or(contains(json_redaction, "[REDACTED_CREDENTIAL]"), false))
 failed = failed + check("provider token redaction", contains(redact_text("sk-12345678abcdefghijklmnopqrstuvwxyz"), "[REDACTED_KEY]") && contains(redact_text("github_pat_123456789012345678901234567890"), "[REDACTED_KEY]"))
 failed = failed + check("private key redaction", contains(redact_text("-----BEGIN PRIVATE KEY-----"), "[REDACTED_PRIVATE_KEY]"))
-process_env_probe := process_options({"PATH": "/tmp/relay-untrusted-path", "LD_PRELOAD": "/tmp/relay-loader", "RELAY_TEST_ENV": "ok"}, 1000, 1000)
+process_env_probe := process_options({"PATH": "/tmp/relay-untrusted-path", "PWD": "/tmp/relay-untrusted-pwd", "LD_PRELOAD": "/tmp/relay-loader", "RELAY_TEST_ENV": "ok"}, 1000, 1000)
 failed = failed + check("process PATH remains fixed", dict_get_or(process_env_probe["env"], "PATH", "") == safe_process_path())
-failed = failed + check("dangerous process environment is dropped", has_key(process_env_probe["env"], "LD_PRELOAD") == 0 && dict_get_or(process_env_probe["env"], "RELAY_TEST_ENV", "") == "ok")
+failed = failed + check("dangerous process environment is dropped", has_key(process_env_probe["env"], "LD_PRELOAD") == 0 && has_key(process_env_probe["env"], "PWD") == 0 && dict_get_or(process_env_probe["env"], "RELAY_TEST_ENV", "") == "ok")
+failed = failed + check("model token request follows budget", bounded_max_tokens(64, 700) == 64 && bounded_max_tokens(0, 700) == 0 && bounded_max_tokens(20000, 700) == 16384)
 bounded_json_path := "/tmp/relay-contract-bounded-json-" + to_string(current_timestamp())
 write_file(bounded_json_path, "{\"ok\":true}")
 failed = failed + check("bounded JSON read accepts small file", dict_get_or(read_json_limited(bounded_json_path, {}, 64), "ok", false) == true)

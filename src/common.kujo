@@ -195,7 +195,7 @@ func process_options(extra_env, timeout_ms, max_output_bytes) {
             # child-process boundary. PWD is retained only because run_process
             # derives it from its already validated working directory.
             if name == "PATH" { continue }
-            if name != "PWD" && safe_env_name(name) == false { continue }
+            if safe_env_name(name) == false { continue }
             env_map[name] := extra_env[name]
             allowed := push(allowed, name)
         }

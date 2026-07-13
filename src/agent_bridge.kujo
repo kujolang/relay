@@ -68,7 +68,7 @@ func process_options(extra_env, timeout_ms) {
     }
     for name in keys(extra_env) {
         if name == "PATH" { continue }
-        if name != "PWD" && safe_env_name(name) == false { continue }
+        if safe_env_name(name) == false { continue }
         env_map[name] := extra_env[name]
         allowed := push(allowed, name)
     }

@@ -350,6 +350,7 @@ func load_spec(path) {
             if (key == "max_tool_calls" || key == "max_output_bytes" || key == "max_write_bytes") && value == 0 { return {"ok": false, "error": "Mission budget " + key + " must be greater than zero"} }
             if key == "max_tool_calls" && value > 16 { return {"ok": false, "error": "Mission budget max_tool_calls exceeds the 16-call safety limit"} }
             if key == "max_repairs" && value > 4 { return {"ok": false, "error": "Mission budget max_repairs exceeds the 4-repair safety limit"} }
+            if key == "max_tokens" && (value == 0 || value > 16384) { return {"ok": false, "error": "Mission budget max_tokens must be between 1 and 16384"} }
             if key == "max_tool_turns" && (value == 0 || value > 4) { return {"ok": false, "error": "Mission budget max_tool_turns must be between 1 and 4"} }
             if (key == "max_output_bytes" || key == "max_write_bytes") && value > 8388608 { return {"ok": false, "error": "Mission budget " + key + " exceeds the 8 MiB safety limit"} }
         }
@@ -735,11 +736,12 @@ func run_mission(path, options) {
     planning_tools := []
     if agent_tool_mode == "provider" { planning_tools = tool_definitions(dict_get_or(spec, "agent_tool_allowlist", [])) }
     provider_messages := [{"role": "system", "content": planner["mandate"]}, {"role": "user", "content": to_string(spec["goal"])}]
-    model_result := ai_chat_correlated_with_tools(provider_messages, string_or(dict_get_or(spec, "model", "fixture-model"), "fixture-model"), string_or(dict_get_or(spec, "provider", "fixture"), "fixture"), bool_or(dict_get_or(options, "offline_fixture", true), true), bool_or(dict_get_or(options, "stream", false), false), state["run_id"], planning_tools)
+    model_result := ai_chat_correlated_with_tools(provider_messages, string_or(dict_get_or(spec, "model", "fixture-model"), "fixture-model"), string_or(dict_get_or(spec, "provider", "fixture"), "fixture"), bool_or(dict_get_or(options, "offline_fixture", true), true), bool_or(dict_get_or(options, "stream", false), false), state["run_id"], planning_tools, state["budgets"]["max_tokens"])
     state["telemetry"] := dict_get_or(model_result, "relay_telemetry", {})
     if agent_tool_mode != "provider" { state = record_model_fallback(state, run_dir, state["telemetry"], "plan") }
     usage := dict_get_or(model_result, "usage", {})
     used_tokens := int_or(dict_get_or(usage, "total_tokens", 0), 0)
+    if used_tokens < 0 { used_tokens = 0 }
     if agent_tool_mode == "provider" {
         max_tool_calls := int_or(dict_get_or(dict_get_or(spec, "budgets", {}), "max_tool_calls", 4), 4)
         max_tool_turns := int_or(dict_get_or(dict_get_or(spec, "budgets", {}), "max_tool_turns", 2), 2)
@@ -756,6 +758,11 @@ func run_mission(path, options) {
             state = record_model_fallback(state, run_dir, state["telemetry"], "plan-tool-turn-" + to_string(tool_turns))
             if dict_get_or(model_result, "ok", false) == false {
                 provider_loop_ok = false
+                break
+            }
+            if used_tokens > state["budgets"]["max_tokens"] {
+                provider_loop_ok = false
+                agent_sdk_tools["error"] := "mission token budget exceeded before provider tool execution"
                 break
             }
             normalized_tools := normalize_provider_tool_calls(dict_get_or(model_result, "tool_calls", []))
@@ -820,9 +827,17 @@ func run_mission(path, options) {
             }
             provider_messages := push(provider_messages, {"role": "assistant", "content": string_or(dict_get_or(model_result, "output_text", ""), ""), "tool_calls": provider_assistant_tool_calls(calls)})
             for message in dict_get_or(result_messages, "messages", []) { provider_messages := push(provider_messages, message) }
-            model_result = ai_chat_correlated_with_tools(provider_messages, string_or(dict_get_or(spec, "model", "fixture-model"), "fixture-model"), string_or(dict_get_or(spec, "provider", "fixture"), "fixture"), bool_or(dict_get_or(options, "offline_fixture", true), true), bool_or(dict_get_or(options, "stream", false), false), state["run_id"], planning_tools)
+            remaining_model_tokens := state["budgets"]["max_tokens"] - used_tokens
+            if remaining_model_tokens <= 0 {
+                provider_loop_ok = false
+                agent_sdk_tools["error"] := "mission token budget exceeded before provider follow-up"
+                break
+            }
+            model_result = ai_chat_correlated_with_tools(provider_messages, string_or(dict_get_or(spec, "model", "fixture-model"), "fixture-model"), string_or(dict_get_or(spec, "provider", "fixture"), "fixture"), bool_or(dict_get_or(options, "offline_fixture", true), true), bool_or(dict_get_or(options, "stream", false), false), state["run_id"], planning_tools, remaining_model_tokens)
             next_usage := dict_get_or(model_result, "usage", {})
-            used_tokens = used_tokens + int_or(dict_get_or(next_usage, "total_tokens", 0), 0)
+            next_tokens := int_or(dict_get_or(next_usage, "total_tokens", 0), 0)
+            if next_tokens < 0 { next_tokens = 0 }
+            used_tokens = used_tokens + next_tokens
         }
         agent_sdk_tools["provider_generated"] := true
         agent_sdk_tools["calls"] := tool_calls_accumulated
@@ -843,6 +858,8 @@ func run_mission(path, options) {
         state := add_event(state, run_dir, "tool_plan_resolved", "agent-sdk-tools", "planner", {"kind": "provider_generated_tool_plan", "ok": agent_sdk_tools["ok"], "provider_generated": true, "calls": dict_get_or(agent_sdk_tools, "calls", []), "receipt_id": provider_tool_receipt["receipt_id"]})
     }
     usage := dict_get_or(model_result, "usage", {})
+    if type(usage) != "dict" { usage = {} }
+    usage["relay_accounted_total_tokens"] := used_tokens
     if agent_tool_mode == "provider" {
         usage["relay_total_tokens"] := used_tokens
         final_telemetry := dict_get_or(state, "telemetry", {})
@@ -884,7 +901,8 @@ func run_mission(path, options) {
         } else {
             state["status"] := "failed"
             failure_class := dict_get_or(actions["failure"], "failure_class", "tool_failure")
-            if preflight_ok == false { failure_class = "integration_failure" }
+            if used_tokens > state["budgets"]["max_tokens"] { failure_class = "budget_exceeded" }
+            else if preflight_ok == false { failure_class = "integration_failure" }
             state["failure"] := {"class": failure_class, "message": dict_get_or(actions["failure"], "error", "action or preflight failed"), "repair_attempts": 0}
             state := add_event(state, run_dir, "run_failed", "implementation", "core-developer", state["failure"])
         }

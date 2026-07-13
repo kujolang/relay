@@ -2,6 +2,13 @@ from src.common import dict_get_or, env_or, env_bool, string_or, bool_or, int_or
 from src.policy import real_path, path_is_within_root
 from src.watchdog import watchdog_verify, safe_base, route_policy, safe_correlation_id
 
+func bounded_max_tokens(value, fallback) {
+    candidate := int_or(value, int_or(fallback, 700))
+    if candidate <= 0 { return 0 }
+    if candidate > 16384 { return 16384 }
+    return candidate
+}
+
 func relay_root() {
     raw := env_or("RELAY_ROOT", env_or("PWD", "."))
     if starts_with(raw, "/") { return raw }
@@ -60,16 +67,23 @@ func run_process(command, cwd, extra_env, timeout_ms) {
     mut process_env := extra_env
     if type(process_env) != "dict" { process_env = {} }
     effective_cwd := rooted_path(cwd)
+    resolved_cwd := ""
     # `/usr/bin/env -C` changes the kernel cwd, but some Kujo module resolution
     # paths also consult PWD. Keep both views aligned for sibling-tool probes
     # and adapters so a dependency cannot accidentally import Relay's `src/`
     # tree merely because the caller launched it from Relay.
     if effective_cwd != "" {
-        resolved_cwd := real_path(effective_cwd)
+        resolved_cwd = real_path(effective_cwd)
         if resolved_cwd == "" { resolved_cwd = effective_cwd }
         process_env["PWD"] := resolved_cwd
     }
     options := process_options(process_env, timeout_ms, 8 * 1024 * 1024)
+    if effective_cwd != "" {
+        if has_key(options["env"], "PWD") == 0 { options["env_allow"] := push(options["env_allow"], "PWD") }
+        env_options := options["env"]
+        env_options["PWD"] := resolved_cwd
+        options["env"] := env_options
+    }
     actual_command := command
     if effective_cwd != "" {
         actual_command := ["/usr/bin/env", "-C", effective_cwd]
@@ -169,7 +183,7 @@ func provider_payload_allowed(payload) {
     return provider_payload_size(payload) <= 114688
 }
 
-func call_ai_with_tools(messages, model, provider, base_url, api_key_env, offline, stream, correlation_id, tools) {
+func call_ai_with_tools(messages, model, provider, base_url, api_key_env, offline, stream, correlation_id, tools, max_tokens) {
     if offline == false && watchdog_url() == "" {
         return {"ok": false, "error": {"code": "watchdog_route_required", "message": "Live AI calls require RELAY_WATCHDOG_URL"}, "relay_telemetry": {"route": "blocked_no_watchdog", "provider": provider, "model": model}}
     }
@@ -178,6 +192,10 @@ func call_ai_with_tools(messages, model, provider, base_url, api_key_env, offlin
     }
     if safe_env_name(api_key_env) == false {
         return {"ok": false, "error": {"code": "invalid_api_key_env", "message": "RELAY_API_KEY_ENV must be a safe non-reserved environment variable name"}, "relay_telemetry": {"route": "blocked_invalid_env", "provider": provider, "model": model}}
+    }
+    request_max_tokens := bounded_max_tokens(max_tokens, 700)
+    if request_max_tokens <= 0 {
+        return {"ok": false, "error": {"code": "token_budget_exhausted", "message": "AI request token budget must be greater than zero"}, "relay_telemetry": {"route": "blocked_token_budget", "provider": provider, "model": model}}
     }
     requested_correlation := string_or(correlation_id, env_or("RELAY_CORRELATION_ID", ""))
     correlation := safe_correlation_id(requested_correlation)
@@ -189,7 +207,7 @@ func call_ai_with_tools(messages, model, provider, base_url, api_key_env, offlin
         "api_key_env": api_key_env,
         "messages": messages,
         "temperature": 0.2,
-        "max_tokens": 700,
+        "max_tokens": request_max_tokens,
         "max_retries": 1,
         "offline_fixture": offline,
         "correlation_id": correlation
@@ -222,7 +240,7 @@ func call_ai_with_tools(messages, model, provider, base_url, api_key_env, offlin
     route := "direct_ai_sdk"
     if watchdog_url() != "" && offline == false { route = "watchdog_proxy" }
     route_posture := route_policy(watchdog_url())
-    parsed["relay_telemetry"] := {"route": route, "watchdog_route": {"configured": dict_get_or(route_posture, "configured", false), "valid": dict_get_or(route_posture, "valid", false), "scheme": dict_get_or(route_posture, "scheme", ""), "reason": dict_get_or(route_posture, "reason", "")}, "watchdog_auth_configured": watchdog_token != "", "provider": provider, "model": model, "stream_requested": stream, "correlation_id": correlation, "duration_ms": int_or(dict_get_or(result, "duration_ms", 0), 0)}
+    parsed["relay_telemetry"] := {"route": route, "watchdog_route": {"configured": dict_get_or(route_posture, "configured", false), "valid": dict_get_or(route_posture, "valid", false), "scheme": dict_get_or(route_posture, "scheme", ""), "reason": dict_get_or(route_posture, "reason", "")}, "watchdog_auth_configured": watchdog_token != "", "provider": provider, "model": model, "stream_requested": stream, "requested_max_tokens": request_max_tokens, "correlation_id": correlation, "duration_ms": int_or(dict_get_or(result, "duration_ms", 0), 0)}
     if offline == false && env_bool("RELAY_WATCHDOG_VERIFY", false) {
         verification := watchdog_verify(correlation)
         parsed["relay_watchdog_verification"] := verification
@@ -235,7 +253,7 @@ func call_ai_with_tools(messages, model, provider, base_url, api_key_env, offlin
 }
 
 func call_ai(messages, model, provider, base_url, api_key_env, offline, stream, correlation_id) {
-    return call_ai_with_tools(messages, model, provider, base_url, api_key_env, offline, stream, correlation_id, [])
+    return call_ai_with_tools(messages, model, provider, base_url, api_key_env, offline, stream, correlation_id, [], 700)
 }
 
 func ai_chat(messages, model, provider, offline, stream) {
@@ -268,19 +286,19 @@ func fallback_decision(result, primary_model, fallback_model) {
 }
 
 func ai_chat_correlated(messages, model, provider, offline, stream, correlation_id) {
-    return ai_chat_correlated_with_tools(messages, model, provider, offline, stream, correlation_id, [])
+    return ai_chat_correlated_with_tools(messages, model, provider, offline, stream, correlation_id, [], 700)
 }
 
-func ai_chat_correlated_with_tools(messages, model, provider, offline, stream, correlation_id, tools) {
+func ai_chat_correlated_with_tools(messages, model, provider, offline, stream, correlation_id, tools, max_tokens) {
     base := watchdog_url()
     if base == "" { base = "https://api.openai.com/v1" }
     api_key_env := env_or("RELAY_API_KEY_ENV", "OPENAI_API_KEY")
-    primary := call_ai_with_tools(messages, model, provider, base, api_key_env, offline, stream, correlation_id, tools)
+    primary := call_ai_with_tools(messages, model, provider, base, api_key_env, offline, stream, correlation_id, tools, max_tokens)
     fallback_model := env_or("RELAY_FALLBACK_MODEL", "")
     if dict_get_or(primary, "ok", false) == false {
         decision := fallback_decision(primary, model, fallback_model)
         if decision["action"] == "attempt" {
-            fallback := call_ai_with_tools(messages, fallback_model, provider, base, api_key_env, offline, stream, correlation_id, tools)
+            fallback := call_ai_with_tools(messages, fallback_model, provider, base, api_key_env, offline, stream, correlation_id, tools, max_tokens)
             telemetry := dict_get_or(fallback, "relay_telemetry", {})
             telemetry["fallback_from"] := model
             telemetry["fallback_reason"] := decision["reason"]
@@ -400,6 +418,7 @@ export watchdog_route_allowed := watchdog_route_allowed
 export ai_chat := ai_chat
 export ai_chat_correlated := ai_chat_correlated
 export ai_chat_correlated_with_tools := ai_chat_correlated_with_tools
+export bounded_max_tokens := bounded_max_tokens
 export normalize_provider_tool_calls := normalize_provider_tool_calls
 export provider_payload_size := provider_payload_size
 export provider_payload_allowed := provider_payload_allowed
