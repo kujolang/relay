@@ -1,4 +1,4 @@
-from src.common import dict_get_or, env_or, string_or, bool_or, int_or, now_iso, safe_id, read_json_or, read_json_limited, write_json, append_jsonl_bounded, safe_json, shell_quote_single, command_args, write_text_atomic, process_options, process_options_with_cancel, redact_text, path_is_symlink_safe, path_has_symlink_component, consume_agent_capability
+from src.common import dict_get_or, env_or, string_or, bool_or, int_or, now_iso, safe_id, read_json_or, read_json_limited, write_json, append_jsonl_bounded, safe_json, shell_quote_single, command_args, write_text_atomic, process_options, process_options_with_cancel, redact_text, path_is_symlink_safe, path_has_symlink_component, create_exclusive_dir, consume_agent_capability
 from src.contracts import run_state, event, event_integrity_input, receipt, receipt_integrity_input, event_chain_integrity_valid, receipt_sequence_valid, state_integrity_input, state_integrity_valid
 from src.registry import find_agent
 from src.policy import tool_decision, classify_failure, repair_allowed, path_is_safe, path_is_within_workspace, command_is_allowed, script_hash_policy_valid
@@ -9,7 +9,9 @@ export MISSION_SPEC_MAX_BYTES := 1048576
 export MISSION_COMMAND_MAX_BYTES := 16384
 
 func ensure_dir(path) {
-    if path == "" || path == "." || path_is_dir(path) { return }
+    if path == "" || path == "." { return true }
+    if path_is_symlink_safe(path) || path_has_symlink_component(path) { return false }
+    if path_is_dir(path) { return true }
     parts := split(path, "/")
     mut cur := ""
     if starts_with(path, "/") { cur = "/" }
@@ -18,10 +20,14 @@ func ensure_dir(path) {
         part := parts[i]
         if part != "" && part != "." {
             if cur == "/" { cur = "/" + part } else if cur == "" { cur = part } else { cur = cur + "/" + part }
-            if path_is_dir(cur) == false { create_dir(cur) }
+            if path_is_symlink_safe(cur) || path_has_symlink_component(cur) { return false }
+            if path_is_dir(cur) == false {
+                if create_exclusive_dir(cur) == false && (path_is_symlink_safe(cur) || path_is_dir(cur) == false) { return false }
+            }
         }
         i = i + 1
     }
+    return path_is_dir(path) && path_is_symlink_safe(path) == false && path_has_symlink_component(path) == false
 }
 
 func relay_root() { return env_or("RELAY_ROOT", ".") }
@@ -644,7 +650,7 @@ func create_mission(path, output_path) {
         spec = loaded["spec"]
     }
     if output_path == "" { output_path = state_root() + "/missions/" + name + ".json" }
-    ensure_dir(state_root() + "/missions")
+    if ensure_dir(state_root() + "/missions") == false { return {"ok": false, "failure_class": "state_store_failure", "error": "Mission directory is unsafe or unavailable"} }
     if write_json(output_path, spec) == false { return {"ok": false, "failure_class": "state_store_failure", "error": "Mission file could not be persisted"} }
     return {"ok": true, "path": output_path, "mission": spec}
 }
@@ -655,11 +661,11 @@ func run_mission(path, options) {
     loaded := load_spec(path)
     if loaded["ok"] == false { return loaded }
     spec := loaded["spec"]
-    ensure_dir(run_root())
+    if ensure_dir(run_root()) == false { return {"ok": false, "failure_class": "state_store_failure", "error": "Run directory is unsafe or unavailable"} }
     mission_id := safe_id(string_or(dict_get_or(spec, "id", dict_get_or(spec, "name", "mission")), "mission"), "mission")
     run_key := mission_id + "-" + to_string(current_timestamp()) + "-" + to_string(random_int(1000, 999999))
     run_dir := run_root() + "/" + run_key
-    ensure_dir(run_dir)
+    if ensure_dir(run_dir) == false { return {"ok": false, "failure_class": "state_store_failure", "error": "Run workspace directory is unsafe or unavailable"} }
     source_repo := string_or(dict_get_or(spec, "repository", "."), ".")
     repo := source_repo
     workspace := {"mode": "provided", "source_repository": source_repo, "path": source_repo}
