@@ -46,7 +46,7 @@ The current run engine still accepts explicit action plans, but missions may now
 
 ## 2026-07-11 enterprise-readiness review
 
-The current posture is local-first hardened alpha/showcase, not universal enterprise production. This review added realpath workspace checks, shell/Git command deny rules, explicit write approvals, subprocess redaction, packet digest metadata, unique run suffixes, preflight failure handling, ChangeBucket/Eval completion authority, atomic JSON persistence, efficient JSONL append, generated file-existence acceptance checks, shared Capsule process handling, and a real pause-after-plan/resume checkpoint. See `docs/enterprise-readiness-review-2026-07-11.md` and the current `docs/next-session-enhancement-backlog-2026-07-13-v50.md` for the evidence boundary and prioritized remaining work.
+The current posture is local-first hardened alpha/showcase, not universal enterprise production. This review added realpath workspace checks, shell/Git command deny rules, explicit write approvals, subprocess redaction, packet digest metadata, unique run suffixes, preflight failure handling, ChangeBucket/Eval completion authority, atomic JSON persistence, efficient JSONL append, generated file-existence acceptance checks, shared Capsule process handling, and a real pause-after-plan/resume checkpoint. See `docs/enterprise-readiness-review-2026-07-11.md` and the current `docs/next-session-enhancement-backlog-2026-07-13-v51.md` for the evidence boundary and prioritized remaining work.
 
 ## Forty-seventh 2026-07-12 review
 
@@ -86,6 +86,16 @@ wrong-shaped files. The store smoke proves a positive verification verdict and
 negative missing-artifact cases. Relay remains a local alpha; external provider
 proof, authenticated ownership, full workcells, durable storage, and release
 gates remain open.
+
+## Fifty-first 2026-07-13 review
+
+Hardened `runs export` against incomplete result bundles. ChangeBucket, Eval,
+and JSON report artifacts must now be present, bounded, regular, and correctly
+shaped before export can claim `integrity_valid: true`; `runs verify` reports
+`report_valid` as well. Store-smoke coverage proves missing changes and report
+artifacts fail closed. Relay remains a local alpha; external provider proof,
+authenticated ownership, full workcells, durable storage, and release gates
+remain open.
 
 ## Second 2026-07-11 review
 

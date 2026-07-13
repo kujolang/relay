@@ -171,8 +171,8 @@ successful empty object or array.
 
 `runs verify <run-id>` is a compact machine-facing integrity check. It validates
 the authoritative state, complete event chain, persisted receipts, state/log
-consistency, and persisted ChangeBucket/Eval artifact shapes, returning
-`relay-run-verification-v1` with individual boolean fields and
+consistency, persisted ChangeBucket/Eval artifact shapes, and the JSON report,
+returning `relay-run-verification-v1` with individual boolean fields and
 `integrity_valid`. It does not repair, mutate, or replace any evidence.
 
 Runtime adapters normalize relative `KUJO_BIN` and configured sibling-tool
@@ -188,6 +188,11 @@ at 64 MiB. Oversized cache/evidence documents fail closed and trigger the
 authoritative rebuild or an explicit missing-state error.
 
 Each AgentEvent-compatible JSONL record includes a deterministic `integrity_sha256` field covering its identity, parent, payload, and metadata. The hash detects accidental or unauthorized record mutation; signed export and durable retention remain future work.
+
+`runs export` refuses to claim a valid bundle unless `changes.json`,
+`evaluations.json`, and `report.json` are present, bounded, regular, and have
+the expected JSON shapes. A missing result or report is an incomplete export,
+not an empty successful field.
 
 `runs events` parses and verifies the complete event chain and checks its event
 IDs and complete canonical records against authoritative run state before

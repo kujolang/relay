@@ -73,7 +73,7 @@ Implemented and truthful in this slice:
 - `agents list|inspect|validate`
 - `doctor`, including dependency identity/version, agent-registry, secret-safe live-route posture, and credential checks
 - `missions create|run|inspect|pause|resume|cancel|cleanup|report`; cancellation is cooperative and recorded as run evidence
-- `runs list|rebuild|inspect|verify|events|watch|sizes|changes|evaluations|export`; `verify` provides a compact machine-readable evidence verdict, while event reads and exports verify the integrity chain and typed receipt index
+- `runs list|rebuild|inspect|verify|events|watch|sizes|changes|evaluations|export`; `verify` provides a compact machine-readable evidence verdict, while event reads and exports verify the integrity chain, typed receipt index, and required result/report artifacts
 - `benchmark run` for the Capsule discovery slice
 
 `missions run` accepts explicit step, repair, token, output, and write budgets. A mission can set `agent_tools` to bounded `relay.write_file` or `relay.run_command` calls; the Agents SDK registry and approval provider execute them through Relay's policy worker, and the run records the result. The default Agents SDK aggregate smoke can be skipped for a deliberately configured run with `--skip-agent-smoke`; the run records that it was skipped. Not yet implemented: provider-driven model tool planning, adaptive routing, full multi-step Dispatch workflow loading, interactive approval UI, live Ollama Cloud proof, authenticated service mode, full workcell recovery, durable concurrent storage, and the complete Capsule A/B benchmark rubric. Those remain explicit follow-up work rather than placeholder commands.
@@ -149,4 +149,4 @@ bash tests/relay_symlink_probe_smoke.sh
 git diff --check
 ```
 
-For the full integration evidence boundary and deferred enterprise work, see [`docs/enterprise-readiness-review-2026-07-11.md`](docs/enterprise-readiness-review-2026-07-11.md), [`docs/command-reference.md`](docs/command-reference.md), and the current [`docs/next-session-enhancement-backlog-2026-07-13-v50.md`](docs/next-session-enhancement-backlog-2026-07-13-v50.md).
+For the full integration evidence boundary and deferred enterprise work, see [`docs/enterprise-readiness-review-2026-07-11.md`](docs/enterprise-readiness-review-2026-07-11.md), [`docs/command-reference.md`](docs/command-reference.md), and the current [`docs/next-session-enhancement-backlog-2026-07-13-v51.md`](docs/next-session-enhancement-backlog-2026-07-13-v51.md).

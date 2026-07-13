@@ -522,3 +522,13 @@ missing or malformed files cannot become successful empty results. The store
 smoke proves a positive verification verdict and negative missing-artifact
 cases. Relay remains a local alpha; external provider proof, authenticated
 ownership, full workcells, durable storage, and release gates remain open.
+
+## Fifty-first 2026-07-13 review
+
+This review extends evidence-completeness hardening to `runs export`. The
+command now requires persisted ChangeBucket, Eval, and JSON report artifacts
+with bounded regular-file and JSON-shape checks; missing artifacts cannot be
+exported as empty fallback fields under an `integrity_valid: true` bundle. The
+store smoke proves missing changes and report artifacts fail closed. Relay
+remains a local alpha; external provider proof, authenticated ownership, full
+workcells, durable storage, and release gates remain open.

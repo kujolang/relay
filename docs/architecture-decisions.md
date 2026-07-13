@@ -674,3 +674,18 @@ verification remains local and non-mutating; signed exports, durable storage,
 tenant authorization, and repair remain separate concerns. Rejected: trusting
 the rebuildable index, returning empty fallbacks, or adding a second evidence
 store.
+
+## ADR-070: Do not export incomplete result bundles as valid
+
+Context: `runs export` verified state, events, and receipts but previously read
+ChangeBucket, Eval, and report JSON through fallback readers. A deleted result
+could therefore be exported as `{}` or `[]` while the bundle still claimed
+`integrity_valid: true`. Decision: require bounded, regular, shape-checked
+`changes.json`, `evaluations.json`, and `report.json` before producing a valid
+export, and expose their validity fields in `runs verify`. Rationale: an export
+is an evidence boundary, so absence must be distinguishable from an empty
+result and machine consumers must not infer completion from a partial bundle.
+Consequence: failed or partially persisted runs return an explicit incomplete
+export error until a future partial-export contract is defined; no evidence is
+silently synthesized. Rejected: empty fallbacks, embedding only state copies,
+or letting the export command define a second result store.
