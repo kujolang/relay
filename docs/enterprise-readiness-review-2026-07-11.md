@@ -400,3 +400,11 @@ correlation identifiers. Contract and mission smokes pass, so machine callers
 can inspect a receipt without reconstructing context from neighboring events.
 This improves local evidence usability but does not provide signed export,
 typed retry/repair receipts, tenant-aware custody, or durable storage.
+
+## Thirty-ninth 2026-07-12 review
+
+Relay's doctor now probes the configured Kujo, PackWrite, RunLedger, and
+ChangeBucket launchers for non-empty version output using bounded subprocesses
+and explicit environments. The CLI smoke and full local acceptance gates pass.
+This catches stale or miswired local dependencies, but signed provenance,
+semantic compatibility ranges, hashes, and deployment ownership remain open.

@@ -399,3 +399,11 @@ and AI correlation identifiers. Contract and mission evidence pass. This is a
 stronger local machine-consumption boundary, not a replacement for signed
 exports, durable retention, tenant-aware secret custody, or typed repair
 receipts.
+
+## Thirty-ninth 2026-07-12 review
+
+`doctor --json` now performs bounded version probes for Kujo, PackWrite,
+RunLedger, and ChangeBucket with explicit environments and configurable sibling
+roots. Required probe failures make readiness fail closed. Full local gates pass;
+this remains a dependency-readiness check, not signed supply-chain provenance,
+semantic compatibility validation, or enterprise deployment attestation.

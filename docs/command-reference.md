@@ -27,6 +27,13 @@ socket transport rather than an unbounded environment variable.
 
 Run `relay doctor --json` before a live or CI invocation. Fixture mode does not require Watchdog or credentials; live mode fails closed when either is absent.
 
+Doctor also probes the configured Kujo, PackWrite, RunLedger, and ChangeBucket
+executables for non-empty version output. Version probes run with bounded
+timeouts and explicit environments; a failed required probe makes doctor
+readiness fail with `version_probe_failed`. Override sibling tool roots with
+`RELAY_PACKWRITE_ROOT`, `RELAY_RUNLEDGER_ROOT`, or `RELAY_CHANGEBUCKET_ROOT`
+when their launchers are installed outside the default ecosystem checkout.
+
 Relay also fails closed when `.relay` or `.relay/runs` is a symbolic link. This
 prevents mission, index, and operator-control paths from redirecting evidence
 outside the configured Relay root; the failure is reported as

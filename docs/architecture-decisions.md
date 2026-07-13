@@ -459,3 +459,18 @@ metadata remain readable only under their existing contract, while signed
 exports, typed retry/repair IDs, and durable retention remain deferred.
 Rejected: trusting event adjacency, copying full run state into each receipt,
 or adding a second telemetry store.
+
+## ADR-057: Probe dependency versions during doctor readiness
+
+Context: filesystem type and symlink checks established dependency path posture,
+but a present executable could still be stale, miswired, or resolve the wrong
+Kujo-native package when invoked from a different working directory. Decision:
+`doctor --json` runs bounded `--version`/`version` probes for Kujo, PackWrite,
+RunLedger, and ChangeBucket with explicit environments and configurable sibling
+roots; required probe failures make readiness fail closed. Rationale: catch
+broken or stale local composition before a mission mutates a repository while
+keeping the probe output machine-readable and provider-independent. Consequence:
+doctor performs a few bounded subprocesses and does not yet verify signed
+provenance, hashes, semantic compatibility ranges, or deployment ownership.
+Rejected: trusting executable existence, parsing README versions, or silently
+running version probes with the host environment.
