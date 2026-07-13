@@ -1047,3 +1047,36 @@ results fail closed, and providers that do not support the message dialect
 remain an explicit capability failure. Rejected: executing a second provider
 request without tool results, treating the model's final text as tool evidence,
 or creating a separate tool executor/store.
+
+## ADR-096: Fail closed at provider, subprocess, and evidence-size boundaries
+
+Context: the provider bridge, Agents SDK worker, and local evidence files each
+had independent transport or inspection limits. A caller-controlled prompt or
+provider response could consume the remaining bridge budget, duplicate tool
+IDs could make follow-up results ambiguous, proxy environment variables could
+redirect child-process network traffic, and an event or receipt log could grow
+beyond the read-side verification ceiling before completion was rejected.
+
+Decision: cap serialized AI requests at 112 KiB before bridge spawn, cap
+serialized provider responses at 1 MiB, cap provider tool arguments at 64 KiB
+per call, reject duplicate or control-character tool-call IDs, deny proxy
+environment overrides at the shared child-process boundary, cap persisted
+event and receipt evidence at 8 MiB, and require PackWrite to produce a safe
+regular `agent/MASTER.md` artifact before mission preflight can pass.
+
+Rationale: keep resource limits below downstream transport/inspection limits,
+preserve unambiguous tool-result correlation, reduce network-redirection risk,
+and make evidence-size failure explicit at the write boundary. The changes
+reuse existing common environment, adapter, PackWrite, and evidence contracts
+instead of adding another policy or storage owner.
+
+Consequences: large prompts, provider outputs, tool arguments, event histories,
+and receipt histories fail closed with machine-readable evidence rather than
+being truncated silently. Provider-specific dialect negotiation, durable
+retention/compaction, signed state, authenticated tenancy, and multi-host
+storage remain deferred.
+
+Rejected: silently truncating provider messages or evidence, allowing arbitrary
+proxy variables for convenience, accepting duplicate IDs and guessing result
+order, or treating a successful PackWrite process exit as proof that a usable
+packet exists.

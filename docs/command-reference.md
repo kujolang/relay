@@ -116,7 +116,10 @@ Mission specs are JSON objects with `name`, `goal`, a Git `repository`, `actions
 Mission input files must be regular, non-symbolic files no larger than 1 MiB.
 This bound applies before JSON parsing and persistence, preventing an
 unbounded caller-controlled mission document from becoming run state or model
-context. Action count and tool-call budgets remain separately bounded.
+context. Action count and tool-call budgets remain separately bounded. Action
+and declared-tool paths are capped at 4 KiB, command strings at 16 KiB, and
+declared write content is checked against `max_write_bytes` before any worker
+or external adapter starts.
 
 The approved Git profile is intentionally narrow: `status`, `diff`,
 `rev-parse`, `log`, and `show` with enumerated read-only options. Positional
@@ -156,7 +159,19 @@ the verified bundle is persisted as `tool-results.json` and described by
 unsupported tools, approval failures, tool-call limits, and tool-turn limits
 fail closed. Provider-generated planning is not enabled by default.
 
-Budget fields are non-negative integers: `max_steps`, `max_repairs`, and `max_tokens`; `max_tool_calls`, `max_tool_turns`, `max_output_bytes`, and `max_write_bytes` must be positive. `max_tool_calls` is capped at 16 and `max_tool_turns` at 4 per mission; the configured limits are enforced before every provider-generated tool execution and follow-up request. Output and write budgets are capped at 8 MiB per mission; command timeouts must be between 1 ms and 10 minutes. A budget failure is recorded as a failed run with a typed failure class; it is never reported as completed.
+Provider requests are rejected before the AI bridge when their serialized
+payload exceeds 112 KiB, leaving headroom below the bridge's 128 KiB transport
+ceiling. Provider responses larger than 1 MiB are rejected by the bridge.
+That response-size failure is eligible for the configured model fallback;
+request-size failures are not retried because the same context would exceed
+the fixed boundary again.
+Provider tool arguments are capped at 64 KiB per call and duplicate provider
+call IDs fail closed so follow-up `role: tool` results cannot be ambiguously
+correlated. Persisted `events.jsonl` and `receipts.json` evidence are each
+capped at 8 MiB; exceeding a cap fails the run's evidence boundary rather than
+creating an apparently complete but unreadable run.
+
+Budget fields are non-negative integers: `max_steps`, `max_repairs`, and `max_tokens`; `max_tool_calls`, `max_tool_turns`, `max_output_bytes`, and `max_write_bytes` must be positive. `max_tool_calls` is capped at 16 and `max_tool_turns` at 4 per mission; the configured limits are enforced before every provider-generated tool execution and follow-up request. Output and write budgets are capped at 8 MiB per mission; command timeouts must be between 1 ms and 10 minutes. A budget failure is recorded as a failed run with a typed failure class; it is never reported as completed. Provider request/response and evidence-file ceilings are fixed Relay safety boundaries rather than caller-widenable mission budgets.
 
 ## JSON evidence
 

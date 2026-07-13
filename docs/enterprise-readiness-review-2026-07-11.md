@@ -748,3 +748,20 @@ terminal event evidence. This is a local provider-dialect fixture, not live
 Ollama Cloud or independent-provider proof. Provider dialect negotiation,
 workcell crash recovery, authenticated adapters, durable storage, and release
 gates remain open.
+
+## Sixty-eighth 2026-07-13 review
+
+This review adds local resource and authority hardening. Relay now rejects AI
+requests above 112 KiB before bridge spawn, provider responses above 1 MiB,
+provider tool arguments above 64 KiB, and duplicate/control-character provider
+call IDs. Shared child-process policy rejects HTTP proxy environment overrides,
+and event/receipt persistence fails closed at 8 MiB instead of allowing a run
+to complete with evidence that read-side verification cannot consume.
+
+PackWrite integration now requires a safe regular `agent/MASTER.md` artifact,
+not merely a successful subprocess exit. Contract, input-boundary,
+provider-tool, mission, Agents SDK, and source checks passed locally. These
+improvements do not establish live Ollama Cloud or independent-provider
+compatibility, authenticated tenancy, durable concurrent storage, recoverable
+workcells, or release-gate completion. The next-session work is tracked in
+`docs/next-session-enhancement-backlog-2026-07-13-v67.md`.

@@ -734,3 +734,18 @@ Watchdog/stub-provider two-turn response, Agents SDK execution, repository
 mutation, result persistence, ChangeBucket, Eval, RunLedger, and terminal event
 evidence. This does not establish live provider compatibility, durable storage,
 workcell crash recovery, authenticated machine mode, or enterprise readiness.
+
+## Sixty-eighth 2026-07-13 review
+
+The latest hardening pass adds a 112 KiB pre-bridge AI request ceiling, a 1 MiB
+provider response ceiling, 64 KiB provider-tool argument bounds, duplicate and
+control-character tool-call ID rejection, proxy-environment denial for child
+processes, and 8 MiB event/receipt evidence ceilings. PackWrite completion is
+now accepted only when a safe regular `agent/MASTER.md` artifact exists.
+
+Focused Kujo checks, contract tests, provider-tool, mission, Agents SDK, and
+input-boundary smokes passed. These changes improve local resource safety and
+evidence truthfulness; they do not complete live provider verification,
+authenticated tenancy, durable storage, recoverable workcells, or release
+gates. The next work is recorded in
+`docs/next-session-enhancement-backlog-2026-07-13-v67.md`.

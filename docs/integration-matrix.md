@@ -44,7 +44,7 @@
 | Workspace isolation | Git worktree/workcell conventions | `workspace_mode: worktree` provisions a detached worktree from an immutable commit; provided mode remains available; mission repositories and tool workspaces reject parent symlink components | full workcell/container isolation, rollback-on-failure, and crash recovery pending | worktree smoke protects source HEAD, spec safety rejects repository symlink components, and cleanup requires confirmation | high |
 | Run-state integrity | Relay contracts + runtime/CLI read boundaries | persisted `state.json` carries a seal over the state without the seal field; read, resume, cleanup, and report paths verify it before trusting state | signed state, authenticated ownership, key rotation, and durable crash recovery remain open | contract mutation rejection plus mission/store/resume evidence | high |
 | Machine contracts | Relay `schemas/` + upstream SDK contracts | committed JSON Schemas describe mission, run/report, event, receipt, doctor, probe, and tool-result boundaries without replacing upstream validation | schema negotiation, generated compatibility tests, and version migration remain open | schema JSON parse/id/title smoke and aggregate acceptance runner | medium |
-| Acceptance orchestration | Loop Engineering + Relay test suite | `tests/relay_acceptance.sh` runs the contract suite, every committed smoke, schema checks, and `git diff --check` | CI/release ownership, platform matrix, and external-provider gates remain open | 23 local smoke scripts plus contract suite | medium |
+| Acceptance orchestration | Loop Engineering + Relay test suite | `tests/relay_acceptance.sh` runs the contract suite, every committed smoke, schema checks, and `git diff --check` | CI/release ownership, platform matrix, and external-provider gates remain open | 24 local smoke scripts plus contract suite | medium |
 | Resource and cache bounds | Kujo runtime + Relay store | mission budgets, bounded process output, fixed subprocess PATH, bounded Agents SDK tool calls/turns, bounded tool-result bundle, atomic state, atomic index lock with four-attempt backoff, race-safe symlink probes, cache-consistent `updated_at` index metadata, missing-state cache rejection, single-scan registration, rebuildable index, and bounded per-directory artifact entries/depth | database-backed retention, crash recovery, and multi-host concurrency pending | output-budget, store/export, provider-tool, lock-contention stress, index metadata, missing-state, entry-overflow, and deep-tree smokes | medium |
 
 ## Current review delta
@@ -86,3 +86,12 @@ machine-facing boundaries. The seal is tamper evidence only; it does not claim
 signed export or authenticated multi-user authority. The aggregate acceptance
 runner removes drift between the documented verification command and the
 committed smoke inventory.
+
+The v67 review adds a pre-bridge 112 KiB AI request bound, a 1 MiB provider
+response bound, 64 KiB per-call provider argument and duplicate-call-ID checks,
+proxy-environment denial in shared subprocess policy, and 8 MiB event/receipt
+write ceilings. PackWrite integration now verifies a safe generated
+`agent/MASTER.md` before preflight can pass. Focused contract, provider-tool,
+mission, Agents SDK, and input-boundary smokes provide local evidence; live
+provider compatibility, durable retention, and authenticated ownership remain
+deferred.
