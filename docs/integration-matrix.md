@@ -70,3 +70,9 @@ Event inspection/export now compare complete authoritative event records with
 the JSONL log after chain validation; state-only payload or metadata divergence
 is rejected. This keeps one local evidence history without creating a second
 event store.
+
+Read boundaries now require persisted `receipts.json` and identity-matching
+`state.json`; embedded state and the rebuildable index are not accepted as
+fallback evidence. Relative `KUJO_BIN` and sibling adapter paths are also
+normalized against the Relay root before cwd changes, preserving truthful
+cross-repository evidence under the Loop Engineering launch form.

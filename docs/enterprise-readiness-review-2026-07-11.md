@@ -505,3 +505,10 @@ successful empty inspection. Store smoke coverage proves both failure cases.
 This closes an evidence-completeness gap in the local alpha; it does not add
 durable storage, signed exports, authenticated ownership, live provider proof,
 or enterprise readiness.
+
+The review also normalized relative `KUJO_BIN` and sibling adapter paths before
+subprocess cwd changes. A dedicated smoke proves the complete fixture mission
+and its PackWrite, RunLedger, ChangeBucket, and Eval evidence under the same
+relative path form used by Loop Engineering. This fixes launch-context
+correctness; it is not signed dependency provenance or enterprise deployment
+attestation.

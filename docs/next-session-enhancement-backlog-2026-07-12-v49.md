@@ -15,6 +15,8 @@ embedded/indexed fallback data during inspection, watch, or export.
 - [x] Require a bounded, regular, identity-matching `state.json` for mission
   and run inspection and event export.
 - [x] Add store-smoke coverage for missing receipt and missing state evidence.
+- [x] Normalize relative `KUJO_BIN` and sibling adapter paths before cwd
+  changes; prove the full fixture mission under the Loop Engineering path form.
 - [x] Preserve v48 complete state/event canonical comparison and prior path
   safety hardening.
 - [x] Update README, command reference, ADRs, enterprise review, final report,

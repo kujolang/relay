@@ -73,6 +73,11 @@ inspection rather than trusting an embedded or indexed fallback. Relay remains
 a local alpha; durable storage, signed export, live provider proof,
 authenticated ownership, workcells, and release gates remain open.
 
+The same review normalizes relative `KUJO_BIN` and sibling adapter paths before
+subprocess cwd changes. The dedicated relative-tool-path smoke proves that a
+fixture mission still reaches PackWrite, RunLedger, ChangeBucket, and Eval
+evidence under the Loop Engineering launch form.
+
 ## Second 2026-07-11 review
 
 The follow-up review preserved the alpha boundary and added fail-closed live Watchdog routing, explicit subprocess environment allowlists, provider-key environment validation, atomic mission writes, output-truncation evidence fields, configurable mission budgets, an explicit Agents SDK smoke skip with receipt, detached worktree provisioning with confirmed cleanup, `doctor --json`, `models probe`, budget and worktree regression smokes, a command reference, and versioned next-session backlogs. The root layout was re-audited and remains intentionally conventional: `main.kujo`, `kujo.toml`, and `bin/relay` are necessary entry/package/launcher files; runtime behavior remains under `src/`. See `docs/enterprise-readiness-review-2026-07-11.md`, `docs/command-reference.md`, and `docs/next-session-enhancement-backlog-2026-07-11-v5.md`.

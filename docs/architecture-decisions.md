@@ -642,3 +642,19 @@ fail-closed evidence error and must restore the missing artifact; durable
 storage, fsync/crash recovery, signed exports, and multi-host ownership remain
 open. Rejected: silently falling back to state copies, returning `{}` as a
 successful inspection result, or introducing a second receipt store.
+
+## ADR-068: Normalize relative adapter paths before cwd changes
+
+Context: the Loop Engineering harness supplies `KUJO_BIN` as a relative path,
+while Relay's adapters launch sibling tools after changing cwd to an SDK, run,
+or worktree directory. The mission could complete its local action but lose
+ChangeBucket or Eval evidence because the relative Kujo executable no longer
+resolved from the new cwd. Decision: normalize Relay roots and all configured
+adapter executable/entrypoint paths against the Relay root before spawn, while
+retaining fixed executable paths and the existing doctor checks. Rationale:
+process cwd and executable identity must be independent, and one shared
+adapter resolver prevents each integration from inventing its own path rule.
+Consequence: relative overrides are interpreted relative to the Relay checkout;
+missing or unsafe targets still fail through the existing subprocess/doctor
+boundaries. Rejected: trusting inherited cwd/PWD, adding PATH lookup, or
+copying sibling binaries into Relay.

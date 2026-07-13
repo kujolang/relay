@@ -164,6 +164,12 @@ Run inspection also requires a bounded, regular `state.json` whose `run_id`
 matches the requested identifier; the rebuildable index cannot substitute for
 authoritative per-run state.
 
+Runtime adapters normalize relative `KUJO_BIN` and configured sibling-tool
+paths against the Relay root before changing cwd. This preserves the
+cross-repository adapter contract when Relay is launched from Loop Engineering,
+a repository root, or another supported working directory; Relay does not fall
+back to ambient `PATH` lookup for those tools.
+
 Relay bounds JSON parsing at the store boundary as well as at the mission
 boundary: the run index is rejected before parsing when it exceeds 8 MiB, lock
 owner files are capped at 64 KiB, and authoritative run-state reads are capped

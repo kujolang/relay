@@ -10,9 +10,12 @@ reuses the event-file existence result within each poll, while dangling event
 links fail immediately instead of being treated as missing files.
 
 Sibling Kujo-tool subprocesses also receive an aligned `PWD` and module-path
-context. This keeps PackWrite, RunLedger, ChangeBucket, and doctor probes from
-resolving Relay's modules merely because the caller launched Relay from the
-repository root.
+context. Relative `KUJO_BIN` and sibling-tool overrides are rooted at the
+Relay checkout before a subprocess changes cwd, so the same mission works from
+the Loop Engineering harness and direct shell launch. This keeps PackWrite,
+RunLedger, ChangeBucket, and doctor probes from resolving Relay's modules or
+losing their executable merely because the caller launched Relay from a
+different working directory.
 
 ## Enterprise-readiness position
 
@@ -111,6 +114,7 @@ Mission actions are declarative and policy checked. Write-enabled missions requi
 - `tests/relay_resume_integrity_smoke.sh`: tampered paused-run workspace and mission-policy rejection before resume
 - `tests/relay_state_store_safety_smoke.sh`: state-root and runs-directory symlink redirection rejection
 - `tests/relay_symlink_probe_smoke.sh`: dangling-symlink and probe-error rejection at the shared filesystem boundary
+- `tests/relay_relative_tool_path_smoke.sh`: relative `KUJO_BIN` normalization through PackWrite, RunLedger, ChangeBucket, and Eval
 - `tests/relay_input_boundary_smoke.sh`: bounded and malformed AI, Agents SDK, and tool-worker payload rejection
 - `tests/relay_contract_tests.kujo`: contract coverage for bounded JSON reads and retryable versus non-retryable fallback classes
 

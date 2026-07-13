@@ -49,6 +49,7 @@
 - Optimized `runs watch` to retain parsed events and process only newly appended complete lines or a pending partial line, while rejecting replacement/truncation/disappearance and revalidating the full chain only after stream changes.
 - Unified Relay symlink inspection behind a fail-closed helper: missing paths remain absent, dangling symlinks are detected through metadata before existence checks, existing parent path components are checked for store roots, and runtime probe errors are unsafe across evidence, workspace, dependency, control, and Agents SDK worker boundaries.
 - Required persisted `receipts.json` and identity-matching `state.json` at CLI read boundaries so inspection, watch, event reads, and export cannot substitute embedded or indexed copies for missing authoritative evidence.
+- Normalized relative `KUJO_BIN` and sibling adapter paths against the Relay root before cwd changes, preserving truthful PackWrite, RunLedger, ChangeBucket, and Eval evidence under Loop Engineering and alternate launch directories.
 
 ## Deferred
 
@@ -90,3 +91,8 @@ The v49 review also requires persisted `receipts.json` and identity-matching
 back to the embedded state copy, and missing run state can no longer produce a
 successful empty inspection. This is evidence completeness hardening, not
 durable storage, signed provenance, or enterprise tenancy.
+
+The same review normalized relative adapter paths before subprocess cwd
+changes. The dedicated relative-tool-path smoke proves a real fixture mission
+still reaches PackWrite, RunLedger, ChangeBucket, and Eval when `KUJO_BIN` is
+provided in the relative form used by the Loop Engineering configuration.
