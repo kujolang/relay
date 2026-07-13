@@ -163,8 +163,10 @@ authoritative rebuild or an explicit missing-state error.
 Each AgentEvent-compatible JSONL record includes a deterministic `integrity_sha256` field covering its identity, parent, payload, and metadata. The hash detects accidental or unauthorized record mutation; signed export and durable retention remain future work.
 
 `runs events` parses and verifies the complete event chain and checks its event
-IDs against authoritative run state before returning it. Event inspection and
-export are bounded to an 8 MiB JSONL log to keep machine callers memory-safe.
+IDs and complete canonical records against authoritative run state before
+returning it. State-only payload or metadata divergence fails closed. Event
+inspection and export are bounded to an 8 MiB JSONL log to keep machine callers
+memory-safe.
 `runs export` emits a versioned JSON bundle containing run state, verified
 events, receipts, changes, evaluations, and the final report; it refuses to
 export tampered, inconsistent, malformed, symbolic-linked, or non-regular

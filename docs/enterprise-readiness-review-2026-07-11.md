@@ -487,3 +487,11 @@ parent traversal. Focused Kujo checks and the contract suite pass. This keeps
 local composition usable without weakening state-store authority; enterprise
 identity, live provider evidence, workcell isolation, durable storage, and
 release attestation remain open.
+
+## Forty-eighth 2026-07-12 review
+
+Relay now compares complete authoritative event records with the JSONL event
+log, not only IDs and ordering. Contract and store-smoke coverage prove a
+state-only payload mutation fails inspection. This strengthens local evidence
+truthfulness; signed export, durable retention, live providers, authenticated
+ownership, workcells, and release attestation remain open.

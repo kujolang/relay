@@ -611,3 +611,18 @@ ChangeBucket evidence work from Relay's launch context; the adapter remains
 provider-independent and still records subprocess failures. Rejected: trusting
 the inherited `PWD`, changing the caller's cwd globally, or copying sibling
 tool implementations into Relay.
+
+## ADR-066: Compare complete authoritative events with the JSONL log
+
+Context: Relay already verified the JSONL event chain and compared its event
+IDs/order with the authoritative `state.events` array. That left a divergence
+case where a state-only payload or metadata edit preserved IDs and could still
+be reported as consistent. Decision: require complete canonical JSON equality
+for each authoritative event and corresponding JSONL event, in addition to
+length and ID/order checks. Add a store smoke that mutates only authoritative
+state and proves `runs events` fails closed. Rationale: event identity is not
+evidence integrity; consumers need one exact run history across state, log,
+inspection, and export. Consequence: state/log repair must restore the exact
+record rather than only its ID sequence; signed exports and durable retention
+remain separate concerns. Rejected: comparing IDs only, trusting state over the
+log, or introducing a second event store.

@@ -65,3 +65,8 @@ change evidence work from Relay's launch context.
 The current contract suite also distinguishes safe relative sibling dependency
 paths from strict state-store parent traversal. This prevents a security
 hardening rule from breaking the normal sibling-repository composition path.
+
+Event inspection/export now compare complete authoritative event records with
+the JSONL log after chain validation; state-only payload or metadata divergence
+is rejected. This keeps one local evidence history without creating a second
+event store.
