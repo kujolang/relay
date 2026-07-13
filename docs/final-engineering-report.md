@@ -819,3 +819,16 @@ latency, and environment authority but does not prove provider billing
 reconciliation, live-provider compatibility, durable workcells, authenticated
 tenancy, or release readiness. The next-session work is tracked in
 `docs/next-session-enhancement-backlog-2026-07-13-v72.md`.
+
+## Seventy-fourth 2026-07-13 review
+
+Relay now makes opt-in Watchdog verification request-specific: the authenticated
+request row must match both the AI SDK request ID and the bounded run
+correlation, and its normalized input/output/total usage must reconcile with the
+provider response. Missing or mismatched usage fails closed as
+`watchdog_telemetry_unverified`; only sanitized request identity, status, and
+usage fields are returned. Contract, local Watchdog-stub, real local Watchdog,
+and provider-tool smokes pass. This closes a local telemetry evidence gap but
+does not prove external-provider billing, provider dialect compatibility,
+durable workcells, authenticated tenancy, or enterprise readiness. The next
+session backlog is `docs/next-session-enhancement-backlog-2026-07-13-v73.md`.

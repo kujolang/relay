@@ -386,7 +386,7 @@ Correlation IDs are limited to 160 alphanumeric, hyphen, or underscore
 characters before they are placed in Watchdog headers, telemetry, or request
 queries. Invalid values are replaced with a generated safe ID.
 
-Set `RELAY_WATCHDOG_VERIFY=true` to make live calls fail closed unless Relay can authenticate to Watchdog's API, verify health and proxy configuration, and find a request row matching the correlation ID emitted by the AI SDK request. `doctor --json` performs the health/config portion of this check.
+Set `RELAY_WATCHDOG_VERIFY=true` to make live calls fail closed unless Relay can authenticate to Watchdog's API, verify health and proxy configuration, find the exact request row matching the AI SDK request ID and correlation ID, and reconcile normalized input/output/total token usage. Missing or mismatched usage is reported as `watchdog_telemetry_unverified`; sanitized status and reconciliation fields are retained. `doctor --json` performs the health/config portion of this check.
 
 `missions resume` verifies the persisted mission-policy digest, run identity,
 workspace ownership, Git metadata, event/receipt integrity, and effective

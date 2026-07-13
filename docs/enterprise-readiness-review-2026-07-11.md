@@ -817,3 +817,15 @@ reconciliation or live-provider compatibility proof. Durable workcells,
 authenticated tenancy, signed provenance, durable storage, and release gates
 remain unresolved. The next-session backlog is
 `docs/next-session-enhancement-backlog-2026-07-13-v72.md`.
+
+## Seventy-fourth 2026-07-13 review
+
+The Watchdog verification boundary now matches the exact AI SDK request ID in
+addition to the run correlation and reconciles normalized input/output/total
+usage. Missing or mismatched usage fails closed and response rows are sanitized.
+The contract, local Watchdog stub, real local Watchdog, and provider-tool
+smokes pass. This is stronger local evidence, not external-provider billing
+reconciliation or authenticated enterprise tenancy. Durable workcells,
+recoverable storage, signed provenance, provider dialect testing, and release
+gates remain unresolved. The next-session backlog is
+`docs/next-session-enhancement-backlog-2026-07-13-v73.md`.

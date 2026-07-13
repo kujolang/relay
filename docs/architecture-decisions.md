@@ -1235,3 +1235,29 @@ its bounded 700-token default, while mission calls use their explicit budget.
 
 Rejected: relying only on post-call usage checks, silently clamping an exhausted
 mission to one token, or allowing arbitrary environment `PWD` values.
+
+## ADR-103: Reconcile Watchdog usage per provider request
+
+Context: Relay could verify that Watchdog persisted a request under the run
+correlation, but correlation alone did not prove that the observed telemetry
+belonged to the exact AI SDK response or that token accounting agreed.
+
+Decision: when `RELAY_WATCHDOG_VERIFY=true`, match the Watchdog row by both
+correlation ID and AI SDK request ID, sanitize the row, and compare normalized
+input, output, and total token usage. Missing observed usage or a mismatch makes
+verification fail closed as `watchdog_telemetry_unverified`.
+
+Rationale: close a local evidence gap without taking ownership of Watchdog's
+telemetry store or inventing a second usage protocol. Request identity prevents
+multi-turn rows from being confused, while total usage remains authoritative
+for the Relay budget and provider billing still requires external evidence.
+
+Consequences: authenticated verification is stricter and may reject providers
+or Watchdog versions that omit request IDs or usage fields; the returned
+verification payload contains only bounded status, identity, and usage fields.
+The local Watchdog stub and real Watchdog/stub-provider smokes prove the
+contract, but do not prove external-provider billing reconciliation.
+
+Rejected: selecting the latest correlated row, reading Watchdog's database
+directly, trusting provider usage without Watchdog reconciliation, or copying
+raw telemetry rows into Relay artifacts.
