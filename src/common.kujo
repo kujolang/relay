@@ -49,13 +49,22 @@ func array_or(value) {
 func now_iso() { return format_date(now(), "YYYY-MM-DDTHH:mm:ssZ") }
 
 func safe_id(value, fallback) {
-    candidate := string_or(value, fallback)
-    candidate := replace(candidate, " ", "-")
-    candidate := replace(candidate, "/", "-")
-    candidate := replace(candidate, "\\", "-")
-    candidate := replace(candidate, "..", "-")
-    candidate := replace(candidate, ":", "-")
-    if candidate == "" || candidate == "." { return fallback }
+    raw := string_or(value, fallback)
+    candidate := ""
+    mut i := 0
+    while i < len(raw) {
+        character := substring(raw, i, i + 1)
+        if index_of("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_", character) >= 0 {
+            candidate = candidate + character
+        } else {
+            candidate = candidate + "-"
+        }
+        i = i + 1
+    }
+    if len(candidate) > 96 { candidate = substring(candidate, 0, 96) }
+    if candidate == "" || candidate == "." || candidate == "-" {
+        return "fallback"
+    }
     return candidate
 }
 

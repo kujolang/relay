@@ -1,5 +1,5 @@
 from src.common import dict_get_or, env_or, env_bool, string_or, bool_or, int_or, read_json_limited, safe_json, write_json, now_iso, path_is_symlink_safe
-from src.contracts import RELAY_VERSION, event_chain_integrity_valid, event_sequence_matches_state, receipt_sequence_valid, receipt_sequence_matches_state
+from src.contracts import RELAY_VERSION, event_chain_integrity_valid, event_sequence_matches_state, receipt_sequence_valid, receipt_sequence_matches_state, state_integrity_valid
 from src.registry import agent_catalog, find_agent, agent_path
 from src.adapters import ai_chat, capsule_run
 from src.runtime import ensure_dir, create_mission, run_mission, pause_run, cancel_run, cleanup_run, resume_run, execute_tool_request, state_root, run_root
@@ -39,6 +39,9 @@ func read_run_state_evidence(run_dir, run_id) {
     }
     if string_or(dict_get_or(state, "run_id", ""), "") != string_or(run_id, "") {
         return {"ok": false, "state": {}, "error": "run state evidence identity does not match the requested run"}
+    }
+    if state_integrity_valid(state) == false {
+        return {"ok": false, "state": {}, "error": "run state evidence integrity verification failed"}
     }
     return {"ok": true, "state": state}
 }

@@ -130,6 +130,20 @@ func receipt_sequence_matches_state(state_receipts, file_receipts) {
     return safe_json(state_receipts) == safe_json(file_receipts)
 }
 
+func state_integrity_input(state) {
+    if type(state) != "dict" { return "" }
+    unsigned := {}
+    for key in keys(state) {
+        if key != "integrity_sha256" { unsigned[key] := state[key] }
+    }
+    return safe_json(unsigned)
+}
+
+func state_integrity_valid(state) {
+    expected := string_or(dict_get_or(state, "integrity_sha256", ""), "")
+    return expected != "" && expected == sha256(state_integrity_input(state))
+}
+
 func run_state(mission_id, workflow, repo, run_id) {
     return {
         "type": "RelayRun",
@@ -181,5 +195,7 @@ export receipt_integrity_input := receipt_integrity_input
 export receipt_integrity_valid := receipt_integrity_valid
 export receipt_sequence_valid := receipt_sequence_valid
 export receipt_sequence_matches_state := receipt_sequence_matches_state
+export state_integrity_input := state_integrity_input
+export state_integrity_valid := state_integrity_valid
 export run_state := run_state
 export agent_profile := agent_profile

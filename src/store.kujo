@@ -1,4 +1,5 @@
-from src.common import dict_get_or, int_or, read_json_limited, write_json, string_or, path_is_symlink_safe, path_has_symlink_component, path_has_parent_component
+from src.common import dict_get_or, int_or, bool_or, read_json_limited, write_json, string_or, path_is_symlink_safe, path_has_symlink_component, path_has_parent_component
+from src.contracts import state_integrity_valid
 
 # The index is a rebuildable cache. Per-run state.json remains authoritative;
 # this keeps inspection correct after a torn write, copied workspace, or a
@@ -34,11 +35,15 @@ func store_root_safe(state_root) {
 }
 
 func index_record(state_root, run_id, state) {
+    integrity_valid := state_integrity_valid(state)
+    status := string_or(dict_get_or(state, "status", "unknown"), "unknown")
+    if integrity_valid == false { status = "integrity_invalid" }
     return {
         "run_dir": expected_run_dir(state_root, run_id),
         "mission_id": string_or(dict_get_or(state, "mission_id", ""), ""),
-        "status": string_or(dict_get_or(state, "status", "unknown"), "unknown"),
-        "updated_at": string_or(dict_get_or(state, "updated_at", ""), "")
+        "status": status,
+        "updated_at": string_or(dict_get_or(state, "updated_at", ""), ""),
+        "integrity_valid": integrity_valid
     }
 }
 
@@ -147,7 +152,7 @@ func run_directories_match_index(state_root, index) {
             if type(state) != "dict" || string_or(dict_get_or(state, "run_id", ""), "") != name { return false }
             expected := index_record(state_root, name, state)
             record := index[name]
-            if string_or(dict_get_or(record, "mission_id", ""), "") != expected["mission_id"] || string_or(dict_get_or(record, "status", ""), "") != expected["status"] || string_or(dict_get_or(record, "updated_at", ""), "") != expected["updated_at"] { return false }
+            if string_or(dict_get_or(record, "mission_id", ""), "") != expected["mission_id"] || string_or(dict_get_or(record, "status", ""), "") != expected["status"] || string_or(dict_get_or(record, "updated_at", ""), "") != expected["updated_at"] || bool_or(dict_get_or(record, "integrity_valid", false), false) != expected["integrity_valid"] { return false }
         }
     }
     return count == len(index)

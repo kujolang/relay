@@ -1,4 +1,4 @@
-from src.contracts import event, event_integrity_valid, event_chain_integrity_valid, event_sequence_matches_state, receipt, receipt_integrity_valid, receipt_sequence_valid, receipt_sequence_matches_state, run_state, agent_profile, RELAY_VERSION, EVENT_CONTRACT, RECEIPT_CONTRACT
+from src.contracts import event, event_integrity_valid, event_chain_integrity_valid, event_sequence_matches_state, receipt, receipt_integrity_valid, receipt_sequence_valid, receipt_sequence_matches_state, state_integrity_input, state_integrity_valid, run_state, agent_profile, RELAY_VERSION, EVENT_CONTRACT, RECEIPT_CONTRACT
 from src.policy import classify_failure, path_is_safe, path_is_within_workspace, command_is_allowed, tool_decision
 from src.runtime import resume_state_safe, cleanup_state_safe, control_state_safe, save_state, mark_evidence_failure, cancellation_request, persist_required_json, report
 from src.common import safe_id, redact_text, shell_quote_single, command_args, process_options, process_options_with_cancel, safe_env_name, path_is_symlink_safe, path_has_symlink_component, path_has_parent_component, read_json_limited, append_jsonl, dict_get_or, bool_or, safe_json
@@ -103,6 +103,9 @@ decision := tool_decision("write_file", {"path": "x.txt"}, {"workspace": ".", "a
 failed = failed + check("write approval boundary", decision["status"] == "approval_required")
 failed = failed + check("unknown tool denied", tool_decision("unknown", {}, {})["allowed"] == false)
 failed = failed + check("safe id", safe_id("feature/name", "fallback") == "feature-name")
+unsafe_id := safe_id("feature;$(touch escaped)/../name", "fallback")
+failed = failed + check("safe id rejects path and shell characters", safe_run_key(unsafe_id) && len(unsafe_id) <= 96)
+failed = failed + check("safe id bounds long mission names", len(safe_id("xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", "fallback")) <= 96)
 failed = failed + check("redaction", contains(redact_text("Authorization: Bearer secret"), "[REDACTED]"))
 expanded_redaction := redact_text("ANTHROPIC_API_KEY=secret")
 failed = failed + check("expanded redaction", contains(expanded_redaction, "[REDACTED]") || contains(expanded_redaction, "[REDACTED_CREDENTIAL]"))
@@ -163,10 +166,16 @@ failed = failed + check("Watchdog URL with embedded credentials denied", safe_ba
 failed = failed + check("Watchdog URL with unsupported scheme denied", safe_base("file:///tmp/watchdog") == false)
 resume_spec := {"repository": ".", "workspace_mode": "provided", "budgets": {"max_steps": 8}}
 resume_state := {"run_id": "resume-contract", "mission_spec": resume_spec, "mission_spec_integrity_sha256": sha256(safe_json(resume_spec)), "events": [], "receipts": [], "repository": ".", "workspace": {"mode": "provided", "source_repository": ".", "path": "."}, "budgets": {"max_steps": 8, "max_repairs": 1, "max_tokens": 4000, "max_tool_calls": 4, "max_output_bytes": 1048576, "max_write_bytes": 1048576}, "attempt": 0}
+resume_state["integrity_sha256"] := sha256(state_integrity_input(resume_state))
+failed = failed + check("state integrity seal", state_integrity_valid(resume_state))
 failed = failed + check("resume state integrity accepts matching state", resume_state_safe(resume_state, "resume-contract", "/tmp/relay-contract-run") ["ok"])
+resume_state["status"] := "tampered"
+failed = failed + check("state integrity rejects mutation", state_integrity_valid(resume_state) == false)
+resume_state["status"] := "created"
 resume_state["repository"] := "/tmp"
 failed = failed + check("resume state integrity rejects workspace substitution", resume_state_safe(resume_state, "resume-contract", "/tmp/relay-contract-run")["ok"] == false)
 cleanup_state := {"run_id": "cleanup-contract", "mission_spec": {"repository": ".", "workspace_mode": "worktree"}, "mission_spec_integrity_sha256": sha256(safe_json({"repository": ".", "workspace_mode": "worktree"})), "events": [], "receipts": [], "repository": "/tmp/relay-contract-run/workspace", "workspace": {"mode": "worktree", "source_repository": ".", "path": "/tmp/other-workspace", "cleaned": true}}
+cleanup_state["integrity_sha256"] := sha256(state_integrity_input(cleanup_state))
 failed = failed + check("cleanup state integrity rejects mismatched worktree", cleanup_state_safe(cleanup_state, "cleanup-contract", "/tmp/relay-contract-run")["ok"] == false)
 failed = failed + check("control state integrity delegates to checkpoint policy", control_state_safe(resume_state, "resume-contract", "/tmp/relay-contract-run")["ok"] == false)
 evidence_state := {"status": "completed"}

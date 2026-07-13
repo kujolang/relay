@@ -6,8 +6,9 @@ KUJO="${KUJO:-${KUJO_BIN:-$ROOT/../kujo/target/release/kujo}}"
 WORK="/tmp/relay-spec-safety-workspace"
 LARGE="/tmp/relay-large-mission.json"
 SYMLINK="/tmp/relay-symlink-mission.json"
+INVALID_ACTION="/tmp/relay-invalid-action-mission.json"
 
-rm -rf "$WORK" "$ROOT/.relay" "$LARGE" "$SYMLINK"
+rm -rf "$WORK" "$ROOT/.relay" "$LARGE" "$SYMLINK" "$INVALID_ACTION"
 mkdir -p "$WORK"
 git init -q "$WORK"
 git -C "$WORK" config user.email relay@example.invalid
@@ -33,5 +34,13 @@ symlink_status=$?
 set -e
 test "$symlink_status" -ne 0
 printf '%s' "$symlink_output" | grep -q 'must not be a symbolic link'
+
+ruby -rjson -e 'path=ARGV.fetch(0); File.write(path, JSON.generate({name:"invalid-action",goal:"must fail during validation",repository:ARGV.fetch(1),actions:[{type:"unknown"}]}))' "$INVALID_ACTION" "$WORK"
+set +e
+invalid_action_output="$($KUJO run "$ROOT/main.kujo" -- missions run "$INVALID_ACTION" --fixture --skip-agent-smoke --json 2>&1)"
+invalid_action_status=$?
+set -e
+test "$invalid_action_status" -ne 0
+printf '%s' "$invalid_action_output" | grep -q 'action type is not supported'
 
 echo "PASS relay spec safety smoke"

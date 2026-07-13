@@ -51,6 +51,7 @@ exported="$($KUJO run "$ROOT/main.kujo" -- runs export "$run_id" --output "$expo
 printf '%s' "$exported" | grep -q '"integrity_valid":true'
 test -f "$export_path"
 jq -e --arg run_id "$run_id" '.format == "relay-run-export-v1" and .run_id == $run_id and .integrity_valid == true and .receipts_valid == true and .receipts_consistent == true and (.events | length) > 0 and (.receipts | length) >= 7 and (.receipts | map(.receipt_id) as $ids | (($ids | unique | length) == ($ids | length)))' "$export_path" >/dev/null
+jq -e --arg run_id "$run_id" '.events | all(.metadata.mission_id == "relay-fixture-mission" and .metadata.run_id == $run_id and (.metadata | has("tool")) and (.metadata | has("artifact")) and (.metadata | has("retry_id")) and (.metadata | has("repair_id")))' "$export_path" >/dev/null
 
 run_dir="$ROOT/.relay/runs/$run_id"
 events_path="$run_dir/events.jsonl"
@@ -122,6 +123,18 @@ printf '%s' "$inspected" | jq -e --arg run_id "$run_id" '.ok == true and .run.ru
 verified="$($KUJO run "$ROOT/main.kujo" -- runs verify "$run_id" --json)"
 printf '%s' "$verified" | jq -e --arg run_id "$run_id" '.ok == true and .format == "relay-run-verification-v1" and .run_id == $run_id and .integrity_valid == true and .state_valid == true and .events_valid == true and .receipts_valid == true and .receipts_consistent == true and .changes_valid == true and .evaluations_valid == true' >/dev/null
 printf '%s' "$verified" | jq -e '.report_valid == true' >/dev/null
+
+# The authoritative state seal must also protect read-side status and
+# workspace authority, not only resume and event-sequence checks.
+cp "$run_dir/state.json" "$run_dir/state.json.sealed-backup"
+ruby -rjson -e 'path=ARGV.fetch(0); state=JSON.parse(File.read(path)); state["status"]="failed"; File.write(path, JSON.generate(state))' "$run_dir/state.json"
+set +e
+tampered_state_inspect="$($KUJO run "$ROOT/main.kujo" -- runs inspect "$run_id" --json 2>&1)"
+tampered_state_rc=$?
+set -e
+test "$tampered_state_rc" -ne 0
+printf '%s' "$tampered_state_inspect" | grep -q 'integrity verification failed'
+mv "$run_dir/state.json.sealed-backup" "$run_dir/state.json"
 
 # A shape-valid report with the wrong run identity is not valid evidence.
 cp "$run_dir/report.json" "$run_dir/report.json.backup"
