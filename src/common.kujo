@@ -109,6 +109,20 @@ func path_is_symlink_safe(path) {
     }
 }
 
+func path_has_symlink_component(path) {
+    candidate := trim(to_string(path))
+    if candidate == "" { return true }
+    mut current := ""
+    if starts_with(candidate, "/") { current = "/" }
+    for part in split(candidate, "/") {
+        if part == "" || part == "." { continue }
+        if part == ".." { return true }
+        if current == "/" { current = current + part } else if current == "" { current = part } else { current = current + "/" + part }
+        if path_is_symlink_safe(current) { return true }
+    }
+    return false
+}
+
 func write_text_atomic(path, content) {
     tmp := path + ".tmp-" + to_string(current_timestamp()) + "-" + to_string(random_int(1000, 999999))
     try {
@@ -234,6 +248,7 @@ export shell_quote_single := shell_quote_single
 export command_args := command_args
 export safe_env_name := safe_env_name
 export path_is_symlink_safe := path_is_symlink_safe
+export path_has_symlink_component := path_has_symlink_component
 export write_text_atomic := write_text_atomic
 export safe_process_path := safe_process_path
 export process_options := process_options
