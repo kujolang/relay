@@ -28,6 +28,21 @@ func read_receipt_evidence(run_dir) {
     return {"ok": true, "receipts": receipts}
 }
 
+func read_run_state_evidence(run_dir, run_id) {
+    path := run_dir + "/state.json"
+    if path_is_symlink_safe(path) || path_exists(path) == false || path_is_file(path) == false || file_size(path) > 67108864 {
+        return {"ok": false, "state": {}, "error": "run state evidence is missing, non-regular, symbolic-linked, or exceeds the 64 MiB inspection limit"}
+    }
+    state := read_json_limited(path, null, 67108864)
+    if type(state) != "dict" {
+        return {"ok": false, "state": {}, "error": "run state evidence is invalid JSON"}
+    }
+    if string_or(dict_get_or(state, "run_id", ""), "") != string_or(run_id, "") {
+        return {"ok": false, "state": {}, "error": "run state evidence identity does not match the requested run"}
+    }
+    return {"ok": true, "state": state}
+}
+
 func positional(values, index, fallback) {
     if type(values) != "array" || index < 0 || index >= len(values) { return fallback }
     return values[index]
@@ -179,7 +194,9 @@ func cmd_missions(tokens) {
     if sub == "inspect" || sub == "report" {
         record := dict_get_or(index, id, null)
         if type(record) != "dict" { return {"ok": false, "error": "unknown run: " + id} }
-        state := read_json_limited(record["run_dir"] + "/state.json", {}, 67108864)
+        state_evidence := read_run_state_evidence(record["run_dir"], id)
+        if dict_get_or(state_evidence, "ok", false) == false { return {"ok": false, "failure_class": "evidence_failure", "error": dict_get_or(state_evidence, "error", "run state evidence is invalid")} }
+        state := state_evidence["state"]
         if sub == "report" { return {"ok": true, "report_json": record["run_dir"] + "/report.json", "report_markdown": record["run_dir"] + "/report.md", "status": dict_get_or(state, "status", "unknown")} }
         return {"ok": true, "run": state, "run_dir": record["run_dir"]}
     }
@@ -370,7 +387,11 @@ func cmd_runs(tokens) {
             if trim(line) == "" { continue }
             try { events = push(events, parse_json(line)) } except err { return {"ok": false, "error": "run event log contains invalid JSON", "integrity_valid": false} }
         }
-        state := read_json_limited(record["run_dir"] + "/state.json", {}, 67108864)
+        state_evidence := read_run_state_evidence(record["run_dir"], id)
+        if dict_get_or(state_evidence, "ok", false) == false {
+            return {"ok": false, "error": dict_get_or(state_evidence, "error", "run state evidence is invalid"), "integrity_valid": false, "state_consistent": false, "receipts_valid": false, "receipts_consistent": false}
+        }
+        state := state_evidence["state"]
         chain_valid := event_chain_integrity_valid(events)
         state_consistent := event_sequence_matches_state(dict_get_or(state, "events", []), events)
         receipt_evidence := read_receipt_evidence(record["run_dir"])

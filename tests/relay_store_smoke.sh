@@ -87,6 +87,18 @@ test "$missing_receipts_rc" -ne 0
 printf '%s' "$missing_receipts" | grep -q '"receipts_valid":false'
 mv "$receipts_path.missing" "$receipts_path"
 
+# Run inspection must fail closed when authoritative state is absent; the
+# rebuildable index is not a substitute for the per-run state record.
+state_path="$run_dir/state.json"
+mv "$state_path" "$state_path.missing"
+set +e
+missing_state="$($KUJO run "$ROOT/main.kujo" -- runs inspect "$run_id" --json 2>&1)"
+missing_state_rc=$?
+set -e
+test "$missing_state_rc" -ne 0
+printf '%s' "$missing_state" | grep -q 'run state evidence is missing'
+mv "$state_path.missing" "$state_path"
+
 # The authoritative state event list must match the verified JSONL payloads,
 # not merely carry the same event IDs. A state-only payload edit is evidence
 # divergence and must fail inspection/export.
