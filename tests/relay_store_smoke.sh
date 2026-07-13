@@ -106,6 +106,23 @@ verified="$($KUJO run "$ROOT/main.kujo" -- runs verify "$run_id" --json)"
 printf '%s' "$verified" | jq -e --arg run_id "$run_id" '.ok == true and .format == "relay-run-verification-v1" and .run_id == $run_id and .integrity_valid == true and .state_valid == true and .events_valid == true and .receipts_valid == true and .receipts_consistent == true and .changes_valid == true and .evaluations_valid == true' >/dev/null
 printf '%s' "$verified" | jq -e '.report_valid == true' >/dev/null
 
+# Paused/failed runs may intentionally lack post-verification artifacts. A
+# caller must opt into the explicit partial contract; it never claims valid
+# evidence and is unavailable for a completed run.
+paused="$($KUJO run "$ROOT/main.kujo" -- missions run "$ROOT/examples/fixture-mission.json" --fixture --pause-after-plan --skip-agent-smoke --json)"
+printf '%s' "$paused" | jq -e '.ok == true and .run.status == "paused"' >/dev/null
+paused_id="$(printf '%s' "$paused" | ruby -rjson -e 'print JSON.parse(STDIN.read)["run"]["run_id"]')"
+test -n "$paused_id"
+set +e
+complete_export="$($KUJO run "$ROOT/main.kujo" -- runs export "$paused_id" --json 2>&1)"
+complete_export_rc=$?
+set -e
+test "$complete_export_rc" -ne 0
+printf '%s' "$complete_export" | grep -q 'run export evidence is incomplete'
+printf '%s' "$complete_export" | grep -q '"partial_export_available":true'
+partial_export="$($KUJO run "$ROOT/main.kujo" -- runs export "$paused_id" --partial --json)"
+printf '%s' "$partial_export" | jq -e --arg run_id "$paused_id" '.ok == true and .format == "relay-run-export-partial-v1" and .run_id == $run_id and .partial == true and .completeness == "partial" and .integrity_valid == false and .artifact_presence.changes == false and .artifact_presence.evaluations == false and .artifact_presence.report == true and .changes == null and .evaluations == null' >/dev/null
+
 # Run artifact readers must fail closed instead of turning a missing result
 # into a successful empty object or array.
 changes_path="$run_dir/changes.json"

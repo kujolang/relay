@@ -108,7 +108,7 @@ func help_text() {
         "  missions create [spec.json] [--output path]\n" +
         "  missions run <spec.json> [--fixture] [--pause-after-plan] [--skip-agent-smoke] [--json]\n" +
         "  missions inspect <run-id>|pause <run-id>|resume <run-id>|cancel <run-id>|cleanup <run-id> --confirm|report <run-id>\n" +
-        "  runs list|rebuild|inspect <run-id>|verify <run-id>|events <run-id>|watch <run-id>|sizes <run-id>|changes <run-id>|evaluations <run-id>|export <run-id> [--output path]\n" +
+        "  runs list|rebuild|inspect <run-id>|verify <run-id>|events <run-id>|watch <run-id>|sizes <run-id>|changes <run-id>|evaluations <run-id>|export <run-id> [--partial] [--output path]\n" +
         "  tools execute --json (bounded Agents SDK worker callback)\n" +
         "  benchmark run <repo> [--json] (Capsule discovery slice)"
 }
@@ -446,8 +446,21 @@ func cmd_runs(tokens) {
         evaluations_valid := dict_get_or(evaluations_evidence, "ok", false)
         report_valid := dict_get_or(report_evidence, "ok", false)
         if changes_valid == false || evaluations_valid == false || report_valid == false {
+            partial_requested := has_flag(parsed["flags"], "partial")
+            run_status := string_or(dict_get_or(state, "status", "unknown"), "unknown")
+            if partial_requested && run_status != "completed" {
+                partial_bundle := {"format": "relay-run-export-partial-v1", "run_id": id, "integrity_valid": false, "completeness": "partial", "partial": true, "status": run_status, "state_valid": true, "events_valid": true, "receipts_valid": receipts_valid, "receipts_consistent": receipts_consistent, "artifact_presence": {"changes": changes_valid, "evaluations": evaluations_valid, "report": report_valid}, "artifact_errors": [dict_get_or(changes_evidence, "error", ""), dict_get_or(evaluations_evidence, "error", ""), dict_get_or(report_evidence, "error", "")], "run": state, "events": events, "receipts": receipts, "changes": dict_get_or(changes_evidence, "value", null), "evaluations": dict_get_or(evaluations_evidence, "value", null), "report": dict_get_or(report_evidence, "value", null)}
+                output_path := string_or(dict_get_or(parsed["flags"], "output", ""), "")
+                if output_path != "" {
+                    if write_json(output_path, partial_bundle) == false { return {"ok": false, "error": "partial run export could not be written"} }
+                    return {"ok": true, "output": output_path, "run_id": id, "format": "relay-run-export-partial-v1", "integrity_valid": false, "completeness": "partial"}
+                }
+                partial_bundle["ok"] := true
+                return partial_bundle
+            }
             event_bundle["ok"] := false
             event_bundle["error"] := "run export evidence is incomplete"
+            event_bundle["partial_export_available"] := run_status != "completed"
             event_bundle["changes_valid"] := changes_valid
             event_bundle["evaluations_valid"] := evaluations_valid
             event_bundle["report_valid"] := report_valid
