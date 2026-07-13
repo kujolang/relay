@@ -25,6 +25,7 @@ Passed locally with the pinned Kujo release runtime:
 - generated Eval config also checks that each declared `write_file` action produced a file
 - six AgentEvent-compatible lifecycle/artifact/tool/evaluation events were persisted
 - pause/resume path persisted a resumable checkpoint and completion report
+- required ChangeBucket, Eval, JSON/Markdown report, and RunLedger finish persistence failures fail closed as `evidence_failure`
 - isolated mission through the Agents SDK Tool Registry created a real file and
   approval denial created no file
 - event-chain tamper rejection and versioned `runs export` verification passed
@@ -46,7 +47,7 @@ The current run engine still accepts explicit action plans, but missions may now
 
 ## 2026-07-11 enterprise-readiness review
 
-The current posture is local-first hardened alpha/showcase, not universal enterprise production. This review added realpath workspace checks, shell/Git command deny rules, explicit write approvals, subprocess redaction, packet digest metadata, unique run suffixes, preflight failure handling, ChangeBucket/Eval completion authority, atomic JSON persistence, efficient JSONL append, generated file-existence acceptance checks, shared Capsule process handling, and a real pause-after-plan/resume checkpoint. See `docs/enterprise-readiness-review-2026-07-11.md` and the current `docs/next-session-enhancement-backlog-2026-07-13-v53.md` for the evidence boundary and prioritized remaining work.
+The current posture is local-first hardened alpha/showcase, not universal enterprise production. This review added realpath workspace checks, shell/Git command deny rules, explicit write approvals, subprocess redaction, packet digest metadata, unique run suffixes, preflight failure handling, ChangeBucket/Eval completion authority, atomic JSON persistence, efficient JSONL append, generated file-existence acceptance checks, shared Capsule process handling, and a real pause-after-plan/resume checkpoint. See `docs/enterprise-readiness-review-2026-07-11.md` and the current `docs/next-session-enhancement-backlog-2026-07-13-v54.md` for the evidence boundary and prioritized remaining work.
 
 ## Fifty-third 2026-07-13 review
 
@@ -545,3 +546,14 @@ Sibling-tool adapters now align subprocess cwd/module context, including the
 canonical Kujo module path required by ChangeBucket. The doctor and mission
 smokes verify that cross-repository version/change evidence remains truthful
 when Relay is launched from its own root.
+
+## Fifty-fourth 2026-07-13 review
+
+Required acceptance artifacts are now verified as part of completion authority.
+`changes.json`, `evaluations.json`, and the JSON/Markdown report must persist
+with the expected bounded shape, and a pass-status RunLedger finish must also
+persist before Relay emits its final completion event. Injected directory-backed
+artifact paths fail closed as `evidence_failure`. The focused contract,
+mission, store, sizes, resume-integrity, and Agents SDK tool smokes pass.
+Crash recovery, durable transactions, signed export, and live external-provider
+proof remain deliberately deferred.

@@ -169,6 +169,12 @@ their persisted JSON artifacts. Missing, malformed, oversized, symbolic-linked,
 or wrong-shaped artifacts return a nonzero evidence failure instead of a
 successful empty object or array.
 
+Completion is fail closed across the required artifact boundary. A mission is
+not completed when ChangeBucket, Eval, `report.json`/`report.md`, or the
+RunLedger finish operation cannot be persisted and verified. The run records an
+`evidence_failure`, a terminal `run_failed` event, and the failed finish result;
+the `artifact_persistence` metadata identifies the required artifact checks.
+
 `runs verify <run-id>` is a compact machine-facing integrity check. It validates
 the authoritative state, complete event chain, persisted receipts, state/log
 consistency, persisted ChangeBucket/Eval artifact shapes, and the JSON report,

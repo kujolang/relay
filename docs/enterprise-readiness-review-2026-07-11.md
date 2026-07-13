@@ -554,3 +554,15 @@ rebuilt cache records retain `updated_at`, avoiding a redundant scan and stale
 cache classification on the next read. These are local performance and DoS
 hardening improvements, not durable multi-host storage, signed provenance,
 kernel no-follow primitives, or enterprise readiness.
+
+## Fifty-fourth 2026-07-13 review
+
+Required acceptance evidence is now part of completion authority. Relay verifies
+the persisted ChangeBucket, Eval, and JSON/Markdown report artifacts after
+writing them, and a failed pass-status RunLedger finish transitions the run to
+`evidence_failure` before the final result is returned. Contract injection
+tests cover directory-backed artifact paths and report persistence failure;
+mission, store, sizes, resume-integrity, and Agents SDK tool smokes pass. This
+improves local evidence truthfulness but does not provide crash recovery,
+durable transactions, signed export, live external-provider proof, or
+enterprise readiness.

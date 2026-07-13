@@ -723,3 +723,20 @@ state ownership. Consequence: unusually deep artifact layouts are rejected and
 the rebuildable index remains a cache rather than a durable store. Rejected:
 unbounded recursive inventory, trusting a caller-provided cache record, or
 moving run authority into the index.
+
+## ADR-073: Require persisted acceptance artifacts before completion
+
+Context: completion already depended on ChangeBucket and Eval results, but a
+successful in-memory adapter result could still be followed by a failed write
+of `changes.json`, `evaluations.json`, the report, or the RunLedger finish
+record. That would make the terminal status claim stronger than the evidence
+available to a later reader. Decision: verify required JSON writes as regular,
+non-symlinked, bounded files with the expected shape; require successful
+Markdown/JSON report persistence; and treat a failed pass-status RunLedger
+finish as an `evidence_failure` with a failed terminal transition. Rationale:
+completion is an evidence-backed state, not a process-local result. Consequence:
+artifact-write failures are visible to machine callers and cannot be repaired by
+an index or embedded state fallback; durable transactions, crash recovery, and
+signed export remain open. Rejected: trusting adapter return values, emitting
+`run_completed` before RunLedger finish, or silently omitting a required
+artifact.
