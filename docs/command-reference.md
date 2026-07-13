@@ -224,9 +224,10 @@ directories under the run artifact directory, including total byte/file counts
 and per-file sizes. The repository `workspace` subtree is always excluded and
 reported in `excluded`; this prevents a large checkout from dominating an
 artifact inspection. The inventory fails closed on symbolic links, unsupported
-paths, or more than 4096 artifact files. It does not delete, compact, rotate,
-or retain artifacts, and its byte counts are local filesystem sizes rather than
-storage-billing or transfer metrics.
+paths, more than 4096 artifact files, or directory nesting deeper than 16
+levels. It does not delete, compact, rotate, or retain artifacts, and its byte
+counts are local filesystem sizes rather than storage-billing or transfer
+metrics.
 
 `chat --stream` emits normalized JSONL `delta` and `done` events. Relay forwards the stream option through the AI SDK bridge; live Watchdog proxy authorization is supplied through `RELAY_WATCHDOG_PROXY_TOKEN` and is never included in the model payload.
 

@@ -542,3 +542,15 @@ artifacts were not produced. Partial output always carries
 unavailable artifacts. Completed runs cannot use the downgrade path. Relay
 remains a local alpha; external provider proof, authenticated ownership, full
 workcells, durable storage, and release gates remain open.
+
+## Fifty-third 2026-07-13 review
+
+The run artifact size inventory now fails closed before recursive traversal can
+exceed 16 directory levels. This prevents a deep attacker-controlled artifact
+tree from exhausting the Kujo VM call stack; the sizes smoke proves the
+boundary alongside the existing symlink rejection. Run registration also no
+longer rebuilds the run tree before entering the locked persistence path, and
+rebuilt cache records retain `updated_at`, avoiding a redundant scan and stale
+cache classification on the next read. These are local performance and DoS
+hardening improvements, not durable multi-host storage, signed provenance,
+kernel no-follow primitives, or enterprise readiness.

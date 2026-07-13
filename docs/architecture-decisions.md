@@ -706,3 +706,20 @@ format and integrity status; signed exports, durable storage, and authenticated
 authorization remain open. Rejected: silently treating partial output as a
 valid export, allowing completed runs to downgrade, or exposing raw files as
 an undocumented machine contract.
+
+## ADR-072: Bound artifact inventory depth and keep the run index cache hot
+
+Context: `runs sizes` recursively walks persisted artifacts, and run
+registration rebuilt the authoritative run tree before entering the locked
+index persistence path. Deep attacker-controlled artifact trees could exhaust
+the Kujo VM call stack, while every registration paid for two full run-tree
+scans and the registration record omitted `updated_at`, making the cache look
+stale on the next read. Decision: cap artifact inventory recursion at 16
+directory levels, use the locked persistence path as the single authoritative
+registration scan, and preserve complete `updated_at` metadata in rebuilt index
+records. Rationale: bounded traversal is a fail-closed local DoS control, and
+removing the redundant scan improves mission/index throughput without changing
+state ownership. Consequence: unusually deep artifact layouts are rejected and
+the rebuildable index remains a cache rather than a durable store. Rejected:
+unbounded recursive inventory, trusting a caller-provided cache record, or
+moving run authority into the index.

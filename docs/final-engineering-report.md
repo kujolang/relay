@@ -46,7 +46,17 @@ The current run engine still accepts explicit action plans, but missions may now
 
 ## 2026-07-11 enterprise-readiness review
 
-The current posture is local-first hardened alpha/showcase, not universal enterprise production. This review added realpath workspace checks, shell/Git command deny rules, explicit write approvals, subprocess redaction, packet digest metadata, unique run suffixes, preflight failure handling, ChangeBucket/Eval completion authority, atomic JSON persistence, efficient JSONL append, generated file-existence acceptance checks, shared Capsule process handling, and a real pause-after-plan/resume checkpoint. See `docs/enterprise-readiness-review-2026-07-11.md` and the current `docs/next-session-enhancement-backlog-2026-07-13-v52.md` for the evidence boundary and prioritized remaining work.
+The current posture is local-first hardened alpha/showcase, not universal enterprise production. This review added realpath workspace checks, shell/Git command deny rules, explicit write approvals, subprocess redaction, packet digest metadata, unique run suffixes, preflight failure handling, ChangeBucket/Eval completion authority, atomic JSON persistence, efficient JSONL append, generated file-existence acceptance checks, shared Capsule process handling, and a real pause-after-plan/resume checkpoint. See `docs/enterprise-readiness-review-2026-07-11.md` and the current `docs/next-session-enhancement-backlog-2026-07-13-v53.md` for the evidence boundary and prioritized remaining work.
+
+## Fifty-third 2026-07-13 review
+
+This review added two bounded local improvements. `runs sizes` now rejects
+artifact trees deeper than 16 directory levels before the recursive walker can
+hit the Kujo VM stack limit. Run registration now lets the locked authoritative
+rebuild perform the single run-tree scan, and cache records preserve
+`updated_at`, avoiding unnecessary stale-cache rebuilds. The store and sizes
+smokes plus the full configured local gates pass. Durable concurrent storage,
+retention, signed export, and authenticated ownership remain open.
 
 ## Forty-seventh 2026-07-12 review
 
