@@ -22,6 +22,12 @@ capability_fixture="$(jq -cn --arg root "$ROOT" --arg work "$WORK" '{root:$root,
 capability_output="$(RELAY_CAPABILITY_FIXTURE="$capability_fixture" "$KUJO" run "$ROOT/tests/relay_capability_fixture.kujo" --interpreter)"
 printf '%s' "$capability_output" | jq -e '.ok == true' >/dev/null
 test -d "$ROOT/.relay/capabilities"
+set +e
+duplicate_capability="$(RELAY_CAPABILITY_FIXTURE="$capability_fixture" "$KUJO" run "$ROOT/tests/relay_capability_fixture.kujo" --interpreter 2>&1)"
+duplicate_status=$?
+set -e
+test "$duplicate_status" -ne 0
+printf '%s' "$duplicate_capability" | grep -q 'capability_already_registered'
 rm -rf "$ROOT/.relay"
 
 ln -s "$TARGET" "$ROOT/.relay"

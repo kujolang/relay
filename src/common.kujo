@@ -296,6 +296,20 @@ func issue_agent_capability(root, run_id, session_id, workspace, nonce, max_call
     directory := root + "/.relay/capabilities"
     if path_is_symlink_safe(directory) || path_has_symlink_component(directory) { return {"ok": false, "error": {"code": "capability_registry_unsafe", "message": "Capability registry directory is unsafe"}} }
     if ensure_safe_directory(directory) == false { return {"ok": false, "error": {"code": "capability_registry_unavailable", "message": "Capability registry directory could not be created safely"}} }
+    lock := path + ".lock"
+    if path_is_symlink_safe(path) || path_is_symlink_safe(lock) { return {"ok": false, "error": {"code": "capability_registry_unsafe", "message": "Capability registry record or lock is unsafe"}} }
+    if path_exists(path) {
+        if path_is_file(path) { return {"ok": false, "error": {"code": "capability_already_registered", "message": "Tool capability is already registered"}} }
+        return {"ok": false, "error": {"code": "capability_registry_unsafe", "message": "Capability registry record is not a regular file"}}
+    }
+    if create_exclusive_dir(lock) == false {
+        if path_exists(lock) && path_is_dir(lock) { return {"ok": false, "error": {"code": "capability_busy", "message": "Tool capability is already being issued or consumed"}} }
+        return {"ok": false, "error": {"code": "capability_lock_unsafe", "message": "Tool capability lock could not be acquired"}}
+    }
+    if path_exists(path) {
+        if path_is_dir(lock) { os_rmdir(lock) }
+        return {"ok": false, "error": {"code": "capability_already_registered", "message": "Tool capability is already registered"}}
+    }
     calls := int_or(max_calls, 4)
     if calls < 1 { calls = 1 }
     if calls > 16 { calls = 16 }
@@ -304,7 +318,11 @@ func issue_agent_capability(root, run_id, session_id, workspace, nonce, max_call
     if lifetime > 600000 { lifetime = 600000 }
     secret := sha256(to_string(run_id) + "|" + to_string(session_id) + "|" + to_string(nonce) + "|" + to_string(current_timestamp()) + "|" + to_string(random_int(1000, 999999)))
     record := {"contract_version": "relay-agent-capability-v1", "run_id": to_string(run_id), "session_id": to_string(session_id), "workspace": to_string(workspace), "nonce": to_string(nonce), "capability": sha256(to_string(run_id) + "|" + to_string(session_id) + "|" + to_string(workspace) + "|" + to_string(nonce) + "|relay-agent-tools"), "secret_digest": sha256(secret), "issued_at_ms": current_timestamp(), "expires_at_ms": current_timestamp() + lifetime, "max_calls": calls, "used_calls": 0}
-    if write_json(path, record) == false { return {"ok": false, "error": {"code": "capability_registry_write_failed", "message": "Capability registry record could not be persisted"}} }
+    if write_json(path, record) == false {
+        if path_is_dir(lock) { os_rmdir(lock) }
+        return {"ok": false, "error": {"code": "capability_registry_write_failed", "message": "Capability registry record could not be persisted"}}
+    }
+    if path_is_dir(lock) { os_rmdir(lock) }
     return {"ok": true, "secret": secret, "path": path, "expires_at_ms": record["expires_at_ms"], "max_calls": calls}
 }
 
