@@ -789,3 +789,17 @@ script hashes for delegated shell calls. Focused store and Agents SDK smokes
 prove both protections. This improves local artifact authority but does not
 establish signed remote provenance, live provider compatibility, authenticated
 tenancy, recoverable workcells, durable storage, or release readiness.
+
+## Seventy-second 2026-07-13 review
+
+The latest local boundary adds explicit bounded repair replay. `missions
+repair` can replay only transient provider/rate/timeout, tool, repository,
+implementation, or evaluation failures, and requires a failed run plus
+remaining mission repair budget. Repair IDs, attempt counts, typed receipts,
+and `repair_started`/`repair_completed`/`repair_failed` events are persisted;
+the accepted range is zero through four attempts. The flaky worktree smoke
+proves successful repair and zero-budget rejection. This is a controlled
+replay primitive, not adaptive self-healing. Live provider and dialect
+compatibility, authenticated tenancy, recoverable workcells, durable storage,
+signed provenance, and release gates remain unresolved. The next-session
+backlog is `docs/next-session-enhancement-backlog-2026-07-13-v71.md`.

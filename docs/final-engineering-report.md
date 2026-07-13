@@ -43,7 +43,7 @@ Not proven in this local session: live Ollama Cloud or another external provider
 
 ## Known limitations
 
-The current run engine still accepts explicit action plans, but missions may now opt into a bounded fixture-driven Agents SDK Tool Registry call list. Provider-driven model tool planning, dynamic role discovery, richer typed tool-result artifacts, arbitrary interrupted-step replay, and failure-repair flows require follow-up integration work. External-provider/Ollama remains unverified; local real-Watchdog correlation is covered by the dedicated smoke.
+The current run engine still accepts explicit action plans, but missions may now opt into a bounded fixture-driven Agents SDK Tool Registry call list. Provider-driven model tool planning, dynamic role discovery, richer typed tool-result artifacts, arbitrary interrupted-step replay, adaptive failure-repair flows, and external-provider/Ollama verification require follow-up integration work. Local real-Watchdog correlation is covered by the dedicated smoke.
 
 ## 2026-07-11 enterprise-readiness review
 
@@ -790,3 +790,18 @@ This remains local unsigned tamper evidence; live provider compatibility,
 authenticated tenancy, recoverable workcells, durable storage, and release
 gates remain open. The next-session work is tracked in
 `docs/next-session-enhancement-backlog-2026-07-13-v70.md`.
+
+## Seventy-second 2026-07-13 review
+
+Relay now exposes explicit bounded repair replay through `missions repair`.
+Only transient provider, rate, timeout, tool, repository, implementation, and
+evaluation failures may be replayed; policy, authentication, malformed-call,
+and context failures remain terminal. Each attempt receives a repair ID,
+typed RunLedger receipt, lifecycle events, and a persisted attempt count, with
+the mission schema and loader enforcing a four-attempt ceiling. The flaky
+worktree smoke proves a failed run can be repaired once and that a zero-repair
+budget fails closed. This is explicit replay, not adaptive self-healing or
+model rerouting. Live providers, provider dialects, recoverable workcells,
+authenticated adapters, durable storage, and release gates remain open. The
+next-session work is tracked in
+`docs/next-session-enhancement-backlog-2026-07-13-v71.md`.

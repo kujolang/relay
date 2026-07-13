@@ -92,7 +92,7 @@ relay models probe <model> [--fixture] [--json]
 relay agents list|inspect <agent>|validate [--json]
 relay missions create [spec.json] [--output <path>] [--json]
 relay missions run <spec.json> [--fixture] [--pause-after-plan] [--skip-agent-smoke] [--json]
-relay missions inspect|pause|resume|cancel|cleanup|report <run-id> [--json]
+relay missions inspect|pause|resume|repair|cancel|cleanup|report <run-id> [--json]
 relay runs list [--after <run-id>] [--limit <n>]|rebuild|inspect|verify|events|watch|sizes [--hashes]|changes|evaluations <run-id> [--json]
 relay runs export <run-id> [--partial] [--output <path>] [--json]
 relay tools execute --json (internal capability-bound worker callback)
@@ -179,7 +179,7 @@ correlated. Persisted `events.jsonl` and `receipts.json` evidence are each
 capped at 8 MiB; exceeding a cap fails the run's evidence boundary rather than
 creating an apparently complete but unreadable run.
 
-Budget fields are non-negative integers: `max_steps`, `max_repairs`, and `max_tokens`; `max_tool_calls`, `max_tool_turns`, `max_output_bytes`, and `max_write_bytes` must be positive. `max_tool_calls` is capped at 16 and `max_tool_turns` at 4 per mission; the configured limits are enforced before every provider-generated tool execution and follow-up request. Output and write budgets are capped at 8 MiB per mission; command timeouts must be between 1 ms and 10 minutes. A budget failure is recorded as a failed run with a typed failure class; it is never reported as completed. Provider request/response and evidence-file ceilings are fixed Relay safety boundaries rather than caller-widenable mission budgets.
+Budget fields are non-negative integers: `max_steps`, `max_repairs`, and `max_tokens`; `max_tool_calls`, `max_tool_turns`, `max_output_bytes`, and `max_write_bytes` must be positive. `max_repairs` is capped at 4, `max_tool_calls` at 16, and `max_tool_turns` at 4 per mission; the configured limits are enforced before every provider-generated tool execution, follow-up request, or explicit repair replay. Output and write budgets are capped at 8 MiB per mission; command timeouts must be between 1 ms and 10 minutes. A budget failure is recorded as a failed run with a typed failure class; it is never reported as completed. Provider request/response and evidence-file ceilings are fixed Relay safety boundaries rather than caller-widenable mission budgets.
 
 ## JSON evidence
 
@@ -381,6 +381,15 @@ Set `RELAY_WATCHDOG_VERIFY=true` to make live calls fail closed unless Relay can
 workspace ownership, Git metadata, event/receipt integrity, and effective
 budgets before changing a paused run to `running`. A tampered checkpoint fails
 as `state_integrity_failure` before any resumed tool or repository action.
+
+`missions repair <run-id>` applies the same integrity checks to a failed run,
+then permits one bounded replay only when the recorded failure class is
+repairable (`timeout`, rate/allowance, provider, repository, tool,
+implementation, or evaluation). The command increments `repair_attempts`,
+binds a `repair_id`, emits typed repair receipts/events, and refuses policy,
+authentication, malformed-authority, cancellation, evidence, or exhausted
+budget failures. A repair replay reuses the persisted mission actions; adaptive
+model selection and context mutation remain deferred.
 
 `missions cleanup --confirm` applies the same policy-digest, run-owned
 worktree, source-repository, Git-metadata, event, and receipt checks before

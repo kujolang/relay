@@ -86,7 +86,7 @@ Context: a valid hash chain can still be a truncated prefix after a crash or par
 
 ## ADR-023: Put execution context in every Relay event
 
-Context: RunLedger, model, provider, workflow, and packet revision were present in run state but not consistently attached to each AgentEvent-compatible record, making downstream correlation more expensive. Decision: Relay enriches event metadata with workflow, model, provider, packet revision, and RunLedger run ID before resealing the event integrity hash. Rationale: make machine inspection and future Paperclip/Hermes adapters able to correlate evidence without reconstructing context from neighboring files. Consequence: lifecycle receipt IDs now cover the core artifact path; retry, repair, escalation, approval, and cancellation IDs still need typed receipts as their workflows mature.
+Context: RunLedger, model, provider, workflow, and packet revision were present in run state but not consistently attached to each AgentEvent-compatible record, making downstream correlation more expensive. Decision: Relay enriches event metadata with workflow, model, provider, packet revision, and RunLedger run ID before resealing the event integrity hash. Rationale: make machine inspection and future Paperclip/Hermes adapters able to correlate evidence without reconstructing context from neighboring files. Consequence: lifecycle receipt IDs now cover the core artifact path; richer retry, escalation, approval, cancellation, and adaptive-repair IDs remain future work.
 
 ## ADR-019: Use the Agents SDK Tool Registry behind a Relay policy worker
 
@@ -1183,3 +1183,30 @@ retention, and remote handoff remain open.
 
 Rejected: hashing only `MASTER.md`, persisting the manifest inside the tree it
 describes, following links, or silently accepting changed packet contents.
+## ADR-101: Make repair replay explicit, typed, and budgeted
+
+Context: Relay exposed `max_repairs` in mission contracts and receipt metadata,
+but had no operator-visible repair operation and no enforcement beyond parsing
+the integer. A failed run could therefore not be resumed through a bounded,
+auditable recovery path.
+
+Decision: add `missions repair <run-id>`. It may replay persisted actions only
+for transient/tool/repository/implementation/evaluation failure classes, binds
+an incrementing `repair_attempts` count and unique `repair_id`, emits
+`repair_started`, `repair_completed`, or `repair_failed` events plus typed
+receipts, and caps `max_repairs` at four. Policy, authentication, malformed
+authority, cancellation, evidence, and exhausted-budget failures remain
+non-repairable.
+
+Rationale: operators get a truthful, machine-readable recovery boundary while
+Relay retains control over authority and completion. Explicit replay is safer
+than silent loops and is useful for transient repository/tool failures without
+pretending that adaptive repair or model rerouting already exists.
+
+Consequences: repair reuses the persisted mission actions and does not yet
+change model, context, or workflow; workcell retention and durable repair
+history remain future work. The new smoke covers successful one-attempt replay,
+typed receipts, and zero-budget denial.
+
+Rejected: silently retrying failed missions, replaying policy/evidence failures,
+or allowing unbounded caller-selected repair counts.
