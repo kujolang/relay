@@ -902,3 +902,12 @@ provenance, authenticated ownership, live-provider compatibility, or enterprise
 readiness.
 
 Current follow-on backlog: `docs/next-session-enhancement-backlog-2026-07-13-v80.md`.
+
+The v81 review closes a local capability-issuance race. Relay now serializes
+record creation with the existing per-record lock and returns
+`capability_already_registered` for duplicate run/session identities rather
+than replacing a worker secret. Focused state and Agents SDK coverage proves
+the denial. This remains local single-host coordination, not authenticated
+multi-host ownership or enterprise readiness.
+
+Current follow-on backlog: `docs/next-session-enhancement-backlog-2026-07-13-v81.md`.

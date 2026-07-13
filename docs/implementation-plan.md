@@ -74,6 +74,7 @@
 - Bounded model output requests to the positive mission `max_tokens` budget (capped at 16,384), passed remaining tokens to provider follow-ups, normalized negative usage to zero, and removed caller-controlled `PWD` from child environment overrides.
 - Hardened mission, run-root, and per-run state-directory creation with fail-closed symlink-component checks and the shared exclusive native `mkdir` primitive; unsafe or unavailable state paths now return `state_store_failure` before mission evidence work begins.
 - Reused Kujo's native `write_file_atomic` for Relay evidence writes and unified Agents SDK capability-registry directory creation with the shared safe-directory helper; added symlink replacement and capability-creation regression coverage.
+- Serialized Agents SDK capability issuance with the existing per-record exclusive lock and rejected duplicate run/session records instead of silently replacing a worker secret; added deterministic duplicate-issuance coverage.
 
 ## Deferred
 

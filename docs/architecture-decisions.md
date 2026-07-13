@@ -1424,3 +1424,28 @@ outside Relay's local contract.
 
 Rejected: retaining the predictable custom temporary-file scheme, shell-based
 atomic writes, or adding a third Relay-specific filesystem writer.
+
+## ADR-110: Serialize capability issuance and reject record replacement
+
+Context: ADR-109 unified capability-registry directory creation, but two
+workers using the same run/session identity could still race at issuance. An
+atomic file replacement would allow the later secret to invalidate the earlier
+worker's capability and would make capability ownership ambiguous.
+
+Decision: acquire the existing per-record exclusive lock before issuing a
+capability, reject non-regular or symbolic-linked record/lock paths, reject an
+already registered record, and release the lock only after the record is
+persisted. Issuance contention returns `capability_busy`; duplicate identity
+returns `capability_already_registered`.
+
+Rationale: keep one lock and one registry authority for issuance, consumption,
+and repair. The explicit duplicate failure is safer than silently replacing a
+live worker's secret and makes concurrent callers receive a deterministic
+machine-readable result.
+
+Consequences: a crashed issuer can leave a conservative local lock until a
+future ownership/recovery policy is added. This is single-host coordination;
+it does not establish authenticated multi-host capability ownership.
+
+Rejected: overwriting records, using a separate issuance lock namespace,
+silently rotating secrets for the same identity, or force-removing stale locks.

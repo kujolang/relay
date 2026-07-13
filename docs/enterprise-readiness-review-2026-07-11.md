@@ -906,3 +906,15 @@ This improves local filesystem consistency but does not establish durable
 multi-host storage, signed provenance, authenticated ownership, live-provider
 proof, or enterprise release readiness. The next-session backlog is
 `docs/next-session-enhancement-backlog-2026-07-13-v80.md`.
+
+## Eighty-first 2026-07-13 review
+
+Capability issuance now takes the same exclusive per-record lock used by
+consumption and repair. Relay rejects unsafe record/lock paths, duplicate
+run/session records, and issuance contention instead of silently replacing a
+worker secret. Focused state-store and Agents SDK smokes, the full acceptance
+suite, and Loop Engineering provide local evidence. This closes a local
+single-host secret-rotation race but does not provide authenticated multi-host
+ownership, crash-lock recovery, live-provider proof, or enterprise readiness.
+The next-session backlog is
+`docs/next-session-enhancement-backlog-2026-07-13-v81.md`.

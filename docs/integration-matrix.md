@@ -136,3 +136,8 @@ Evidence and capability-state writes now use Kujo's native atomic writer, while
 capability-registry directories use the shared exclusive, symlink-safe creator.
 The symlink-probe smoke proves replacing a link updates the link path without
 modifying its target; focused state and Agents SDK coverage remains green.
+
+The v81 review also serializes capability issuance with the consumption/repair
+lock and rejects duplicate run/session records. A second issuance now returns
+`capability_already_registered` rather than replacing an existing worker secret;
+the state-store smoke proves the machine-readable denial.
