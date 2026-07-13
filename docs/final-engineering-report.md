@@ -604,3 +604,12 @@ spawning an external bridge, and the CLI smoke proves the rejected path is not
 disclosed. This is local configuration-source hardening; signed provenance,
 authenticated invocation, live external providers, and enterprise readiness
 remain deferred.
+
+## Sixtieth 2026-07-13 review
+
+Relay model profiles are now truthful about orchestration support. `models list`
+and `models probe` report explicit profile selection rationale, chat/streaming
+capabilities, `tool_planning: false`, and declared-mission-only tool execution;
+the previous optimistic `tool_calls` claim was removed. This is a machine
+contract and adoption-quality improvement, not provider-generated tool proof or
+enterprise readiness.

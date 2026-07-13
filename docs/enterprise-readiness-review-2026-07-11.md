@@ -245,6 +245,16 @@ execution configuration gap; it does not provide signed dependency provenance,
 authenticated service mode, live provider proof, or universal enterprise
 readiness.
 
+## Sixtieth 2026-07-13 review
+
+Model profiles now distinguish model/API capabilities from Relay orchestration
+capabilities. `models list` and `models probe` no longer advertise `tool_calls`
+while provider-generated planning is unsupported; they expose a selection
+reason plus `tool_planning: false` and `tool_execution: declared_mission_only`.
+This improves machine-client correctness and presentation but does not prove
+provider-generated tools, live providers, authenticated operation, workcell
+recovery, or durable enterprise storage.
+
 ## Fifty-seventh 2026-07-13 review
 
 Agents SDK bridge summaries now recursively redact model output, tool-result

@@ -69,7 +69,7 @@ For Ollama Cloud or another compatible service, keep the provider-specific detai
 Implemented and truthful in this slice:
 
 - `chat`, including normalized stream events and JSON output
-- `models list|inspect|probe`
+- `models list|inspect|probe`; model profiles truthfully expose chat/streaming capabilities and explicitly report that provider-generated tool planning is unavailable
 - `agents list|inspect|validate`
 - `doctor`, including dependency identity/version, agent-registry, secret-safe live-route posture, and credential checks
 - `missions create|run|inspect|pause|resume|cancel|cleanup|report`; cancellation is cooperative and recorded as run evidence

@@ -99,6 +99,12 @@ relay tools execute --json (internal capability-bound worker callback)
 relay benchmark run <repository> [--json]
 ```
 
+`models list --json` and `models probe --json` expose a routing object with the
+selection reason, `tool_planning: false`, and `tool_execution:
+"declared_mission_only"`. Model profiles do not advertise provider-generated
+tool calls until that path is implemented and evaluated; callers can therefore
+distinguish model capability from Relay orchestration capability.
+
 ## Mission contract
 
 Mission specs are JSON objects with `name`, `goal`, a Git `repository`, `actions`, and optional `workflow`, `model`, `provider`, `allow_writes`, `approval`, `allowed_commands`, `acceptance_criteria`, `budgets`, and bounded `agent_tools` fields. Supported actions are deliberately narrow:

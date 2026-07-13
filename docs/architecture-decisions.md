@@ -838,3 +838,17 @@ bridges must be reviewed into the Relay source tree or require a future signed
 adapter contract; the existing default bridge remains unchanged. Rejected:
 trusting any absolute environment path, following symlinks into an external
 checkout, or relying on the provider/Kujo process to enforce this boundary.
+
+## ADR-081: Separate model capability from Relay tool planning
+
+Context: `models list` advertised `tool_calls` for the configured
+OpenAI-compatible profile even though Relay only executes explicitly declared
+mission tools and does not yet support provider-generated tool planning.
+Decision: expose truthful chat/streaming capabilities, a visible selection
+reason, `tool_planning: false`, and `tool_execution: "declared_mission_only"`
+in model list and probe results. Rationale: machine callers must not confuse a
+provider's possible API feature with a Relay feature that is not implemented or
+evaluated. Consequence: clients can safely gate tool-planning workflows and the
+profile can grow when authentic provider evidence exists. Rejected: retaining
+the optimistic `tool_calls` claim, hiding the limitation in prose, or silently
+attempting provider tools.
