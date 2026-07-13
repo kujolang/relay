@@ -184,8 +184,15 @@ func watch_run_events(record, flags) {
     mut events := []
     mut last_raw := ""
     mut partial_start := 0
+    mut saw_events_file := false
+    mut chain_checked_raw := ""
     while current_timestamp() - started_ms <= timeout_ms {
-        if path_exists(events_path) && (path_is_symlink(events_path) || path_is_file(events_path) == false) {
+        if path_exists(events_path) == false {
+            if saw_events_file {
+                print(safe_json({"type": "relay_watch_error", "error": "run event log disappeared"}))
+                return {"ok": false, "_streamed": true}
+            }
+        } else if path_is_symlink(events_path) || path_is_file(events_path) == false {
             print(safe_json({"type": "relay_watch_error", "error": "run event log is a symbolic link or non-regular file"}))
             return {"ok": false, "_streamed": true}
         }
@@ -194,13 +201,14 @@ func watch_run_events(record, flags) {
             return {"ok": false, "_streamed": true}
         }
         if path_exists(events_path) {
+            saw_events_file = true
             raw := read_file(events_path)
             if raw != last_raw {
                 # The event file is append-only for a run. Reject replacement or
                 # truncation, then parse only the changed suffix plus any line
                 # that was incomplete during the previous poll. This keeps
                 # parsing work proportional to new events while the full event
-                # chain remains verified below on every poll.
+                # chain is verified whenever the stream changes.
                 if last_raw != "" && starts_with(raw, last_raw) == false {
                     print(safe_json({"type": "relay_watch_error", "error": "run event log was replaced or truncated"}))
                     return {"ok": false, "_streamed": true}
@@ -229,9 +237,12 @@ func watch_run_events(record, flags) {
                 last_raw = raw
             }
         }
-        if event_chain_integrity_valid(events) == false {
-            print(safe_json({"type": "relay_watch_error", "error": "run event chain integrity verification failed"}))
-            return {"ok": false, "_streamed": true}
+        if last_raw != chain_checked_raw {
+            if event_chain_integrity_valid(events) == false {
+                print(safe_json({"type": "relay_watch_error", "error": "run event chain integrity verification failed"}))
+                return {"ok": false, "_streamed": true}
+            }
+            chain_checked_raw = last_raw
         }
         while emitted < len(events) {
             print(safe_json(events[emitted]))

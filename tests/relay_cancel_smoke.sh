@@ -27,7 +27,7 @@ export RELAY_ROOT="$ROOT"
 mission_pid=$!
 
 run_dir=""
-for attempt in $(seq 1 200); do
+for attempt in $(seq 1 1000); do
   candidates=("$ROOT"/.relay/runs/*)
   if [ -f "${candidates[0]}/state.json" ]; then run_dir="${candidates[0]}"; break; fi
   sleep 0.01
@@ -35,7 +35,7 @@ done
 test -n "$run_dir"
 run_id="$(basename "$run_dir")"
 
-for attempt in $(seq 1 200); do
+for attempt in $(seq 1 1000); do
   if grep -q 'model_request_completed' "$run_dir/events.jsonl" 2>/dev/null; then break; fi
   sleep 0.01
 done

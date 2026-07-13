@@ -21,7 +21,7 @@ export RELAY_ROOT="$ROOT"
 mission_pid=$!
 
 run_dir=""
-for attempt in $(seq 1 200); do
+for attempt in $(seq 1 1000); do
   candidates=("$ROOT"/.relay/runs/*)
   if [ -d "${candidates[0]}" ]; then run_dir="${candidates[0]}"; break; fi
   sleep 0.01
