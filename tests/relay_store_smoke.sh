@@ -99,6 +99,34 @@ test "$missing_state_rc" -ne 0
 printf '%s' "$missing_state" | grep -Eq 'unknown run|run state evidence is missing'
 mv "$state_path.missing" "$state_path"
 
+inspected="$($KUJO run "$ROOT/main.kujo" -- runs inspect "$run_id" --json)"
+printf '%s' "$inspected" | jq -e --arg run_id "$run_id" '.ok == true and .run.run_id == $run_id' >/dev/null
+
+verified="$($KUJO run "$ROOT/main.kujo" -- runs verify "$run_id" --json)"
+printf '%s' "$verified" | jq -e --arg run_id "$run_id" '.ok == true and .format == "relay-run-verification-v1" and .run_id == $run_id and .integrity_valid == true and .state_valid == true and .events_valid == true and .receipts_valid == true and .receipts_consistent == true and .changes_valid == true and .evaluations_valid == true' >/dev/null
+
+# Run artifact readers must fail closed instead of turning a missing result
+# into a successful empty object or array.
+changes_path="$run_dir/changes.json"
+mv "$changes_path" "$changes_path.missing"
+set +e
+missing_changes="$($KUJO run "$ROOT/main.kujo" -- runs changes "$run_id" --json 2>&1)"
+missing_changes_rc=$?
+set -e
+test "$missing_changes_rc" -ne 0
+printf '%s' "$missing_changes" | grep -q 'run artifact evidence is missing'
+mv "$changes_path.missing" "$changes_path"
+
+evaluations_path="$run_dir/evaluations.json"
+mv "$evaluations_path" "$evaluations_path.missing"
+set +e
+missing_evaluations="$($KUJO run "$ROOT/main.kujo" -- runs evaluations "$run_id" --json 2>&1)"
+missing_evaluations_rc=$?
+set -e
+test "$missing_evaluations_rc" -ne 0
+printf '%s' "$missing_evaluations" | grep -q 'run artifact evidence is missing'
+mv "$evaluations_path.missing" "$evaluations_path"
+
 # The authoritative state event list must match the verified JSONL payloads,
 # not merely carry the same event IDs. A state-only payload edit is evidence
 # divergence and must fail inspection/export.

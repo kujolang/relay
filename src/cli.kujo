@@ -43,6 +43,19 @@ func read_run_state_evidence(run_dir, run_id) {
     return {"ok": true, "state": state}
 }
 
+func read_run_artifact_evidence(run_dir, name, expected_type, max_bytes) {
+    path := run_dir + "/" + name
+    limit := int_or(max_bytes, 8388608)
+    if path_is_symlink_safe(path) || path_exists(path) == false || path_is_file(path) == false || file_size(path) > limit {
+        return {"ok": false, "value": null, "error": "run artifact evidence is missing, non-regular, symbolic-linked, or exceeds its inspection limit: " + name}
+    }
+    value := read_json_limited(path, null, limit)
+    if type(value) != expected_type {
+        return {"ok": false, "value": null, "error": "run artifact evidence has an invalid JSON shape: " + name}
+    }
+    return {"ok": true, "value": value}
+}
+
 func positional(values, index, fallback) {
     if type(values) != "array" || index < 0 || index >= len(values) { return fallback }
     return values[index]
@@ -95,7 +108,7 @@ func help_text() {
         "  missions create [spec.json] [--output path]\n" +
         "  missions run <spec.json> [--fixture] [--pause-after-plan] [--skip-agent-smoke] [--json]\n" +
         "  missions inspect <run-id>|pause <run-id>|resume <run-id>|cancel <run-id>|cleanup <run-id> --confirm|report <run-id>\n" +
-        "  runs list|rebuild|inspect <run-id>|events <run-id>|watch <run-id>|sizes <run-id>|changes <run-id>|evaluations <run-id>|export <run-id> [--output path]\n" +
+        "  runs list|rebuild|inspect <run-id>|verify <run-id>|events <run-id>|watch <run-id>|sizes <run-id>|changes <run-id>|evaluations <run-id>|export <run-id> [--output path]\n" +
         "  tools execute --json (bounded Agents SDK worker callback)\n" +
         "  benchmark run <repo> [--json] (Capsule discovery slice)"
 }
@@ -375,9 +388,31 @@ func cmd_runs(tokens) {
     if sub == "rebuild" { rebuilt := rebuild_run_index(state_root()); persist_run_index(state_root(), rebuilt); return {"ok": true, "runs": rebuilt, "index_source": "rebuild"} }
     record := dict_get_or(index, id, null)
     if type(record) != "dict" { return {"ok": false, "error": "unknown run: " + id} }
+    if sub == "verify" {
+        state_evidence := read_run_state_evidence(record["run_dir"], id)
+        if dict_get_or(state_evidence, "ok", false) == false {
+            return {"ok": false, "format": "relay-run-verification-v1", "run_id": id, "integrity_valid": false, "state_valid": false, "error": dict_get_or(state_evidence, "error", "run state evidence is invalid")}
+        }
+        events_result := cmd_runs(["events", id])
+        if dict_get_or(events_result, "ok", false) == false {
+            return {"ok": false, "format": "relay-run-verification-v1", "run_id": id, "integrity_valid": false, "state_valid": true, "events_valid": dict_get_or(events_result, "integrity_valid", false), "receipts_valid": dict_get_or(events_result, "receipts_valid", false), "receipts_consistent": dict_get_or(events_result, "receipts_consistent", false), "error": dict_get_or(events_result, "error", "run event evidence is invalid")}
+        }
+        changes := read_run_artifact_evidence(record["run_dir"], "changes.json", "dict", 8388608)
+        evaluations := read_run_artifact_evidence(record["run_dir"], "evaluations.json", "array", 8388608)
+        changes_valid := dict_get_or(changes, "ok", false)
+        evaluations_valid := dict_get_or(evaluations, "ok", false)
+        valid := changes_valid && evaluations_valid
+        return {"ok": valid, "format": "relay-run-verification-v1", "run_id": id, "status": dict_get_or(state_evidence["state"], "status", "unknown"), "integrity_valid": valid, "state_valid": true, "events_valid": true, "receipts_valid": dict_get_or(events_result, "receipts_valid", false), "receipts_consistent": dict_get_or(events_result, "receipts_consistent", false), "changes_valid": changes_valid, "evaluations_valid": evaluations_valid, "errors": [dict_get_or(changes, "error", ""), dict_get_or(evaluations, "error", "")]}
+    }
     if sub == "watch" { return watch_run_events(record, parsed["flags"]) }
     if sub == "sizes" { return run_artifact_sizes(record, id) }
-    if sub == "inspect" { return {"ok": true, "run": read_json_limited(record["run_dir"] + "/state.json", {}, 67108864), "run_dir": record["run_dir"]} }
+    if sub == "inspect" {
+        state_evidence := read_run_state_evidence(record["run_dir"], id)
+        if dict_get_or(state_evidence, "ok", false) == false {
+            return {"ok": false, "failure_class": "evidence_failure", "error": dict_get_or(state_evidence, "error", "run state evidence is invalid")}
+        }
+        return {"ok": true, "run": state_evidence["state"], "run_dir": record["run_dir"]}
+    }
     if sub == "events" || sub == "export" {
         events_path := record["run_dir"] + "/events.jsonl"
         if path_is_symlink_safe(events_path) || path_exists(events_path) == false || path_is_file(events_path) == false || file_size(events_path) > 8388608 { return {"ok": false, "error": "run event log is missing, non-regular, symbolic-linked, or exceeds the 8 MiB inspection limit", "integrity_valid": false, "state_consistent": false} }
@@ -411,8 +446,21 @@ func cmd_runs(tokens) {
         bundle["ok"] := true
         return bundle
     }
-    if sub == "changes" { return {"ok": true, "changes": read_json_limited(record["run_dir"] + "/changes.json", {}, 8388608)} }
-    if sub == "evaluations" { return {"ok": true, "evaluations": read_json_limited(record["run_dir"] + "/evaluations.json", [], 8388608)} }
+    if sub == "changes" || sub == "evaluations" {
+        state_evidence := read_run_state_evidence(record["run_dir"], id)
+        if dict_get_or(state_evidence, "ok", false) == false {
+            return {"ok": false, "failure_class": "evidence_failure", "error": dict_get_or(state_evidence, "error", "run state evidence is invalid")}
+        }
+        artifact_name := "changes.json"
+        expected_type := "dict"
+        if sub == "evaluations" { artifact_name = "evaluations.json"; expected_type = "array" }
+        artifact := read_run_artifact_evidence(record["run_dir"], artifact_name, expected_type, 8388608)
+        if dict_get_or(artifact, "ok", false) == false {
+            return {"ok": false, "failure_class": "evidence_failure", "error": dict_get_or(artifact, "error", "run artifact evidence is invalid")}
+        }
+        if sub == "changes" { return {"ok": true, "changes": artifact["value"]} }
+        return {"ok": true, "evaluations": artifact["value"]}
+    }
     return {"ok": false, "error": "unknown runs command"}
 }
 
