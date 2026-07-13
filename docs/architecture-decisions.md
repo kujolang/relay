@@ -808,3 +808,18 @@ cross the same local secret-safety filter. Consequence: credential-shaped text
 is masked while the contract remains structurally compatible; provider-native
 classification and full Redact integration remain deferred. Rejected: trusting
 the model, SDK, or subprocess layer to sanitize every nested result.
+
+## ADR-079: Centralize boolean environment controls
+
+Context: CLI, adapter, and doctor paths independently compared environment
+values to the literal string `true`, while the shared boolean helper already
+accepted common shell spellings. This made `1`, `yes`, and case variants behave
+inconsistently and could unexpectedly disable fixture safety or verification.
+Decision: expose `env_bool(key, fallback)` from the common Kujo module and use it
+for `RELAY_OFFLINE_FIXTURE` and `RELAY_WATCHDOG_VERIFY` at every runtime boundary.
+Rationale: one parser makes CI and shell configuration predictable while the
+fallback remains fail-safe for fixture mode and opt-in for live verification.
+Consequence: accepted values are `true`/`false`, `1`/`0`, and `yes`/`no`,
+case-insensitively; invalid values retain the documented default. Rejected:
+repeating literal comparisons in each command or silently treating unknown
+values as live mode.

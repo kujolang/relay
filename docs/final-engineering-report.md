@@ -587,3 +587,11 @@ artifact paths fail closed as `evidence_failure`. The focused contract,
 mission, store, sizes, resume-integrity, and Agents SDK tool smokes pass.
 Crash recovery, durable transactions, signed export, and live external-provider
 proof remain deliberately deferred.
+
+## Fifty-eighth 2026-07-13 review
+
+Centralized `env_bool` now governs fixture-mode selection and optional
+Watchdog verification. `true`/`false`, `1`/`0`, and `yes`/`no` are accepted
+case-insensitively with fail-safe defaults, and the CLI smoke covers numeric and
+word spellings. No external provider or enterprise readiness claim changes;
+the v58 backlog records the remaining P0 work.

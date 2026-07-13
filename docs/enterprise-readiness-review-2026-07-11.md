@@ -224,7 +224,16 @@ inspection boundaries. The store smoke replaces `events.jsonl` with a symlink
 to `/etc/passwd` and verifies that inspection fails closed before restoring the
 real artifact. This reduces local evidence redirection risk; kernel-level
 no-follow primitives, multi-user ownership, and durable storage isolation
-remain open.
+ remain open.
+
+## Fifty-eighth 2026-07-13 review
+
+Boolean environment controls now use one shared parser across CLI, adapter, and
+doctor paths. The CLI smoke proves `RELAY_OFFLINE_FIXTURE=1` and `YES` retain
+safe fixture behavior, avoiding shell/CI spelling drift. This is local
+configuration correctness and fail-safe behavior; live provider proof,
+provider-generated tools, authenticated machine mode, workcell recovery, and
+durable storage remain open.
 
 ## Fifty-seventh 2026-07-13 review
 

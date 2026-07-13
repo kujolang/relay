@@ -19,6 +19,11 @@ Relay commands return process exit code `0` on success and nonzero on invalid in
 | `RELAY_MODEL` / `RELAY_PROVIDER` | Defaults for model listing/probes | `gpt-4.1-mini` / `openai-compatible` |
 | `RELAY_FALLBACK_MODEL` | Visible model fallback after a failed primary call | unset |
 
+Boolean environment controls accept `true`, `false`, `1`, `0`, `yes`, and `no`
+(case-insensitive, with surrounding whitespace ignored). Unrecognized or empty
+values use the documented default; this keeps fixture mode fail-safe and makes
+shell/CI environment conventions equivalent.
+
 The environment-backed AI, Agents SDK, and tool-worker JSON bridges reject
 payloads larger than 128 KiB before parsing and return structured invalid-payload
 errors. This protects the machine boundary and stays below common process

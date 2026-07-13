@@ -99,7 +99,7 @@ inventory rejects oversized directories before recursive flattening.
 - `src/registry.kujo`: Chain of Command role registry
 - `docs/`: discovery report, integration matrix, ADRs, plan, final report
 - `tests/relay_contract_tests.kujo`: deterministic contract tests
-- `tests/relay_cli_smoke.sh`: CLI, doctor, probe, approval-boundary, and Watchdog-route telemetry non-disclosure smoke test
+- `tests/relay_cli_smoke.sh`: CLI, doctor, probe, normalized boolean-environment, approval-boundary, and Watchdog-route telemetry non-disclosure smoke test
 - `tests/relay_mission_smoke.sh`: real write, pause/resume, required ChangeBucket/Eval/report persistence, and RunLedger smoke test
 - `tests/relay_budget_smoke.sh`: bounded step-budget failure smoke test
 - `tests/relay_worktree_smoke.sh`: isolated worktree creation, source protection, and confirmed cleanup smoke test
@@ -154,4 +154,4 @@ bash tests/relay_symlink_probe_smoke.sh
 git diff --check
 ```
 
-For the full integration evidence boundary and deferred enterprise work, see [`docs/enterprise-readiness-review-2026-07-11.md`](docs/enterprise-readiness-review-2026-07-11.md), [`docs/command-reference.md`](docs/command-reference.md), and the current [`docs/next-session-enhancement-backlog-2026-07-13-v56.md`](docs/next-session-enhancement-backlog-2026-07-13-v56.md).
+For the full integration evidence boundary and deferred enterprise work, see [`docs/enterprise-readiness-review-2026-07-11.md`](docs/enterprise-readiness-review-2026-07-11.md), [`docs/command-reference.md`](docs/command-reference.md), and the current [`docs/next-session-enhancement-backlog-2026-07-13-v58.md`](docs/next-session-enhancement-backlog-2026-07-13-v58.md).
