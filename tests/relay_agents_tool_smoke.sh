@@ -3,6 +3,11 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 KUJO="${KUJO:-${KUJO_BIN:-$ROOT/../kujo/target/release/kujo}}"
+# Propagate the selected runtime into the nested Agents SDK bridge. The bridge
+# deliberately rejects a payload binary that differs from trusted KUJO_BIN;
+# leaving KUJO_BIN unset here makes an explicitly supplied absolute KUJO path
+# compare unequal to the bridge's relative fallback.
+export KUJO_BIN="$KUJO"
 AGENTS_SDK="${RELAY_AGENTS_SDK_PATH:-$ROOT/../agents-sdk}"
 WORK="/tmp/relay-agents-sdk-tools-workspace"
 
