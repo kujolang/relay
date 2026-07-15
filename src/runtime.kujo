@@ -377,6 +377,11 @@ func load_spec(path) {
         if tool_name == "relay.write_file" {
             if string_or(dict_get_or(input, "path", ""), "") == "" || type(dict_get_or(input, "content", null)) != "string" { return {"ok": false, "error": "relay.write_file requires path and string content"} }
             if len(string_or(dict_get_or(input, "path", ""), "")) > 4096 || len(dict_get_or(input, "content", "")) > max_write_bytes { return {"ok": false, "error": "relay.write_file input exceeds its path or write-byte safety limit"} }
+        } else if tool_name == "relay.read_file" {
+            relative := string_or(dict_get_or(input, "path", ""), "")
+            if relative == "" || len(relative) > 4096 { return {"ok": false, "error": "relay.read_file requires a bounded path"} }
+        } else if tool_name == "relay.list_files" {
+            if len(keys(input)) > 0 { return {"ok": false, "error": "relay.list_files does not accept input fields"} }
         } else if tool_name == "relay.run_command" {
             if string_or(dict_get_or(input, "command", ""), "") == "" { return {"ok": false, "error": "relay.run_command requires command"} }
             if len(string_or(dict_get_or(input, "command", ""), "")) > MISSION_COMMAND_MAX_BYTES { return {"ok": false, "error": "relay.run_command exceeds the 16 KiB safety limit"} }
@@ -389,7 +394,7 @@ func load_spec(path) {
     agent_tool_allowlist := dict_get_or(spec, "agent_tool_allowlist", [])
     if type(agent_tool_allowlist) != "array" { return {"ok": false, "error": "Mission agent_tool_allowlist must be an array"} }
     for tool_name in agent_tool_allowlist {
-        if tool_name != "relay.write_file" && tool_name != "relay.run_command" { return {"ok": false, "error": "Mission agent_tool_allowlist contains an unsupported tool"} }
+        if tool_name != "relay.write_file" && tool_name != "relay.read_file" && tool_name != "relay.list_files" && tool_name != "relay.run_command" { return {"ok": false, "error": "Mission agent_tool_allowlist contains an unsupported tool"} }
     }
     configured_agent_tools := dict_get_or(spec, "agent_tools", [])
     if type(configured_agent_tools) != "array" { return {"ok": false, "error": "Mission agent_tools must be an array"} }
@@ -442,6 +447,19 @@ func execute_action(action, spec, state, run_dir) {
         "allow_writes": bool_or(dict_get_or(spec, "allow_writes", false), false),
         "allowed_commands": dict_get_or(spec, "allowed_commands", ["git", "kujo"]),
         "allowed_script_hashes": dict_get_or(spec, "allowed_script_hashes", {})
+    }
+    if kind == "list_files" {
+        result := spawn_process(["git", "-C", repo, "ls-files"], process_options({}, 30000, state["budgets"]["max_output_bytes"]))
+        if result.success == false { return {"ok": false, "failure_class": "repository_failure", "error": "tracked file listing failed", "stderr": redact_text(result.stderr)} }
+        return {"ok": true, "tool": "list_files", "files": split(trim(result.stdout), "\n"), "output_truncated": result.stdout_truncated}
+    }
+    if kind == "read_file" {
+        relative := string_or(dict_get_or(action, "path", ""), "")
+        if relative == "" || len(relative) > 4096 || path_is_within_workspace(repo, relative) == false { return {"ok": false, "failure_class": "permission_denial", "error": "unsafe or invalid read path"} }
+        target := repo + "/" + relative
+        if path_is_file(target) == false || path_is_symlink_safe(target) || path_has_symlink_component(target) { return {"ok": false, "failure_class": "permission_denial", "error": "read target is missing or unsafe"} }
+        if file_size(target) > state["budgets"]["max_output_bytes"] { return {"ok": false, "failure_class": "budget_exceeded", "error": "read target exceeds max_output_bytes"} }
+        try { return {"ok": true, "tool": "read_file", "path": relative, "content": redact_text(read_file(target))} } except err { return {"ok": false, "failure_class": "repository_failure", "error": "file read failed"} }
     }
     if kind == "write_file" {
         decision := tool_decision("write_file", action, policy)
@@ -504,7 +522,11 @@ func execute_tool_request(request, supplied_capability) {
     tool_name := string_or(dict_get_or(request, "tool_name", ""), "")
     input := dict_get_or(request, "input", {})
     action := {}
-    if tool_name == "relay.write_file" {
+    if tool_name == "relay.list_files" {
+        action = {"type": "list_files"}
+    } else if tool_name == "relay.read_file" {
+        action = {"type": "read_file", "path": dict_get_or(input, "path", "")}
+    } else if tool_name == "relay.write_file" {
         action = {"type": "write_file", "path": dict_get_or(input, "path", ""), "content": dict_get_or(input, "content", "")}
     } else if tool_name == "relay.run_command" {
         action = {"type": "run_command", "command": dict_get_or(input, "command", ""), "timeout_ms": dict_get_or(input, "timeout_ms", 120000)}
@@ -810,11 +832,6 @@ func run_mission(path, options) {
                 provider_loop_ok = false
                 break
             }
-            if tool_turns >= max_tool_turns {
-                provider_loop_ok = false
-                agent_sdk_tools["error"] := "provider tool-turn budget exceeded"
-                break
-            }
             provider_messages := push(provider_messages, {"role": "assistant", "content": string_or(dict_get_or(model_result, "output_text", ""), ""), "tool_calls": provider_assistant_tool_calls(calls)})
             for message in dict_get_or(result_messages, "messages", []) { provider_messages := push(provider_messages, message) }
             remaining_model_tokens := state["budgets"]["max_tokens"] - used_tokens
@@ -828,6 +845,21 @@ func run_mission(path, options) {
             next_tokens := int_or(dict_get_or(next_usage, "total_tokens", 0), 0)
             if next_tokens < 0 { next_tokens = 0 }
             used_tokens = used_tokens + next_tokens
+        }
+        # A final model response after the last permitted tool round does not
+        # consume another tool turn. Accept it when it requests no more tools;
+        # reject only an additional tool request beyond the declared budget.
+        if provider_loop_ok && provider_loop_complete == false && dict_get_or(model_result, "ok", false) {
+            final_tools := normalize_provider_tool_calls(dict_get_or(model_result, "tool_calls", []))
+            if dict_get_or(final_tools, "ok", false) == false {
+                provider_loop_ok = false
+                agent_sdk_tools["error"] := dict_get_or(final_tools, "error", "provider tool call is malformed")
+            } else if len(dict_get_or(final_tools, "calls", [])) == 0 {
+                provider_loop_complete = true
+            } else {
+                provider_loop_ok = false
+                agent_sdk_tools["error"] := "provider tool-turn budget exceeded"
+            }
         }
         agent_sdk_tools["provider_generated"] := true
         agent_sdk_tools["calls"] := tool_calls_accumulated

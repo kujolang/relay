@@ -91,6 +91,8 @@ func call_relay_worker(tool_name, input_payload, context, payload) {
     kujo_bin := configured_kujo_bin
     capability := to_string(get(payload, "capability", ""))
     clean_input := {}
+    if tool_name == "relay.list_files" { clean_input = {} }
+    if tool_name == "relay.read_file" { clean_input = {"path": to_string(get(input_payload, "path", ""))} }
     if tool_name == "relay.write_file" { clean_input = {"path": to_string(get(input_payload, "path", "")), "content": to_string(get(input_payload, "content", ""))} }
     if tool_name == "relay.run_command" { clean_input = {"command": to_string(get(input_payload, "command", "")), "timeout_ms": get(input_payload, "timeout_ms", 120000)} }
     raw_spec := get(payload, "mission_spec", {})
@@ -119,7 +121,13 @@ func call_relay_worker(tool_name, input_payload, context, payload) {
     result := spawn_process(command, process_options({"RELAY_TOOL_REQUEST": to_json(request), "RELAY_TOOL_CAPABILITY": capability, "RELAY_TOOL_CAPABILITY_SECRET": get(payload, "capability_secret", "")}, 120000))
     parsed := last_json(result.stdout)
     if type(parsed) != "dict" { return {"ok": false, "error": {"message": "Relay tools worker returned no JSON", "stderr": redact_text(to_string(result.stderr))}} }
-    if result.success == false || get(parsed, "ok", false) == false { return {"ok": false, "error": {"message": redact_text(get(get(parsed, "error", {}), "message", "Relay tools worker failed")), "worker_success": result.success, "worker_stdout": redact_text(to_string(result.stdout)), "worker_stderr": redact_text(to_string(result.stderr))}} }
+    if result.success == false || get(parsed, "ok", false) == false {
+        worker_error := get(parsed, "error", {})
+        worker_message := "Relay tools worker failed"
+        if type(worker_error) == "string" { worker_message = worker_error }
+        else if type(worker_error) == "dict" { worker_message = to_string(get(worker_error, "message", worker_message)) }
+        return {"ok": false, "error": {"message": redact_text(worker_message), "worker_success": result.success, "worker_stdout": redact_text(to_string(result.stdout)), "worker_stderr": redact_text(to_string(result.stderr))}}
+    }
     return {"ok": true, "output": get(parsed, "result", {}), "artifacts": get(parsed, "artifacts", [])}
 }
 
@@ -152,7 +160,27 @@ runner := create_agent_runner({"ai_adapter": adapter})
 agent := create_agent({"id": get(payload, "agent_id", "relay-agent"), "name": get(payload, "agent_name", "Relay Agent")})
 
 registry := create_tool_registry({"metadata": {"owner": "relay", "authority": "policy_worker"}})
-write_register := register_tool(registry, {
+list_register := register_tool(registry, {
+    "id": "relay.list_files",
+    "name": "relay.list_files",
+    "description": "List tracked files through Relay policy.",
+    "permissions": [],
+    "risk": "low",
+    "input_schema": {"type": "object", "properties": {}},
+    "handler": func(input_payload, context) { return call_relay_worker("relay.list_files", input_payload, context, payload) }
+})
+list_registry := get(list_register, "registry", registry)
+read_register := register_tool(list_registry, {
+    "id": "relay.read_file",
+    "name": "relay.read_file",
+    "description": "Read one safe workspace file through Relay policy.",
+    "permissions": [],
+    "risk": "low",
+    "input_schema": {"type": "object", "required": ["path"], "properties": {"path": {"type": "string"}}},
+    "handler": func(input_payload, context) { return call_relay_worker("relay.read_file", input_payload, context, payload) }
+})
+read_registry := get(read_register, "registry", list_registry)
+write_register := register_tool(read_registry, {
     "id": "relay.write_file",
     "name": "relay.write_file",
     "description": "Write one approved file through Relay policy.",
@@ -171,7 +199,7 @@ command_register := register_tool(write_registry, {
     "input_schema": {"type": "object", "required": ["command"], "properties": {"command": {"type": "string"}, "timeout_ms": {"type": "integer"}}},
     "handler": func(input_payload, context) { return call_relay_worker("relay.run_command", input_payload, context, payload) }
 })
-if get(write_register, "ok", false) == false || get(command_register, "ok", false) == false { print(to_json({"ok": false, "error": {"code": "tool_registry_setup_failed"}})); exit(1) }
+if get(list_register, "ok", false) == false || get(read_register, "ok", false) == false || get(write_register, "ok", false) == false || get(command_register, "ok", false) == false { print(to_json({"ok": false, "error": {"code": "tool_registry_setup_failed"}})); exit(1) }
 
 approval_policy := {"mode": "write_tool"}
 approval_provider := {"kind": "deny_all"}

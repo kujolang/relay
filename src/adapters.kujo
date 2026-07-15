@@ -115,6 +115,31 @@ func run_process(command, cwd, extra_env, timeout_ms) {
 }
 
 func tool_schema(tool_name) {
+    if tool_name == "relay.list_files" {
+        return {
+            "type": "function",
+            "function": {
+                "name": "relay.list_files",
+                "description": "List Git-tracked workspace files. Use this instead of find, ls, shell pipelines, or redirection.",
+                "parameters": {"type": "object", "additionalProperties": false, "properties": {}}
+            }
+        }
+    }
+    if tool_name == "relay.read_file" {
+        return {
+            "type": "function",
+            "function": {
+                "name": "relay.read_file",
+                "description": "Read one Git-workspace-relative UTF-8 text file. Use this instead of cat, sed, or shell commands.",
+                "parameters": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["path"],
+                    "properties": {"path": {"type": "string", "description": "Workspace-relative tracked file path."}}
+                }
+            }
+        }
+    }
     if tool_name == "relay.write_file" {
         return {
             "type": "function",
@@ -144,7 +169,7 @@ func tool_schema(tool_name) {
                     "additionalProperties": false,
                     "required": ["command"],
                     "properties": {
-                        "command": {"type": "string", "description": "One shell-free allowlisted command."},
+                        "command": {"type": "string", "description": "One shell-free allowlisted validation command. Do not use it to list or read files; use relay.list_files and relay.read_file."},
                         "timeout_ms": {"type": "integer", "minimum": 1, "maximum": 600000}
                     }
                 }
