@@ -92,7 +92,7 @@ set -e
 test "$invalid_repairs_status" -ne 0
 printf '%s' "$invalid_repairs_output" | grep -q 'max_repairs'
 
-ruby -rjson -e 'path=ARGV.fetch(0); repo=ARGV.fetch(1); File.write(path, JSON.generate({name:"invalid-tokens",goal:"must reject unbounded model output",repository:repo,budgets:{max_tokens:16385},actions:[]}))' "$INVALID_TOKENS" "$WORK"
+ruby -rjson -e 'path=ARGV.fetch(0); repo=ARGV.fetch(1); File.write(path, JSON.generate({name:"invalid-tokens",goal:"must reject unbounded model output",repository:repo,budgets:{max_tokens:65537},actions:[]}))' "$INVALID_TOKENS" "$WORK"
 set +e
 invalid_tokens_output="$($KUJO run "$ROOT/main.kujo" -- missions run "$INVALID_TOKENS" --fixture --skip-agent-smoke --json 2>&1)"
 invalid_tokens_status=$?

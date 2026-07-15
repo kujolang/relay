@@ -208,7 +208,7 @@ creating an apparently complete but unreadable run.
 
 `max_steps` and `max_repairs` are non-negative integers; `max_tokens`,
 `max_tool_calls`, `max_tool_turns`, `max_output_bytes`, and `max_write_bytes`
-must be positive. `max_tokens` is capped at 16,384, `max_repairs` at 4,
+must be positive. Aggregate mission `max_tokens` is capped at 65,536 while each provider request remains capped at 16,384; `max_repairs` is capped at 4,
 `max_tool_calls` at 16, and `max_tool_turns` at 4 per mission. Relay passes
 the remaining token budget to every provider request and follow-up, so a low
 mission budget cannot silently turn into the default 700-token provider

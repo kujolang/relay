@@ -338,7 +338,7 @@ func load_spec(path) {
             if (key == "max_tool_calls" || key == "max_output_bytes" || key == "max_write_bytes") && value == 0 { return {"ok": false, "error": "Mission budget " + key + " must be greater than zero"} }
             if key == "max_tool_calls" && value > 16 { return {"ok": false, "error": "Mission budget max_tool_calls exceeds the 16-call safety limit"} }
             if key == "max_repairs" && value > 4 { return {"ok": false, "error": "Mission budget max_repairs exceeds the 4-repair safety limit"} }
-            if key == "max_tokens" && (value == 0 || value > 16384) { return {"ok": false, "error": "Mission budget max_tokens must be between 1 and 16384"} }
+            if key == "max_tokens" && (value == 0 || value > 65536) { return {"ok": false, "error": "Mission aggregate budget max_tokens must be between 1 and 65536"} }
             if key == "max_tool_turns" && (value == 0 || value > 4) { return {"ok": false, "error": "Mission budget max_tool_turns must be between 1 and 4"} }
             if (key == "max_output_bytes" || key == "max_write_bytes") && value > 8388608 { return {"ok": false, "error": "Mission budget " + key + " exceeds the 8 MiB safety limit"} }
         }
