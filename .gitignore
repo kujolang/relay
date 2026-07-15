@@ -114,6 +114,7 @@ RELAY_OUTPUT.txt
 /data/*.db
 /data/*.db-shm
 /data/*.db-wal
+/data/*.log
 /data/backups/
 /tmp/
 /.tmp/
