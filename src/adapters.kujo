@@ -250,7 +250,10 @@ func call_ai_with_tools(messages, model, provider, base_url, api_key_env, offlin
         "messages": messages,
         "temperature": 0.2,
         "max_tokens": request_max_tokens,
-        "max_retries": 1,
+        "max_retries": 0,
+        "timeout": 180.0,
+        "read_timeout": 180.0,
+        "overall_timeout_ms": 210000,
         "offline_fixture": offline,
         "correlation_id": correlation
     }
@@ -274,7 +277,7 @@ func call_ai_with_tools(messages, model, provider, base_url, api_key_env, offlin
         return {"ok": false, "error": {"code": "invalid_ai_bridge_path", "message": "RELAY_AI_BRIDGE must resolve to a regular, non-symlinked Kujo file inside Relay"}, "relay_telemetry": {"route": "blocked_invalid_bridge", "provider": provider, "model": model}}
     }
     command := ["/usr/bin/env", "-C", ai_sdk_root(), kujo_bin(), "run", bridge, "--interpreter"]
-    result := run_process(command, "", env_map, 120000)
+    result := run_process(command, "", env_map, 240000)
     parsed := last_json(dict_get_or(result, "stdout", ""))
     if type(parsed) != "dict" {
         return {"ok": false, "error": {"code": "ai_bridge_parse_error", "message": dict_get_or(result, "stderr", "No JSON response")}, "raw": result}

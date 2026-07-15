@@ -29,7 +29,7 @@ for item in get(payload, "messages", []) {
     }
 }
 client := create_client(provider, null)
-options := {"model": model, "max_tokens": get(payload, "max_tokens", 700), "temperature": get(payload, "temperature", 0.2), "max_retries": 1, "offline_fixture": get(payload, "offline_fixture", true), "stream": get(payload, "stream", false)}
+options := {"model": model, "max_tokens": get(payload, "max_tokens", 700), "temperature": get(payload, "temperature", 0.2), "max_retries": get(payload, "max_retries", 0), "timeout": get(payload, "timeout", 180.0), "read_timeout": get(payload, "read_timeout", 180.0), "overall_timeout_ms": get(payload, "overall_timeout_ms", 210000), "offline_fixture": get(payload, "offline_fixture", true), "stream": get(payload, "stream", false)}
 tools := get(payload, "tools", [])
 if type(tools) == "array" && len(tools) > 0 { options["tools"] := tools }
 watchdog_token := env("RELAY_WATCHDOG_PROXY_TOKEN")
