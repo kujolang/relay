@@ -230,7 +230,7 @@ func cmd_missions(tokens) {
         if path == "" { return {"ok": false, "error": "missions run requires a spec path"} }
         offline := has_flag(parsed["flags"], "fixture")
         if env_bool("RELAY_OFFLINE_FIXTURE", true) { offline = true }
-        return run_mission(path, {"offline_fixture": offline, "stream": false, "pause_after_plan": has_flag(parsed["flags"], "pause-after-plan"), "agents_sdk_smoke": has_flag(parsed["flags"], "skip-agent-smoke") == false})
+        return run_mission(path, {"offline_fixture": offline, "stream": has_flag(parsed["flags"], "stream"), "pause_after_plan": has_flag(parsed["flags"], "pause-after-plan"), "agents_sdk_smoke": has_flag(parsed["flags"], "skip-agent-smoke") == false})
     }
     id := positional(parsed["positionals"], 1, "")
     store_check := state_store_check()
