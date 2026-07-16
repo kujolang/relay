@@ -1,10 +1,10 @@
 from src.contracts import event, event_integrity_valid, event_chain_integrity_valid, event_sequence_matches_state, receipt, receipt_integrity_valid, receipt_sequence_valid, receipt_sequence_matches_state, state_integrity_input, state_integrity_valid, run_state, agent_profile, RELAY_VERSION, EVENT_CONTRACT, RECEIPT_CONTRACT
 from src.policy import classify_failure, repair_allowed, path_is_safe, path_is_within_workspace, command_is_allowed, tool_decision
-from src.runtime import resume_state_safe, cleanup_state_safe, control_state_safe, save_state, mark_evidence_failure, cancellation_request, cancellation_integrity_input, persist_required_json, report
+from src.runtime import resume_state_safe, cleanup_state_safe, control_state_safe, save_state, mark_evidence_failure, cancellation_request, cancellation_integrity_input, persist_required_json, report, provider_failure_message, provider_followup_token_ceiling, provider_synthesis_messages, provider_synthesis_tool, provider_synthesis_answer, preflight_failure_message
 from src.common import safe_id, redact_text, shell_quote_single, command_args, process_options, process_options_with_cancel, safe_process_path, safe_env_name, path_is_symlink_safe, path_has_symlink_component, path_has_parent_component, read_json_limited, append_jsonl, append_jsonl_bounded, write_json, write_text_atomic, create_exclusive_dir, dict_get_or, bool_or, string_or, safe_json, issue_agent_capability, revoke_agent_capability
 from src.adapters import fallback_allowed, fallback_decision, watchdog_route_allowed, tool_definitions, normalize_provider_tool_calls, provider_payload_size, provider_payload_allowed, bounded_max_tokens
 from src.store import safe_run_key, store_root_safe, acquire_index_lock, acquire_index_lock_retry, release_index_lock, rebuild_and_persist_run_index, rebuild_and_persist_run_index_result
-from src.watchdog import safe_base, safe_correlation_id, route_policy, usage_reconciliation
+from src.watchdog import safe_base, safe_correlation_id, route_policy, usage_reconciliation, usage_reconciliation_for_rows
 
 func check(label, condition) {
     if condition { print("PASS " + label); return 0 }
@@ -15,6 +15,17 @@ failed := 0
 failed = failed + check("version", RELAY_VERSION == "0.1.0")
 failed = failed + check("event contract", EVENT_CONTRACT == "AgentEvent-compatible-v1")
 failed = failed + check("receipt contract", RECEIPT_CONTRACT == "relay-receipt-v1")
+provider_failure := provider_failure_message({"ok": false, "error": {"code": "ai_bridge_parse_error", "message": "upstream timeout"}})
+failed = failed + check("provider failure retains actionable cause", contains(provider_failure, "ai_bridge_parse_error") && contains(provider_failure, "upstream timeout"))
+preflight_failure := preflight_failure_message({"ok": true}, {"ok": true}, {"ok": false, "error": provider_failure}, {"ok": false}, false, 10, 100)
+failed = failed + check("preflight failure retains provider cause", contains(preflight_failure, "mission preflight failed") && contains(preflight_failure, "ai_bridge_parse_error"))
+failed = failed + check("provider follow-up output is bounded", provider_followup_token_ceiling(32000) == 4096 && provider_followup_token_ceiling(2048) == 2048 && provider_followup_token_ceiling(0) == 0)
+synthesis_messages := provider_synthesis_messages("planner", "goal", [{"content": repeat("x", 40000)}])
+failed = failed + check("provider synthesis context is bounded and tool-free", len(synthesis_messages) == 2 && synthesis_messages[0]["role"] == "system" && synthesis_messages[1]["role"] == "user" && len(synthesis_messages[1]["content"]) < 9000 && contains(synthesis_messages[1]["content"], "truncated"))
+synthesis_tool := provider_synthesis_tool()
+failed = failed + check("provider synthesis uses a bounded answer function", synthesis_tool["function"]["name"] == "relay.submit_answer" && synthesis_tool["function"]["parameters"]["additionalProperties"] == false)
+synthesis_answer := provider_synthesis_answer({"tool_calls": [{"id": "answer-1", "function": {"name": "relay.submit_answer", "arguments": safe_json({"answer": "Owner-ready answer"})}}]})
+failed = failed + check("provider synthesis extracts submitted answer", synthesis_answer["ok"] && synthesis_answer["answer"] == "Owner-ready answer")
 e := event("run_started", "m1", "r1", "s1", "a1", {"ok": true}, "")
 failed = failed + check("event required fields", has_key(e, "run_id") && has_key(e, "payload") && has_key(e, "metadata"))
 failed = failed + check("event integrity", event_integrity_valid(e))
@@ -56,6 +67,8 @@ failed = failed + check("safe Git status option", command_is_allowed("git status
 failed = failed + check("safe Git diff check", command_is_allowed("git diff --check", {"allowed_commands": ["git"]}))
 failed = failed + check("Watchdog usage match", usage_reconciliation({"input_tokens": 2, "output_tokens": 3, "total_tokens": 5}, {"usage_complete": true, "input_tokens": 2, "output_tokens": 3, "total_tokens": 5})["matched"])
 failed = failed + check("Watchdog usage mismatch", usage_reconciliation({"input_tokens": 2, "output_tokens": 3, "total_tokens": 5}, {"usage_complete": true, "input_tokens": 2, "output_tokens": 4, "total_tokens": 6})["matched"] == false)
+duplicate_request_usage := usage_reconciliation_for_rows({"input_tokens": 8, "output_tokens": 4, "total_tokens": 12}, [{"usage_complete": true, "input_tokens": 4, "output_tokens": 6, "total_tokens": 10}, {"usage_complete": true, "input_tokens": 8, "output_tokens": 4, "total_tokens": 12}])
+failed = failed + check("Watchdog duplicate request IDs reconcile by usage", duplicate_request_usage["matched"] && duplicate_request_usage["matched_row"]["total_tokens"] == 12)
 failed = failed + check("Watchdog incomplete usage unavailable", usage_reconciliation({"total_tokens": 5}, {"usage_complete": false, "total_tokens": 5})["available"] == false)
 script_workspace := "/tmp/relay-script-policy-" + to_string(current_timestamp())
 create_dir(script_workspace)
@@ -173,6 +186,7 @@ failed = failed + check("fallback decision skips policy failure", dict_get_or(fa
 failed = failed + check("fallback decision records success", dict_get_or(fallback_decision({"ok": true}, "primary", "backup"), "reason", "") == "primary_succeeded")
 provider_tools := tool_definitions(["relay.list_files", "relay.read_file", "relay.write_file", "relay.run_command"])
 failed = failed + check("provider tool definitions are bounded", len(provider_tools) == 4 && provider_tools[0]["function"]["name"] == "relay.list_files" && provider_tools[1]["function"]["name"] == "relay.read_file" && provider_tools[2]["function"]["name"] == "relay.write_file" && provider_tools[3]["function"]["name"] == "relay.run_command")
+failed = failed + check("provider read tool supports bounded continuation", has_key(provider_tools[1]["function"]["parameters"]["properties"], "offset"))
 normalized_provider_tools := normalize_provider_tool_calls([{"id": "call-1", "function": {"name": "relay.write_file", "arguments": "{\"path\":\"out.txt\",\"content\":\"ok\"}"}}])
 failed = failed + check("provider tool calls normalize", normalized_provider_tools["ok"] && normalized_provider_tools["calls"][0]["name"] == "relay.write_file" && normalized_provider_tools["calls"][0]["input"]["path"] == "out.txt")
 failed = failed + check("malformed provider tool arguments reject", normalize_provider_tool_calls([{"function": {"name": "relay.write_file", "arguments": "not-json"}}])["ok"] == false)

@@ -144,6 +144,20 @@ func usage_reconciliation(expected_usage, observed_row) {
     return {"available": true, "matched": matched, "reason": "compared", "expected_input_tokens": expected_input, "expected_output_tokens": expected_output, "expected_total_tokens": expected_total, "observed_input_tokens": observed_input, "observed_output_tokens": observed_output, "observed_total_tokens": observed_total}
 }
 
+func usage_reconciliation_for_rows(expected_usage, observed_rows) {
+    fallback := usage_reconciliation(expected_usage, {})
+    if type(observed_rows) != "array" { return fallback }
+    for row in observed_rows {
+        candidate := usage_reconciliation(expected_usage, row)
+        if dict_get_or(candidate, "matched", false) {
+            candidate["matched_row"] := row
+            return candidate
+        }
+        if dict_get_or(candidate, "available", false) { fallback = candidate }
+    }
+    return fallback
+}
+
 func correlation_check(correlation_id, request_id) {
     correlation := safe_correlation_id(correlation_id)
     if correlation == "" { return {"ok": false, "error": "A safe correlation ID is required"} }
@@ -155,17 +169,23 @@ func correlation_check(correlation_id, request_id) {
     rows := dict_get_or(body, "data", [])
     found := false
     matched_row := {}
+    matched_rows := []
     if type(rows) == "array" {
         for row in rows {
             correlation_matches := type(row) == "dict" && string_or(dict_get_or(row, "correlation_id", ""), "") == correlation
             request_matches := string_or(dict_get_or(row, "request_id", ""), "") == expected_request_id
-            if correlation_matches && request_matches && found == false { found = true; matched_row = sanitized_request_row(row) }
+            if correlation_matches && request_matches {
+                sanitized := sanitized_request_row(row)
+                matched_rows := push(matched_rows, sanitized)
+                if found == false { found = true; matched_row = sanitized }
+            }
         }
     }
     result["correlation_id"] := correlation
     result["request_id"] := expected_request_id
     result["matched"] := found
     result["matched_row"] := matched_row
+    result["matched_rows"] := matched_rows
     result["ok"] := raw["ok"] && found
     if result["ok"] == false { result["error"] := string_or(dict_get_or(raw, "error", ""), "No Watchdog request row matched the Relay correlation ID") }
     return result
@@ -175,7 +195,7 @@ func verify(correlation_id, expected_usage, request_id) {
     health := health_check()
     config := proxy_config_check()
     correlation := correlation_check(correlation_id, request_id)
-    reconciliation := usage_reconciliation(expected_usage, dict_get_or(correlation, "matched_row", {}))
+    reconciliation := usage_reconciliation_for_rows(expected_usage, dict_get_or(correlation, "matched_rows", []))
     verified := health["healthy"] && config["configured"] && correlation["ok"] && reconciliation["matched"]
     return {"ok": verified, "health": health, "proxy_config": config, "correlation": correlation, "usage_reconciliation": reconciliation}
 }
@@ -188,5 +208,6 @@ export health_check := health_check
 export proxy_config_check := proxy_config_check
 export correlation_check := correlation_check
 export usage_reconciliation := usage_reconciliation
+export usage_reconciliation_for_rows := usage_reconciliation_for_rows
 export verify := verify
 export watchdog_verify := verify

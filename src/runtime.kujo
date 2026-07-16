@@ -223,6 +223,69 @@ func persist_provider_tool_results(run_dir, state, results) {
     return persisted
 }
 
+func provider_failure_message(model_result) {
+    error_value := dict_get_or(model_result, "error", {})
+    code := ""
+    message := ""
+    if type(error_value) == "dict" {
+        code = string_or(dict_get_or(error_value, "code", dict_get_or(error_value, "kind", "")), "")
+        message = string_or(dict_get_or(error_value, "message", ""), "")
+    } else {
+        message = string_or(error_value, "")
+    }
+    detail := code
+    if message != "" {
+        if detail != "" { detail = detail + ": " }
+        detail = detail + message
+    }
+    if detail == "" { detail = "provider request failed without an error detail" }
+    return "provider planning request failed: " + redact_text(detail)
+}
+
+func provider_followup_token_ceiling(remaining_tokens) {
+    remaining := int_or(remaining_tokens, 0)
+    if remaining <= 0 { return 0 }
+    if remaining > 4096 { return 4096 }
+    return remaining
+}
+
+func provider_synthesis_messages(planner_mandate, goal, tool_results) {
+    evidence := safe_json(tool_results)
+    evidence_truncated := false
+    if len(evidence) > 6000 {
+        evidence = substring(evidence, 0, 6000)
+        evidence_truncated = true
+    }
+    suffix := ""
+    if evidence_truncated { suffix = "\n\nThe evidence bundle was truncated at Relay's synthesis boundary; state any resulting uncertainty." }
+    prompt := to_string(goal) + "\n\nUsing the repository evidence below, submit the final owner-reviewable answer now in 250 words or fewer through the required submit_answer function.\n\nRepository evidence:\n" + evidence + suffix
+    return [{"role": "system", "content": to_string(planner_mandate)}, {"role": "user", "content": prompt}]
+}
+
+func provider_synthesis_tool() {
+    return {"type": "function", "function": {"name": "relay.submit_answer", "description": "Submit the final owner-reviewable answer after repository evidence collection.", "parameters": {"type": "object", "additionalProperties": false, "required": ["answer"], "properties": {"answer": {"type": "string", "description": "Complete final answer in 250 words or fewer."}}}}}
+}
+
+func provider_synthesis_answer(model_result) {
+    normalized := normalize_provider_tool_calls(dict_get_or(model_result, "tool_calls", []))
+    if dict_get_or(normalized, "ok", false) == false { return {"ok": false, "answer": ""} }
+    calls := dict_get_or(normalized, "calls", [])
+    if len(calls) != 1 || calls[0]["name"] != "relay.submit_answer" { return {"ok": false, "answer": ""} }
+    answer := trim(string_or(dict_get_or(calls[0]["input"], "answer", ""), ""))
+    if answer == "" || len(answer) > 16384 { return {"ok": false, "answer": ""} }
+    return {"ok": true, "answer": redact_text(answer)}
+}
+
+func preflight_failure_message(packet, agent_sdk, agent_sdk_tools, model_result, planner_output_ok, used_tokens, max_tokens) {
+    if dict_get_or(packet, "ok", false) == false { return "mission preflight failed: " + string_or(dict_get_or(packet, "error", "agent packet generation failed"), "agent packet generation failed") }
+    if dict_get_or(agent_sdk, "ok", false) == false { return "mission preflight failed: Agents SDK readiness check failed" }
+    if dict_get_or(agent_sdk_tools, "ok", false) == false { return "mission preflight failed: " + string_or(dict_get_or(agent_sdk_tools, "error", "provider tool planning did not complete"), "provider tool planning did not complete") }
+    if dict_get_or(model_result, "ok", false) == false { return "mission preflight failed: " + provider_failure_message(model_result) }
+    if bool_or(planner_output_ok, false) == false { return "mission preflight failed: provider returned no final response" }
+    if int_or(used_tokens, 0) > int_or(max_tokens, 0) { return "mission preflight failed: mission token budget exceeded" }
+    return "mission preflight failed"
+}
+
 func record_model_fallback(state, run_dir, telemetry, step_id) {
     decision := dict_get_or(telemetry, "fallback_decision", null)
     if type(decision) != "dict" || string_or(dict_get_or(decision, "action", "none"), "none") == "none" { return state }
@@ -455,11 +518,21 @@ func execute_action(action, spec, state, run_dir) {
     }
     if kind == "read_file" {
         relative := string_or(dict_get_or(action, "path", ""), "")
+        offset := int_or(dict_get_or(action, "offset", 0), -1)
+        if offset < 0 { return {"ok": false, "failure_class": "policy_violation", "error": "read offset must be a non-negative integer"} }
         if relative == "" || len(relative) > 4096 || path_is_within_workspace(repo, relative) == false { return {"ok": false, "failure_class": "permission_denial", "error": "unsafe or invalid read path"} }
         target := repo + "/" + relative
         if path_is_file(target) == false || path_is_symlink_safe(target) || path_has_symlink_component(target) { return {"ok": false, "failure_class": "permission_denial", "error": "read target is missing or unsafe"} }
         if file_size(target) > state["budgets"]["max_output_bytes"] { return {"ok": false, "failure_class": "budget_exceeded", "error": "read target exceeds max_output_bytes"} }
-        try { return {"ok": true, "tool": "read_file", "path": relative, "content": redact_text(read_file(target))} } except err { return {"ok": false, "failure_class": "repository_failure", "error": "file read failed"} }
+        try {
+            full_content := redact_text(read_file(target))
+            total_chars := len(full_content)
+            if offset > total_chars { return {"ok": false, "failure_class": "policy_violation", "error": "read offset exceeds file length"} }
+            chunk_end := offset + 16384
+            if chunk_end > total_chars { chunk_end = total_chars }
+            truncated := chunk_end < total_chars
+            return {"ok": true, "tool": "read_file", "path": relative, "content": substring(full_content, offset, chunk_end), "offset": offset, "next_offset": chunk_end, "total_chars": total_chars, "output_truncated": truncated}
+        } except err { return {"ok": false, "failure_class": "repository_failure", "error": "file read failed"} }
     }
     if kind == "write_file" {
         decision := tool_decision("write_file", action, policy)
@@ -525,7 +598,7 @@ func execute_tool_request(request, supplied_capability) {
     if tool_name == "relay.list_files" {
         action = {"type": "list_files"}
     } else if tool_name == "relay.read_file" {
-        action = {"type": "read_file", "path": dict_get_or(input, "path", "")}
+        action = {"type": "read_file", "path": dict_get_or(input, "path", ""), "offset": dict_get_or(input, "offset", 0)}
     } else if tool_name == "relay.write_file" {
         action = {"type": "write_file", "path": dict_get_or(input, "path", ""), "content": dict_get_or(input, "content", "")}
     } else if tool_name == "relay.run_command" {
@@ -774,6 +847,7 @@ func run_mission(path, options) {
             state = record_model_fallback(state, run_dir, state["telemetry"], "plan-tool-turn-" + to_string(tool_turns))
             if dict_get_or(model_result, "ok", false) == false {
                 provider_loop_ok = false
+                agent_sdk_tools["error"] := provider_failure_message(model_result)
                 break
             }
             if used_tokens > state["budgets"]["max_tokens"] {
@@ -844,7 +918,24 @@ func run_mission(path, options) {
                 agent_sdk_tools["error"] := "mission token budget exceeded before provider follow-up"
                 break
             }
-            model_result = ai_chat_correlated_with_tools(provider_messages, string_or(dict_get_or(spec, "model", "fixture-model"), "fixture-model"), string_or(dict_get_or(spec, "provider", "fixture"), "fixture"), bool_or(dict_get_or(options, "offline_fixture", true), true), bool_or(dict_get_or(options, "stream", false), false), state["run_id"], planning_tools, remaining_model_tokens)
+            followup_tokens := provider_followup_token_ceiling(remaining_model_tokens)
+            followup_messages := provider_messages
+            followup_tools := planning_tools
+            if tool_turns + 1 >= max_tool_turns {
+                followup_messages = provider_synthesis_messages(planner["mandate"], spec["goal"], tool_results_accumulated)
+                followup_tools = [provider_synthesis_tool()]
+                if followup_tokens > 2048 { followup_tokens = 2048 }
+                state["provider_synthesis_forced"] := true
+            }
+            model_result = ai_chat_correlated_with_tools(followup_messages, string_or(dict_get_or(spec, "model", "fixture-model"), "fixture-model"), string_or(dict_get_or(spec, "provider", "fixture"), "fixture"), bool_or(dict_get_or(options, "offline_fixture", true), true), bool_or(dict_get_or(options, "stream", false), false), state["run_id"], followup_tools, followup_tokens)
+            if bool_or(dict_get_or(state, "provider_synthesis_forced", false), false) {
+                synthesis_answer := provider_synthesis_answer(model_result)
+                if dict_get_or(synthesis_answer, "ok", false) {
+                    model_result["output_text"] := synthesis_answer["answer"]
+                    model_result["tool_calls"] := []
+                    state["provider_synthesis_submitted"] := true
+                }
+            }
             next_usage := dict_get_or(model_result, "usage", {})
             next_tokens := int_or(dict_get_or(next_usage, "total_tokens", 0), 0)
             next_input_tokens := int_or(dict_get_or(next_usage, "input_tokens", 0), 0)
@@ -932,7 +1023,8 @@ func run_mission(path, options) {
         register_run(state, run_dir)
         return {"ok": true, "run": state, "run_dir": run_dir}
     }
-    mut actions := {"ok": false, "results": [], "state": state, "failure": {"failure_class": "integration_failure", "error": "mission preflight failed"}}
+    preflight_error := preflight_failure_message(packet, agent_sdk, agent_sdk_tools, model_result, planner_output_ok, used_tokens, state["budgets"]["max_tokens"])
+    mut actions := {"ok": false, "results": [], "state": state, "failure": {"failure_class": "integration_failure", "error": preflight_error}}
     if preflight_ok {
         state["current_step"] := "implementation"
         actions = execute_actions(spec, state, run_dir)
@@ -1282,3 +1374,9 @@ export run_root := run_root
 export resume_state_safe := resume_state_safe
 export cleanup_state_safe := cleanup_state_safe
 export control_state_safe := control_state_safe
+export provider_failure_message := provider_failure_message
+export provider_followup_token_ceiling := provider_followup_token_ceiling
+export provider_synthesis_messages := provider_synthesis_messages
+export provider_synthesis_tool := provider_synthesis_tool
+export provider_synthesis_answer := provider_synthesis_answer
+export preflight_failure_message := preflight_failure_message

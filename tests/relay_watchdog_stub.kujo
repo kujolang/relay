@@ -37,8 +37,16 @@ server := server.route("POST", "/v1/chat/completions", func(req) {
         try {
             payload := parse_json(body)
             tools := dict_get_or(payload, "tools", [])
+            messages := dict_get_or(payload, "messages", [])
+            if type(messages) == "array" && len(messages) > 0 {
+                last_message := messages[len(messages) - 1]
+                if type(last_message) == "dict" && contains(to_string(dict_get_or(last_message, "content", "")), "Using the repository evidence below") {
+                    arguments := safe_json({"answer": "Provider tool result accepted."})
+                    response := {"id": "stub-tool-final", "model": "stub-model", "choices": [{"message": {"tool_calls": [{"id": "call-relay-submit", "type": "function", "function": {"name": "relay.submit_answer", "arguments": arguments}}]}, "finish_reason": "tool_calls"}], "usage": {"prompt_tokens": 8, "completion_tokens": 4, "total_tokens": 12}}
+                    return http_response(200, safe_json(response))
+                }
+            }
             if type(tools) == "array" && len(tools) > 0 {
-                messages := dict_get_or(payload, "messages", [])
                 has_tool_result := false
                 if type(messages) == "array" {
                     for message in messages {

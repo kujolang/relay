@@ -59,7 +59,7 @@ export OPENAI_API_KEY=relay-stub-provider-key
 export KUJO_AI_SDK_ALLOW_INSECURE_LOCALHOST=true
 
 result="$($KUJO run "$ROOT/main.kujo" -- missions run "$MISSION" --skip-agent-smoke --json)"
-printf '%s' "$result" | jq -e '.ok == true and .run.status == "completed" and .run.agent_sdk_tools.provider_generated == true and (.run.agent_sdk_tools.calls | length) == 1 and .run.agent_sdk_tools.turns == 2 and (.run.telemetry.correlation_id | length) > 0 and .run.usage.relay_input_tokens == 12 and .run.usage.relay_output_tokens == 10 and .run.usage.relay_total_tokens == 22 and .run.budgets.used_tokens == 22' >/dev/null
+printf '%s' "$result" | jq -e '.ok == true and .run.status == "completed" and .run.agent_sdk_tools.provider_generated == true and (.run.agent_sdk_tools.calls | length) == 1 and .run.agent_sdk_tools.turns == 2 and .run.provider_synthesis_forced == true and .run.provider_synthesis_submitted == true and (.run.telemetry.correlation_id | length) > 0 and .run.usage.relay_input_tokens == 12 and .run.usage.relay_output_tokens == 10 and .run.usage.relay_total_tokens == 22 and .run.budgets.used_tokens == 22' >/dev/null
 run_id="$(printf '%s' "$result" | jq -r '.run.run_id')"
 test -f "$WORK/PROVIDER_TOOL_OUTPUT.txt"
 grep -q 'provider-generated tool call' "$WORK/PROVIDER_TOOL_OUTPUT.txt"

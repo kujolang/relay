@@ -130,12 +130,15 @@ func tool_schema(tool_name) {
             "type": "function",
             "function": {
                 "name": "relay.read_file",
-                "description": "Read one Git-workspace-relative UTF-8 text file. Use this instead of cat, sed, or shell commands.",
+                "description": "Read a bounded chunk of one Git-workspace-relative UTF-8 text file. Use offset to continue when output_truncated is true.",
                 "parameters": {
                     "type": "object",
                     "additionalProperties": false,
                     "required": ["path"],
-                    "properties": {"path": {"type": "string", "description": "Workspace-relative tracked file path."}}
+                    "properties": {
+                        "path": {"type": "string", "description": "Workspace-relative tracked file path."},
+                        "offset": {"type": "integer", "minimum": 0, "description": "Optional character offset; defaults to 0."}
+                    }
                 }
             }
         }
@@ -280,6 +283,9 @@ func call_ai_with_tools(messages, model, provider, base_url, api_key_env, offlin
     result := run_process(command, "", env_map, 240000)
     parsed := last_json(dict_get_or(result, "stdout", ""))
     if type(parsed) != "dict" {
+        if bool_or(dict_get_or(result, "timed_out", false), false) {
+            return {"ok": false, "error": {"code": "ai_bridge_timeout", "message": "AI bridge exceeded its 240-second process timeout"}, "raw": result}
+        }
         return {"ok": false, "error": {"code": "ai_bridge_parse_error", "message": dict_get_or(result, "stderr", "No JSON response")}, "raw": result}
     }
     route := "direct_ai_sdk"
@@ -289,7 +295,10 @@ func call_ai_with_tools(messages, model, provider, base_url, api_key_env, offlin
     if offline == false && env_bool("RELAY_WATCHDOG_VERIFY", false) {
         verification := watchdog_verify(correlation, dict_get_or(parsed, "usage", {}), string_or(dict_get_or(parsed, "request_id", ""), ""))
         parsed["relay_watchdog_verification"] := verification
-        if verification["ok"] == false {
+        telemetry := dict_get_or(parsed, "relay_telemetry", {})
+        telemetry["watchdog_verification"] := {"ok": dict_get_or(verification, "ok", false), "correlation_matched": dict_get_or(dict_get_or(verification, "correlation", {}), "matched", false), "usage_matched": dict_get_or(dict_get_or(verification, "usage_reconciliation", {}), "matched", false)}
+        parsed["relay_telemetry"] := telemetry
+        if dict_get_or(parsed, "ok", false) && verification["ok"] == false {
             parsed["ok"] := false
             parsed["error"] := {"code": "watchdog_telemetry_unverified", "message": "Watchdog health, proxy configuration, or request correlation verification failed"}
         }
