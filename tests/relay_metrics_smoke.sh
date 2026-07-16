@@ -2,10 +2,12 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+RELAY_TEST_TMP_ROOT="$(cd "${TMPDIR:-/tmp}" && pwd -P)"
+export RELAY_STATE_ROOT="${RELAY_STATE_ROOT:-$RELAY_TEST_TMP_ROOT/relay-test-state-${UID:-0}-$$}"
 KUJO="${KUJO:-${KUJO_BIN:-$ROOT/../kujo/target/release/kujo}}"
 WORK="/tmp/relay-metrics-workspace"
 
-rm -rf "$WORK" "$ROOT/.relay"
+rm -rf "$WORK" "$RELAY_STATE_ROOT"
 mkdir -p "$WORK"
 git init -q "$WORK"
 git -C "$WORK" config user.email relay@example.invalid

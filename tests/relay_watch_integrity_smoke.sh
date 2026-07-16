@@ -2,13 +2,15 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+RELAY_TEST_TMP_ROOT="$(cd "${TMPDIR:-/tmp}" && pwd -P)"
+export RELAY_STATE_ROOT="${RELAY_STATE_ROOT:-$RELAY_TEST_TMP_ROOT/relay-test-state-${UID:-0}-$$}"
 KUJO="${KUJO:-${KUJO_BIN:-$ROOT/../kujo/target/release/kujo}}"
 WORK="/tmp/relay-watch-integrity-workspace"
 MISSION_OUTPUT="/tmp/relay-watch-integrity-mission.json"
 WATCH_OUTPUT="/tmp/relay-watch-integrity-events.jsonl"
 WATCH_STATUS="/tmp/relay-watch-integrity-status"
 
-rm -rf "$WORK" "$ROOT/.relay" "$MISSION_OUTPUT" "$WATCH_OUTPUT" "$WATCH_STATUS"
+rm -rf "$WORK" "$RELAY_STATE_ROOT" "$MISSION_OUTPUT" "$WATCH_OUTPUT" "$WATCH_STATUS"
 mkdir -p "$WORK"
 git init -q "$WORK"
 git -C "$WORK" config user.email relay@example.invalid
@@ -31,7 +33,7 @@ trap cleanup EXIT
 
 run_dir=""
 for attempt in $(seq 1 1000); do
-  candidates=("$ROOT"/.relay/runs/*)
+  candidates=("$RELAY_STATE_ROOT"/runs/*)
   if [ -d "${candidates[0]}" ]; then run_dir="${candidates[0]}"; break; fi
   sleep 0.01
 done

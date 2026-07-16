@@ -2,11 +2,13 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+RELAY_TEST_TMP_ROOT="$(cd "${TMPDIR:-/tmp}" && pwd -P)"
+export RELAY_STATE_ROOT="${RELAY_STATE_ROOT:-$RELAY_TEST_TMP_ROOT/relay-test-state-${UID:-0}-$$}"
 KUJO="${KUJO:-${KUJO_BIN:-$ROOT/../kujo/target/release/kujo}}"
 WORK="/tmp/relay-resume-integrity-workspace"
 SPEC="/tmp/relay-resume-integrity-mission.json"
 
-rm -rf "$WORK" "$ROOT/.relay" "$SPEC"
+rm -rf "$WORK" "$RELAY_STATE_ROOT" "$SPEC"
 mkdir -p "$WORK"
 git init -q "$WORK"
 git -C "$WORK" config user.email relay@example.invalid
@@ -21,7 +23,7 @@ paused="$($KUJO run "$ROOT/main.kujo" -- missions run "$SPEC" --fixture --pause-
 printf '%s' "$paused" | grep -q '"ok":true'
 printf '%s' "$paused" | grep -q '"status":"paused"'
 run_id="$(printf '%s' "$paused" | ruby -rjson -e 'print JSON.parse(STDIN.read)["run"]["run_id"]')"
-run_dir="$ROOT/.relay/runs/$run_id"
+run_dir="$RELAY_STATE_ROOT/runs/$run_id"
 test -n "$run_id"
 test -f "$run_dir/state.json"
 

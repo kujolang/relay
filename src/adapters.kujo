@@ -398,6 +398,8 @@ func agents_sdk_tool_run(workspace, spec, run_id, session_id) {
         "mission_spec": mission_spec
     }
     env_map := {"RELAY_AGENT_PAYLOAD": safe_json(payload), "RELAY_ROOT": relay_root(), "KUJO_BIN": kujo_bin()}
+    configured_state_root := env_or("RELAY_STATE_ROOT", "")
+    if configured_state_root != "" { env_map["RELAY_STATE_ROOT"] := configured_state_root }
     command := ["/usr/bin/env", "-C", agents_sdk_root(), kujo_bin(), "run", relay_root() + "/src/agent_bridge.kujo", "--interpreter"]
     result := run_process(command, "", env_map, 120000)
     revoke_agent_capability(relay_root(), run_id, session_id)

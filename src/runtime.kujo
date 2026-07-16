@@ -13,7 +13,7 @@ func ensure_dir(path) {
 }
 
 func relay_root() { return env_or("RELAY_ROOT", ".") }
-func state_root() { return relay_root() + "/.relay" }
+func state_root() { return env_or("RELAY_STATE_ROOT", relay_root() + "/.relay") }
 func run_root() { return state_root() + "/runs" }
 func index_path() { return state_root() + "/index.json" }
 
@@ -753,7 +753,11 @@ func run_mission(path, options) {
     if agent_tool_mode != "provider" { state = record_model_fallback(state, run_dir, state["telemetry"], "plan") }
     usage := dict_get_or(model_result, "usage", {})
     used_tokens := int_or(dict_get_or(usage, "total_tokens", 0), 0)
+    used_input_tokens := int_or(dict_get_or(usage, "input_tokens", 0), 0)
+    used_output_tokens := int_or(dict_get_or(usage, "output_tokens", 0), 0)
     if used_tokens < 0 { used_tokens = 0 }
+    if used_input_tokens < 0 { used_input_tokens = 0 }
+    if used_output_tokens < 0 { used_output_tokens = 0 }
     if agent_tool_mode == "provider" {
         max_tool_calls := int_or(dict_get_or(dict_get_or(spec, "budgets", {}), "max_tool_calls", 4), 4)
         max_tool_turns := int_or(dict_get_or(dict_get_or(spec, "budgets", {}), "max_tool_turns", 2), 2)
@@ -843,8 +847,14 @@ func run_mission(path, options) {
             model_result = ai_chat_correlated_with_tools(provider_messages, string_or(dict_get_or(spec, "model", "fixture-model"), "fixture-model"), string_or(dict_get_or(spec, "provider", "fixture"), "fixture"), bool_or(dict_get_or(options, "offline_fixture", true), true), bool_or(dict_get_or(options, "stream", false), false), state["run_id"], planning_tools, remaining_model_tokens)
             next_usage := dict_get_or(model_result, "usage", {})
             next_tokens := int_or(dict_get_or(next_usage, "total_tokens", 0), 0)
+            next_input_tokens := int_or(dict_get_or(next_usage, "input_tokens", 0), 0)
+            next_output_tokens := int_or(dict_get_or(next_usage, "output_tokens", 0), 0)
             if next_tokens < 0 { next_tokens = 0 }
+            if next_input_tokens < 0 { next_input_tokens = 0 }
+            if next_output_tokens < 0 { next_output_tokens = 0 }
             used_tokens = used_tokens + next_tokens
+            used_input_tokens = used_input_tokens + next_input_tokens
+            used_output_tokens = used_output_tokens + next_output_tokens
         }
         # A final model response after the last permitted tool round does not
         # consume another tool turn. Accept it when it requests no more tools;
@@ -882,6 +892,8 @@ func run_mission(path, options) {
     usage := dict_get_or(model_result, "usage", {})
     if type(usage) != "dict" { usage = {} }
     usage["relay_accounted_total_tokens"] := used_tokens
+    usage["relay_input_tokens"] := used_input_tokens
+    usage["relay_output_tokens"] := used_output_tokens
     if agent_tool_mode == "provider" {
         usage["relay_total_tokens"] := used_tokens
         final_telemetry := dict_get_or(state, "telemetry", {})
@@ -892,6 +904,7 @@ func run_mission(path, options) {
     budgets := dict_get_or(state, "budgets", {})
     budgets["used_tokens"] := used_tokens
     state["budgets"] := budgets
+    state["usage"] := usage
     planner_output := redact_text(string_or(dict_get_or(model_result, "output_text", ""), ""))
     planner_output_path := run_dir + "/agent-response.md"
     planner_output_ok := planner_output != "" && write_text_atomic(planner_output_path, planner_output)

@@ -2,6 +2,8 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+RELAY_TEST_TMP_ROOT="$(cd "${TMPDIR:-/tmp}" && pwd -P)"
+export RELAY_STATE_ROOT="${RELAY_STATE_ROOT:-$RELAY_TEST_TMP_ROOT/relay-test-state-${UID:-0}-$$}"
 KUJO="${KUJO:-${KUJO_BIN:-$ROOT/../kujo/target/release/kujo}}"
 WORK="/tmp/relay-spec-safety-workspace"
 LARGE="/tmp/relay-large-mission.json"
@@ -15,7 +17,7 @@ INVALID_REPAIRS="/tmp/relay-invalid-repairs-mission.json"
 INVALID_TOKENS="/tmp/relay-invalid-tokens-mission.json"
 INVALID_ZERO_TOKENS="/tmp/relay-invalid-zero-tokens-mission.json"
 
-rm -rf "$WORK" "$ROOT/.relay" "$LARGE" "$SYMLINK" "$REPO_LINK" "$INVALID_ACTION" "$INVALID_PROVIDER" "$INVALID_TURNS" "$OVERSIZED_COMMAND" "$INVALID_REPAIRS" "$INVALID_TOKENS" "$INVALID_ZERO_TOKENS"
+rm -rf "$WORK" "$RELAY_STATE_ROOT" "$LARGE" "$SYMLINK" "$REPO_LINK" "$INVALID_ACTION" "$INVALID_PROVIDER" "$INVALID_TURNS" "$OVERSIZED_COMMAND" "$INVALID_REPAIRS" "$INVALID_TOKENS" "$INVALID_ZERO_TOKENS"
 mkdir -p "$WORK"
 git init -q "$WORK"
 git -C "$WORK" config user.email relay@example.invalid

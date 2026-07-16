@@ -2,10 +2,12 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+RELAY_TEST_TMP_ROOT="$(cd "${TMPDIR:-/tmp}" && pwd -P)"
+export RELAY_STATE_ROOT="${RELAY_STATE_ROOT:-$RELAY_TEST_TMP_ROOT/relay-test-state-${UID:-0}-$$}"
 KUJO="${KUJO:-${KUJO_BIN:-$ROOT/../kujo/target/release/kujo}}"
 WORK="/tmp/relay-lock-stress-workspace"
 
-rm -rf "$WORK" "$ROOT/.relay"
+rm -rf "$WORK" "$RELAY_STATE_ROOT"
 mkdir -p "$WORK"
 git init -q "$WORK"
 git -C "$WORK" config user.email relay@example.invalid
@@ -33,6 +35,6 @@ done
 for output in "${outputs[@]}"; do
   jq -e --arg run_id "$run_id" '(.runs[$run_id] != null) and (.index_source == "rebuild") and ((.ok == true and .persisted == true) or (.ok == false and .failure_class == "state_store_failure" and (.error | test("bounded lock|persisted|verification"))))' "$output" >/dev/null
 done
-jq -e --arg run_id "$run_id" 'has($run_id)' "$ROOT/.relay/index.json" >/dev/null
+jq -e --arg run_id "$run_id" 'has($run_id)' "$RELAY_STATE_ROOT/index.json" >/dev/null
 
 echo "PASS relay lock stress smoke"

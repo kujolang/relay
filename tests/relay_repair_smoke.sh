@@ -2,12 +2,14 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+RELAY_TEST_TMP_ROOT="$(cd "${TMPDIR:-/tmp}" && pwd -P)"
+export RELAY_STATE_ROOT="${RELAY_STATE_ROOT:-$RELAY_TEST_TMP_ROOT/relay-test-state-${UID:-0}-$$}"
 KUJO="${KUJO:-${KUJO_BIN:-$ROOT/../kujo/target/release/kujo}}"
 SOURCE="/tmp/relay-repair-source"
 SPEC="/tmp/relay-repair-mission.json"
 ZERO_SPEC="/tmp/relay-repair-zero-budget.json"
 
-rm -rf "$SOURCE" "$ROOT/.relay" "$SPEC" "$ZERO_SPEC"
+rm -rf "$SOURCE" "$RELAY_STATE_ROOT" "$SPEC" "$ZERO_SPEC"
 mkdir -p "$SOURCE/scripts"
 git init -q "$SOURCE"
 git -C "$SOURCE" config user.email relay@example.invalid
@@ -29,7 +31,7 @@ first_rc=$?
 set -e
 test "$first_rc" -ne 0
 run_id="$(printf '%s' "$first" | ruby -rjson -e 'print JSON.parse(STDIN.read)["run"]["run_id"]')"
-run_dir="$ROOT/.relay/runs/$run_id"
+run_dir="$RELAY_STATE_ROOT/runs/$run_id"
 printf '%s' "$first" | jq -e '.ok == false and .run.status == "failed" and .run.failure.class == "tool_failure" and .run.failure.repair_attempts == 0' >/dev/null
 
 repaired="$($KUJO run "$ROOT/main.kujo" -- missions repair "$run_id" --json)"

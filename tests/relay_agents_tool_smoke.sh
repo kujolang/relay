@@ -2,6 +2,8 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+RELAY_TEST_TMP_ROOT="$(cd "${TMPDIR:-/tmp}" && pwd -P)"
+export RELAY_STATE_ROOT="${RELAY_STATE_ROOT:-$RELAY_TEST_TMP_ROOT/relay-test-state-${UID:-0}-$$}"
 KUJO="${KUJO:-${KUJO_BIN:-$ROOT/../kujo/target/release/kujo}}"
 # Propagate the selected runtime into the nested Agents SDK bridge. The bridge
 # deliberately rejects a payload binary that differs from trusted KUJO_BIN;
@@ -12,8 +14,8 @@ AGENTS_SDK="${RELAY_AGENTS_SDK_PATH:-$ROOT/../agents-sdk}"
 WORK="/tmp/relay-agents-sdk-tools-workspace"
 
 rm -rf "$WORK"
-rm -rf "$ROOT/.relay/capabilities"
-trap 'rm -rf "$ROOT/.relay/capabilities"' EXIT
+rm -rf "$RELAY_STATE_ROOT/capabilities"
+trap 'rm -rf "$RELAY_STATE_ROOT/capabilities"' EXIT
 mkdir -p "$WORK"
 git init -q "$WORK"
 git -C "$WORK" config user.email relay@example.invalid

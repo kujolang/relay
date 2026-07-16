@@ -2,6 +2,8 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+RELAY_TEST_TMP_ROOT="$(cd "${TMPDIR:-/tmp}" && pwd -P)"
+export RELAY_STATE_ROOT="${RELAY_STATE_ROOT:-$RELAY_TEST_TMP_ROOT/relay-test-state-${UID:-0}-$$}"
 KUJO="${KUJO:-${KUJO_BIN:-$ROOT/../kujo/target/release/kujo}}"
 WATCHDOG_ROOT="${RELAY_WATCHDOG_ROOT:-$ROOT/../watchdog}"
 WORK="/tmp/relay-provider-tools-workspace"
@@ -12,8 +14,8 @@ STUB_LOG="/tmp/relay-provider-tools-stub.log"
 WATCHDOG_LOG="/tmp/relay-provider-tools-watchdog.log"
 DB_PATH="/tmp/relay-provider-tools-$$.db"
 
-rm -rf "$WORK" "$MISSION" "$STUB_LOG" "$WATCHDOG_LOG" "$DB_PATH" "$ROOT/.relay"
-trap 'kill "${watchdog_pid:-}" 2>/dev/null || true; kill "${stub_pid:-}" 2>/dev/null || true; wait "${watchdog_pid:-}" 2>/dev/null || true; wait "${stub_pid:-}" 2>/dev/null || true; rm -rf "$WORK" "$MISSION" "$ROOT/.relay"; rm -f "$DB_PATH" "$DB_PATH-wal" "$DB_PATH-shm" "$STUB_LOG" "$WATCHDOG_LOG"' EXIT
+rm -rf "$WORK" "$MISSION" "$STUB_LOG" "$WATCHDOG_LOG" "$DB_PATH" "$RELAY_STATE_ROOT"
+trap 'kill "${watchdog_pid:-}" 2>/dev/null || true; kill "${stub_pid:-}" 2>/dev/null || true; wait "${watchdog_pid:-}" 2>/dev/null || true; wait "${stub_pid:-}" 2>/dev/null || true; rm -rf "$WORK" "$MISSION" "$RELAY_STATE_ROOT"; rm -f "$DB_PATH" "$DB_PATH-wal" "$DB_PATH-shm" "$STUB_LOG" "$WATCHDOG_LOG"' EXIT
 
 mkdir -p "$WORK"
 git init -q "$WORK"
@@ -57,12 +59,12 @@ export OPENAI_API_KEY=relay-stub-provider-key
 export KUJO_AI_SDK_ALLOW_INSECURE_LOCALHOST=true
 
 result="$($KUJO run "$ROOT/main.kujo" -- missions run "$MISSION" --skip-agent-smoke --json)"
-printf '%s' "$result" | jq -e '.ok == true and .run.status == "completed" and .run.agent_sdk_tools.provider_generated == true and (.run.agent_sdk_tools.calls | length) == 1 and .run.agent_sdk_tools.turns == 2 and (.run.telemetry.correlation_id | length) > 0' >/dev/null
+printf '%s' "$result" | jq -e '.ok == true and .run.status == "completed" and .run.agent_sdk_tools.provider_generated == true and (.run.agent_sdk_tools.calls | length) == 1 and .run.agent_sdk_tools.turns == 2 and (.run.telemetry.correlation_id | length) > 0 and .run.usage.relay_input_tokens == 12 and .run.usage.relay_output_tokens == 10 and .run.usage.relay_total_tokens == 22 and .run.budgets.used_tokens == 22' >/dev/null
 run_id="$(printf '%s' "$result" | jq -r '.run.run_id')"
 test -f "$WORK/PROVIDER_TOOL_OUTPUT.txt"
 grep -q 'provider-generated tool call' "$WORK/PROVIDER_TOOL_OUTPUT.txt"
-test -f "$ROOT/.relay/runs/$run_id/tool-results.json"
-jq -e --arg run_id "$run_id" '.contract_version == "relay-tool-result-bundle-v1" and .run_id == $run_id and (.results | length) == 1 and .results[0].result.ok == true' "$ROOT/.relay/runs/$run_id/tool-results.json" >/dev/null
+test -f "$RELAY_STATE_ROOT/runs/$run_id/tool-results.json"
+jq -e --arg run_id "$run_id" '.contract_version == "relay-tool-result-bundle-v1" and .run_id == $run_id and (.results | length) == 1 and .results[0].result.ok == true' "$RELAY_STATE_ROOT/runs/$run_id/tool-results.json" >/dev/null
 
 events="$($KUJO run "$ROOT/main.kujo" -- runs events "$run_id" --json)"
 printf '%s' "$events" | jq -e '.ok == true and any(.events[]; .kind == "tool_plan_resolved" and .payload.provider_generated == true) and any(.events[]; .kind == "tool_result_persisted")' >/dev/null
@@ -71,15 +73,15 @@ printf '%s' "$verified" | jq -e '.ok == true and .tool_results_required == true 
 
 # Provider-generated tool results are required evidence, not merely an
 # informational artifact. A tampered bundle must invalidate verification.
-cp "$ROOT/.relay/runs/$run_id/tool-results.json" "$ROOT/.relay/runs/$run_id/tool-results.json.backup"
-jq '.results[0].result.ok = false' "$ROOT/.relay/runs/$run_id/tool-results.json.backup" >"$ROOT/.relay/runs/$run_id/tool-results.json"
+cp "$RELAY_STATE_ROOT/runs/$run_id/tool-results.json" "$RELAY_STATE_ROOT/runs/$run_id/tool-results.json.backup"
+jq '.results[0].result.ok = false' "$RELAY_STATE_ROOT/runs/$run_id/tool-results.json.backup" >"$RELAY_STATE_ROOT/runs/$run_id/tool-results.json"
 set +e
 tampered_tool_results="$($KUJO run "$ROOT/main.kujo" -- runs verify "$run_id" --json 2>&1)"
 tampered_tool_results_rc=$?
 set -e
 test "$tampered_tool_results_rc" -ne 0
 printf '%s' "$tampered_tool_results" | jq -e '.ok == false and .tool_results_required == true and .tool_results_valid == false and .integrity_valid == false' >/dev/null
-mv "$ROOT/.relay/runs/$run_id/tool-results.json.backup" "$ROOT/.relay/runs/$run_id/tool-results.json"
+mv "$RELAY_STATE_ROOT/runs/$run_id/tool-results.json.backup" "$RELAY_STATE_ROOT/runs/$run_id/tool-results.json"
 if printf '%s' "$result" | grep -q 'relay-proxy-token\|relay-api-token\|relay-stub-provider-key'; then
   echo "provider tool smoke leaked a credential" >&2
   exit 1

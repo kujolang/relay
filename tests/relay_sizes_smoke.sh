@@ -2,11 +2,13 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+RELAY_TEST_TMP_ROOT="$(cd "${TMPDIR:-/tmp}" && pwd -P)"
+export RELAY_STATE_ROOT="${RELAY_STATE_ROOT:-$RELAY_TEST_TMP_ROOT/relay-test-state-${UID:-0}-$$}"
 KUJO="${KUJO:-${KUJO_BIN:-$ROOT/../kujo/target/release/kujo}}"
 WORK="/tmp/relay-sizes-workspace"
 MISSION_OUTPUT="/tmp/relay-sizes-mission.json"
 
-rm -rf "$WORK" "$ROOT/.relay" "$MISSION_OUTPUT"
+rm -rf "$WORK" "$RELAY_STATE_ROOT" "$MISSION_OUTPUT"
 mkdir -p "$WORK"
 git init -q "$WORK"
 git -C "$WORK" config user.email relay@example.invalid
@@ -25,7 +27,7 @@ printf '%s\n' "$sizes" | jq -e '.ok == true and .summary.files > 0 and .summary.
 hashed_sizes="$($KUJO run "$ROOT/main.kujo" -- runs sizes "$run_id" --hashes --json)"
 printf '%s\n' "$hashed_sizes" | jq -e '.ok == true and .hashes_included == true and all(.entries[]; (.integrity_sha256 | type == "string" and length == 64))' >/dev/null
 
-run_dir="$ROOT/.relay/runs/$run_id"
+run_dir="$RELAY_STATE_ROOT/runs/$run_id"
 ln -s /etc "$run_dir/unsafe-link"
 set +e
 unsafe_output="$($KUJO run "$ROOT/main.kujo" -- runs sizes "$run_id" --json 2>&1)"

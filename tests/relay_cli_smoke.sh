@@ -2,6 +2,8 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+RELAY_TEST_TMP_ROOT="$(cd "${TMPDIR:-/tmp}" && pwd -P)"
+export RELAY_STATE_ROOT="${RELAY_STATE_ROOT:-$RELAY_TEST_TMP_ROOT/relay-test-state-${UID:-0}-$$}"
 KUJO="${KUJO:-${KUJO_BIN:-$ROOT/../kujo/target/release/kujo}}"
 
 json="$($KUJO run "$ROOT/main.kujo" -- agents validate --json)"
@@ -29,7 +31,7 @@ clean_doctor="$(RELAY_ROOT="$ROOT" "$KUJO" run "$ROOT/main.kujo" -- doctor --jso
 printf '%s' "$clean_doctor" | jq -e '(.checks | map(select(.name == "Agents SDK capability registry"))[0].stale) == 0' >/dev/null
 locked_fixture="$(jq -cn --arg root "$ROOT" '{root:$root,run_id:"relay-doctor-locked",session_id:"relay-doctor-locked-session",workspace:"/tmp",nonce:"relay-doctor-locked-nonce",max_calls:1,ttl_ms:1000}')"
 RELAY_CAPABILITY_FIXTURE="$locked_fixture" "$KUJO" run "$ROOT/tests/relay_capability_fixture.kujo" --interpreter >/dev/null
-locked_path="$ROOT/.relay/capabilities/$(printf '%s' 'relay-doctor-locked|relay-doctor-locked-session' | shasum -a 256 | awk '{print $1}').json"
+locked_path="$RELAY_STATE_ROOT/capabilities/$(printf '%s' 'relay-doctor-locked|relay-doctor-locked-session' | shasum -a 256 | awk '{print $1}').json"
 mkdir "$locked_path.lock"
 sleep 2
 locked_doctor="$(RELAY_ROOT="$ROOT" "$KUJO" run "$ROOT/main.kujo" -- doctor --repair --json)"

@@ -283,16 +283,20 @@ func append_jsonl(path, value) {
     return append_jsonl_bounded(path, value, 8388608)
 }
 
+func relay_state_root(root) {
+    return env_or("RELAY_STATE_ROOT", trim(to_string(root)) + "/.relay")
+}
+
 func capability_registry_path(root, run_id, session_id) {
-    base := trim(to_string(root))
+    base := relay_state_root(root)
     if base == "" || path_is_symlink_safe(base) || path_has_symlink_component(base) { return "" }
-    return base + "/.relay/capabilities/" + sha256(to_string(run_id) + "|" + to_string(session_id)) + ".json"
+    return base + "/capabilities/" + sha256(to_string(run_id) + "|" + to_string(session_id)) + ".json"
 }
 
 func issue_agent_capability(root, run_id, session_id, workspace, nonce, max_calls, ttl_ms) {
     path := capability_registry_path(root, run_id, session_id)
     if path == "" { return {"ok": false, "error": {"code": "capability_registry_unsafe", "message": "Capability registry root is unsafe"}} }
-    directory := root + "/.relay/capabilities"
+    directory := relay_state_root(root) + "/capabilities"
     if path_is_symlink_safe(directory) || path_has_symlink_component(directory) { return {"ok": false, "error": {"code": "capability_registry_unsafe", "message": "Capability registry directory is unsafe"}} }
     if ensure_safe_directory(directory) == false { return {"ok": false, "error": {"code": "capability_registry_unavailable", "message": "Capability registry directory could not be created safely"}} }
     lock := path + ".lock"
@@ -399,7 +403,7 @@ func revoke_agent_capability(root, run_id, session_id) {
 }
 
 func capability_registry_posture(root, repair) {
-    directory := trim(to_string(root)) + "/.relay/capabilities"
+    directory := relay_state_root(root) + "/capabilities"
     if path_is_symlink_safe(directory) || path_has_symlink_component(directory) { return {"ok": false, "safe": false, "present": true, "records": 0, "stale": 0, "invalid": 1, "cleaned": 0, "error": "capability registry path is unsafe"} }
     if path_exists(directory) == false { return {"ok": true, "safe": true, "present": false, "records": 0, "stale": 0, "invalid": 0, "cleaned": 0} }
     if path_is_dir(directory) == false { return {"ok": false, "safe": false, "present": true, "records": 0, "stale": 0, "invalid": 1, "cleaned": 0, "error": "capability registry path is not a directory"} }

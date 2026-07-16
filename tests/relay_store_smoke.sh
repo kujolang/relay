@@ -2,12 +2,14 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+RELAY_TEST_TMP_ROOT="$(cd "${TMPDIR:-/tmp}" && pwd -P)"
+export RELAY_STATE_ROOT="${RELAY_STATE_ROOT:-$RELAY_TEST_TMP_ROOT/relay-test-state-${UID:-0}-$$}"
 KUJO="${KUJO:-${KUJO_BIN:-$ROOT/../kujo/target/release/kujo}}"
 WORK="/tmp/relay-store-workspace"
 SPEC="/tmp/relay-store-mission.json"
 
-rm -rf "$WORK" "$ROOT/.relay" "$SPEC"
-trap 'rm -rf "$WORK" "$ROOT/.relay" "$SPEC"' EXIT
+rm -rf "$WORK" "$RELAY_STATE_ROOT" "$SPEC"
+trap 'rm -rf "$WORK" "$RELAY_STATE_ROOT" "$SPEC"' EXIT
 mkdir -p "$WORK"
 git init -q "$WORK"
 git -C "$WORK" config user.email relay@example.invalid
@@ -39,7 +41,7 @@ test "$bad_run_limit_status" -ne 0
 printf '%s' "$bad_run_limit" | grep -q 'run limit must be between 1 and 4096'
 
 # A corrupt or tampered cache must not become an arbitrary filesystem read.
-printf '%s' '{"attacker":{"run_dir":"/etc","status":"completed"}}' > "$ROOT/.relay/index.json"
+printf '%s' '{"attacker":{"run_dir":"/etc","status":"completed"}}' > "$RELAY_STATE_ROOT/index.json"
 listed="$($KUJO run "$ROOT/main.kujo" -- runs list --json)"
 printf '%s' "$listed" | grep -q "\"$run_id\""
 printf '%s' "$listed" | grep -q '"index_source":"validated_cache_or_rebuild"'
@@ -51,7 +53,7 @@ fi
 
 # The cache must be size-bounded before JSON parsing, not only after a large
 # attacker-controlled document has already been loaded.
-ruby -e 'path=ARGV.fetch(0); File.write(path, "{\"oversized\":\"" + ("x" * 8388609) + "\"}")' "$ROOT/.relay/index.json"
+ruby -e 'path=ARGV.fetch(0); File.write(path, "{\"oversized\":\"" + ("x" * 8388609) + "\"}")' "$RELAY_STATE_ROOT/index.json"
 oversized_listed="$($KUJO run "$ROOT/main.kujo" -- runs list --json)"
 printf '%s' "$oversized_listed" | grep -q "\"$run_id\""
 if printf '%s' "$oversized_listed" | grep -q 'oversized'; then
@@ -64,16 +66,16 @@ printf '%s' "$rebuilt" | grep -q '"index_source":"rebuild"'
 printf '%s' "$rebuilt" | grep -q "\"$run_id\""
 
 # A failed index write must not be reported as a successful rebuild.
-mv "$ROOT/.relay/index.json" "$ROOT/.relay/index.json.persistence-backup"
-mkdir "$ROOT/.relay/index.json"
+mv "$RELAY_STATE_ROOT/index.json" "$RELAY_STATE_ROOT/index.json.persistence-backup"
+mkdir "$RELAY_STATE_ROOT/index.json"
 set +e
 failed_rebuild="$($KUJO run "$ROOT/main.kujo" -- runs rebuild --json 2>&1)"
 failed_rebuild_rc=$?
 set -e
 test "$failed_rebuild_rc" -ne 0
 printf '%s' "$failed_rebuild" | grep -q 'Run index could not be persisted'
-rmdir "$ROOT/.relay/index.json"
-mv "$ROOT/.relay/index.json.persistence-backup" "$ROOT/.relay/index.json"
+rmdir "$RELAY_STATE_ROOT/index.json"
+mv "$RELAY_STATE_ROOT/index.json.persistence-backup" "$RELAY_STATE_ROOT/index.json"
 
 export_path="/tmp/relay-run-export-$run_id.json"
 rm -f "$export_path"
@@ -83,7 +85,7 @@ test -f "$export_path"
 jq -e --arg run_id "$run_id" '.format == "relay-run-export-v1" and .run_id == $run_id and .integrity_valid == true and .receipts_valid == true and .receipts_consistent == true and (.events | length) > 0 and (.receipts | length) >= 7 and (.receipts | map(.receipt_id) as $ids | (($ids | unique | length) == ($ids | length)))' "$export_path" >/dev/null
 jq -e --arg run_id "$run_id" '.events | all(.metadata.mission_id == "relay-fixture-mission" and .metadata.run_id == $run_id and (.metadata | has("tool")) and (.metadata | has("artifact")) and (.metadata | has("retry_id")) and (.metadata | has("repair_id")))' "$export_path" >/dev/null
 
-run_dir="$ROOT/.relay/runs/$run_id"
+run_dir="$RELAY_STATE_ROOT/runs/$run_id"
 events_path="$run_dir/events.jsonl"
 mv "$events_path" "$events_path.regular"
 ln -s /etc/passwd "$events_path"
@@ -96,7 +98,7 @@ printf '%s' "$symlink_events" | grep -q 'symbolic-linked'
 rm "$events_path"
 mv "$events_path.regular" "$events_path"
 
-receipts_path="$ROOT/.relay/runs/$run_id/receipts.json"
+receipts_path="$RELAY_STATE_ROOT/runs/$run_id/receipts.json"
 cp "$receipts_path" "$receipts_path.backup"
 ruby -rjson -e 'path=ARGV.fetch(0); receipts=JSON.parse(File.read(path)); receipts[0]["status"]="tampered"; File.write(path, JSON.generate(receipts))' "$receipts_path"
 set +e
@@ -134,7 +136,7 @@ mv "$state_path.missing" "$state_path"
 # An index entry with placeholder metadata must not make a run with missing
 # authoritative state appear listable. This guards the cache validation path
 # against accepting its own fallback values as proof of a real state record.
-printf '{"%s":{"run_dir":"%s","mission_id":"","status":"unknown","updated_at":""}}' "$run_id" "$run_dir" > "$ROOT/.relay/index.json"
+printf '{"%s":{"run_dir":"%s","mission_id":"","status":"unknown","updated_at":""}}' "$run_id" "$run_dir" > "$RELAY_STATE_ROOT/index.json"
 mv "$state_path" "$state_path.missing"
 set +e
 missing_index_state="$($KUJO run "$ROOT/main.kujo" -- runs list --json 2>&1)"

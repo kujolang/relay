@@ -122,6 +122,8 @@ git -C /tmp/relay-fixture-workspace commit -m baseline
 
 The run writes a PackWrite agent pack plus recursive `packet-manifest.json`, AgentEvent-compatible JSONL, sealed `RelayReceipt` index, RunLedger receipt, ChangeBucket result, Eval result, resumable state, and Markdown/JSON reports under `.relay/runs/<run-id>/`.
 
+Set `RELAY_STATE_ROOT` to an alternate state directory when run evidence must be isolated, such as acceptance tests. Relay runtime, doctor checks, and Agents SDK capability receipts use the same override; the default remains `<RELAY_ROOT>/.relay`.
+
 ## Provider configuration
 
 Relay uses the AI SDK provider boundary through `src/ai_bridge.kujo`. Fixture mode is default for safe local operation. A live call requires a configured OpenAI-compatible endpoint and key:
@@ -151,6 +153,8 @@ Implemented and truthful in this slice:
 - `benchmark run` for the Capsule discovery slice
 
 `missions run` accepts explicit step, repair, token, output, write, tool-call, and tool-turn budgets. The aggregate mission token budget is capped at 65,536 while each provider request remains capped at 16,384. A mission can set `agent_tools` to bounded `relay.write_file` or `relay.run_command` calls; the Agents SDK registry and approval provider execute them through Relay's policy worker, and the run records the result. For provider-generated planning, set `agent_tool_mode` to `provider` and explicitly list the allowed tools in `agent_tool_allowlist`; the AI SDK request carries only those schemas, each provider response is normalized, and Agents SDK still executes every call through the same policy worker. Bounded follow-up turns send typed `role: tool` results back through Watchdog and persist `tool-results.json` under the run directory. `bash`/`sh` repository actions additionally require exact `allowed_script_hashes` entries, including when delegated through the Agents SDK worker. PackWrite output is recursively hashed into `packet-manifest.json`; verification and valid export fail closed if packet files change, disappear, or appear unexpectedly. A failed run may use `missions repair <run-id>` for one explicitly bounded replay when its failure class is repairable; Relay records `repair_started`, `repair_completed`, or `repair_failed` evidence and enforces `max_repairs` (0–4). Policy, authentication, evidence, and malformed-authority failures are never replayed. Cancellation, malformed responses, approval denial, tool-call limits, and tool-turn limits fail closed. The default Agents SDK aggregate smoke can be skipped for a deliberately configured run with `--skip-agent-smoke`; the run records that it was skipped. Not yet implemented: adaptive routing, full multi-step Dispatch workflow loading, interactive approval UI, authenticated service mode, full workcell recovery, durable concurrent storage, and the complete Capsule A/B benchmark rubric. Those remain explicit follow-up work rather than placeholder commands.
+
+Provider-generated multi-turn missions also persist aggregate input, output, and total token usage in the authoritative run state as `usage.relay_input_tokens`, `usage.relay_output_tokens`, and `usage.relay_total_tokens`. `budgets.used_tokens` remains the enforced aggregate total. Provider responses that omit a usage component are recorded as zero for that component rather than inferred.
 
 ## Safety boundary
 
