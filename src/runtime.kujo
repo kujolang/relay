@@ -892,11 +892,23 @@ func run_mission(path, options) {
     budgets := dict_get_or(state, "budgets", {})
     budgets["used_tokens"] := used_tokens
     state["budgets"] := budgets
+    planner_output := redact_text(string_or(dict_get_or(model_result, "output_text", ""), ""))
+    planner_output_path := run_dir + "/agent-response.md"
+    planner_output_ok := planner_output != "" && write_text_atomic(planner_output_path, planner_output)
+    state["planner_output"] := planner_output
+    state["planner_output_path"] := planner_output_path
+    if planner_output_ok {
+        planner_artifact := {"kind":"agent_response","path":planner_output_path,"integrity_sha256":sha256_file(planner_output_path)}
+        state["artifacts"] := push(dict_get_or(state,"artifacts",[]),planner_artifact)
+        planner_receipt_result := record_receipt(state,run_dir,"artifact","plan-response","planner",planner_output_path,"completed",planner_artifact)
+        state = apply_receipt_result(state,planner_receipt_result)
+        state := add_event(state,run_dir,"artifact_created","plan-response","planner",{"kind":"agent_response","path":planner_output_path,"receipt_id":planner_receipt_result["receipt"]["receipt_id"]})
+    }
     model_receipt_result := record_receipt(state, run_dir, "model", "plan", "planner", string_or(dict_get_or(state, "model", ""), ""), evidence_status(dict_get_or(model_result, "ok", false)), {"ok": dict_get_or(model_result, "ok", false), "telemetry": state["telemetry"], "usage": usage})
     state = apply_receipt_result(state, model_receipt_result)
     model_receipt := model_receipt_result["receipt"]
     state := add_event(state, run_dir, "model_request_completed", "plan", "planner", {"ok": dict_get_or(model_result, "ok", false), "telemetry": state["telemetry"], "receipt_id": model_receipt["receipt_id"]})
-    preflight_ok := ledger["ok"] && packet["ok"] && agent_sdk["ok"] && agent_sdk_tools["ok"] && dict_get_or(model_result, "ok", false) && used_tokens <= state["budgets"]["max_tokens"]
+    preflight_ok := ledger["ok"] && packet["ok"] && agent_sdk["ok"] && agent_sdk_tools["ok"] && dict_get_or(model_result, "ok", false) && planner_output_ok && used_tokens <= state["budgets"]["max_tokens"]
     if preflight_ok && bool_or(dict_get_or(options, "pause_after_plan", false), false) {
         state["status"] := "paused"
         state["current_step"] := "implementation"
