@@ -1,6 +1,6 @@
 # Launch Checklist
 
-Current launch scope: `technical preview`. Relay's local fixture and acceptance gates pass, but hosted orchestration, live-provider use, durable multi-host storage, authenticated tenancy, full Workcell isolation, and enterprise readiness remain unproven.
+Current launch scope: `technical preview`. Relay's local fixture, acceptance, and Workcell proof gates pass, but hosted orchestration, live-provider use, durable multi-host storage, authenticated tenancy, and enterprise readiness remain unproven.
 
 ## Local Gates
 
@@ -10,22 +10,21 @@ Current launch scope: `technical preview`. Relay's local fixture and acceptance 
 - [x] Contract tests executed with `$KUJO_BIN run tests/relay_contract_tests.kujo --interpreter`.
 - [x] Aggregate acceptance checked with `bash tests/relay_acceptance.sh`.
 - [x] Formatting checked with `git diff --check`.
-- [ ] Workcell proof checked with `workcell run --file docs/workcell-launch-gate.json --repo .`.
+- [x] Workcell proof checked with `workcell run --file docs/workcell-launch-gate.json --repo . --no-pull`.
 - [ ] Live provider and Watchdog route proof with explicit credentials and route configuration.
 
-## Current External Blocker
+## Workcell Proof Notes
 
-Workcell proof is blocked by the local Docker image build/pull path. The Workcell base image could not be fetched from Docker Hub because `auth.docker.io` timed out.
+Workcell proof passed after building `kujolang/workcell-base:local` with `DOCKER_BUILDKIT=0`, using the Colima Workcell Docker host, and setting `TMPDIR` to a path under `/Users/robertdevore/2026/Kujolang/kujo-repos/.workcell-host-tmp` so the disposable worktree mount was visible inside the Colima VM.
 
-Closest equivalent proof: Relay local fixture, contract, and acceptance gates.
-
-Safe resume command:
+Resume command:
 
 ```bash
-cd /Users/robertdevore/2026/Kujolang/kujo-repos/workcell
-DOCKER_HOST=unix:///Users/robertdevore/.colima/kujo-workcell/docker.sock docker build --tag kujolang/workcell-base:local docker/
-cd /Users/robertdevore/2026/Kujolang/kujo-repos/relay
-workcell run --file docs/workcell-launch-gate.json --repo .
+export DOCKER_HOST=unix:///Users/robertdevore/.colima/kujo-workcell/docker.sock
+export DOCKER_CONFIG=/tmp/kujo-next-batch-docker-config
+export TMPDIR=/Users/robertdevore/2026/Kujolang/kujo-repos/.workcell-host-tmp
+workcell run --file docs/workcell-launch-gate.json --repo . --no-pull
+workcell verify --run .workcell/runs/<run-id> --json
 ```
 
 ## Forbidden Launch Actions
