@@ -26,7 +26,7 @@ touch "$WORK/README.md"
 git -C "$WORK" add README.md
 git -C "$WORK" commit -qm baseline
 
-ruby -rjson -e 'path=ARGV.fetch(0); File.write(path, JSON.generate({name:"oversized",goal:"x" * 1100000,repository:ARGV.fetch(1),actions:[]}))' "$LARGE" "$WORK"
+ruby -rjson -e 'path=ARGV.fetch(0); File.write(path, JSON.generate({version:"1.0.0",name:"oversized",goal:"x" * 1100000,repository:ARGV.fetch(1),actions:[]}))' "$LARGE" "$WORK"
 export RELAY_ROOT="$ROOT"
 set +e
 large_output="$($KUJO run "$ROOT/main.kujo" -- missions run "$LARGE" --fixture --skip-agent-smoke --json 2>&1)"
@@ -45,7 +45,7 @@ test "$symlink_status" -ne 0
 printf '%s' "$symlink_output" | grep -q 'must not be a symbolic link'
 
 ln -s "$WORK" "$REPO_LINK"
-ruby -rjson -e 'path=ARGV.fetch(0); repo=ARGV.fetch(1); File.write(path, JSON.generate({name:"symlink-repository",goal:"must fail closed",repository:repo,actions:[]}))' "$INVALID_ACTION" "$REPO_LINK"
+ruby -rjson -e 'path=ARGV.fetch(0); repo=ARGV.fetch(1); File.write(path, JSON.generate({version:"1.0.0",name:"symlink-repository",goal:"must fail closed",repository:repo,actions:[]}))' "$INVALID_ACTION" "$REPO_LINK"
 set +e
 symlink_repository_output="$($KUJO run "$ROOT/main.kujo" -- missions run "$INVALID_ACTION" --fixture --skip-agent-smoke --json 2>&1)"
 symlink_repository_status=$?
@@ -54,7 +54,7 @@ test "$symlink_repository_status" -ne 0
 printf '%s' "$symlink_repository_output" | grep -q 'non-symlink directory'
 rm -f "$REPO_LINK"
 
-ruby -rjson -e 'path=ARGV.fetch(0); File.write(path, JSON.generate({name:"invalid-action",goal:"must fail during validation",repository:ARGV.fetch(1),actions:[{type:"unknown"}]}))' "$INVALID_ACTION" "$WORK"
+ruby -rjson -e 'path=ARGV.fetch(0); File.write(path, JSON.generate({version:"1.0.0",name:"invalid-action",goal:"must fail during validation",repository:ARGV.fetch(1),actions:[{type:"unknown"}]}))' "$INVALID_ACTION" "$WORK"
 set +e
 invalid_action_output="$($KUJO run "$ROOT/main.kujo" -- missions run "$INVALID_ACTION" --fixture --skip-agent-smoke --json 2>&1)"
 invalid_action_status=$?
@@ -62,7 +62,7 @@ set -e
 test "$invalid_action_status" -ne 0
 printf '%s' "$invalid_action_output" | grep -q 'action type is not supported'
 
-ruby -rjson -e 'path=ARGV.fetch(0); repo=ARGV.fetch(1); File.write(path, JSON.generate({name:"oversized-command",goal:"must fail during bounded input validation",repository:repo,actions:[{type:"run_command",command:"git status " + ("x" * 17000)}]}))' "$OVERSIZED_COMMAND" "$WORK"
+ruby -rjson -e 'path=ARGV.fetch(0); repo=ARGV.fetch(1); File.write(path, JSON.generate({version:"1.0.0",name:"oversized-command",goal:"must fail during bounded input validation",repository:repo,actions:[{type:"run_command",command:"git status " + ("x" * 17000)}]}))' "$OVERSIZED_COMMAND" "$WORK"
 set +e
 oversized_command_output="$($KUJO run "$ROOT/main.kujo" -- missions run "$OVERSIZED_COMMAND" --fixture --skip-agent-smoke --json 2>&1)"
 oversized_command_status=$?
@@ -70,7 +70,7 @@ set -e
 test "$oversized_command_status" -ne 0
 printf '%s' "$oversized_command_output" | grep -q '16 KiB safety limit'
 
-ruby -rjson -e 'path=ARGV.fetch(0); repo=ARGV.fetch(1); File.write(path, JSON.generate({name:"invalid-provider-tools",goal:"must require an allowlist",repository:repo,agent_tool_mode:"provider",actions:[]}))' "$INVALID_PROVIDER" "$WORK"
+ruby -rjson -e 'path=ARGV.fetch(0); repo=ARGV.fetch(1); File.write(path, JSON.generate({version:"1.0.0",name:"invalid-provider-tools",goal:"must require an allowlist",repository:repo,agent_tool_mode:"provider",actions:[]}))' "$INVALID_PROVIDER" "$WORK"
 set +e
 invalid_provider_output="$($KUJO run "$ROOT/main.kujo" -- missions run "$INVALID_PROVIDER" --fixture --skip-agent-smoke --json 2>&1)"
 invalid_provider_status=$?
@@ -78,7 +78,7 @@ set -e
 test "$invalid_provider_status" -ne 0
 printf '%s' "$invalid_provider_output" | grep -q 'agent_tool_allowlist'
 
-ruby -rjson -e 'path=ARGV.fetch(0); repo=ARGV.fetch(1); File.write(path, JSON.generate({name:"invalid-tool-turns",goal:"must reject unbounded turns",repository:repo,budgets:{max_tool_turns:5},actions:[]}))' "$INVALID_TURNS" "$WORK"
+ruby -rjson -e 'path=ARGV.fetch(0); repo=ARGV.fetch(1); File.write(path, JSON.generate({version:"1.0.0",name:"invalid-tool-turns",goal:"must reject unbounded turns",repository:repo,budgets:{max_tool_turns:5},actions:[]}))' "$INVALID_TURNS" "$WORK"
 set +e
 invalid_turns_output="$($KUJO run "$ROOT/main.kujo" -- missions run "$INVALID_TURNS" --fixture --skip-agent-smoke --json 2>&1)"
 invalid_turns_status=$?
@@ -86,7 +86,7 @@ set -e
 test "$invalid_turns_status" -ne 0
 printf '%s' "$invalid_turns_output" | grep -q 'max_tool_turns'
 
-ruby -rjson -e 'path=ARGV.fetch(0); repo=ARGV.fetch(1); File.write(path, JSON.generate({name:"invalid-repairs",goal:"must reject unbounded repair replay",repository:repo,budgets:{max_repairs:5},actions:[]}))' "$INVALID_REPAIRS" "$WORK"
+ruby -rjson -e 'path=ARGV.fetch(0); repo=ARGV.fetch(1); File.write(path, JSON.generate({version:"1.0.0",name:"invalid-repairs",goal:"must reject unbounded repair replay",repository:repo,budgets:{max_repairs:5},actions:[]}))' "$INVALID_REPAIRS" "$WORK"
 set +e
 invalid_repairs_output="$($KUJO run "$ROOT/main.kujo" -- missions run "$INVALID_REPAIRS" --fixture --skip-agent-smoke --json 2>&1)"
 invalid_repairs_status=$?
@@ -94,7 +94,7 @@ set -e
 test "$invalid_repairs_status" -ne 0
 printf '%s' "$invalid_repairs_output" | grep -q 'max_repairs'
 
-ruby -rjson -e 'path=ARGV.fetch(0); repo=ARGV.fetch(1); File.write(path, JSON.generate({name:"invalid-tokens",goal:"must reject unbounded model output",repository:repo,budgets:{max_tokens:65537},actions:[]}))' "$INVALID_TOKENS" "$WORK"
+ruby -rjson -e 'path=ARGV.fetch(0); repo=ARGV.fetch(1); File.write(path, JSON.generate({version:"1.0.0",name:"invalid-tokens",goal:"must reject unbounded model output",repository:repo,budgets:{max_tokens:65537},actions:[]}))' "$INVALID_TOKENS" "$WORK"
 set +e
 invalid_tokens_output="$($KUJO run "$ROOT/main.kujo" -- missions run "$INVALID_TOKENS" --fixture --skip-agent-smoke --json 2>&1)"
 invalid_tokens_status=$?
@@ -102,7 +102,7 @@ set -e
 test "$invalid_tokens_status" -ne 0
 printf '%s' "$invalid_tokens_output" | grep -q 'max_tokens'
 
-ruby -rjson -e 'path=ARGV.fetch(0); repo=ARGV.fetch(1); File.write(path, JSON.generate({name:"invalid-zero-tokens",goal:"must reject a zero model budget",repository:repo,budgets:{max_tokens:0},actions:[]}))' "$INVALID_ZERO_TOKENS" "$WORK"
+ruby -rjson -e 'path=ARGV.fetch(0); repo=ARGV.fetch(1); File.write(path, JSON.generate({version:"1.0.0",name:"invalid-zero-tokens",goal:"must reject a zero model budget",repository:repo,budgets:{max_tokens:0},actions:[]}))' "$INVALID_ZERO_TOKENS" "$WORK"
 set +e
 invalid_zero_tokens_output="$($KUJO run "$ROOT/main.kujo" -- missions run "$INVALID_ZERO_TOKENS" --fixture --skip-agent-smoke --json 2>&1)"
 invalid_zero_tokens_status=$?

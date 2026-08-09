@@ -23,7 +23,7 @@ git -C "$WORK" commit -qm baseline
 script_sha="$(ruby -rdigest -e 'print Digest::SHA256.file(ARGV.fetch(0)).hexdigest' "$WORK/scripts/slow.sh")"
 
 cat > "$SPEC" <<EOF
-{"name":"timeout-smoke","goal":"bounded timeout","repository":"$WORK","actions":[{"type":"run_command","command":"bash scripts/slow.sh","timeout_ms":1000}],"allowed_commands":["bash"],"allowed_script_hashes":{"scripts/slow.sh":"$script_sha"},"budgets":{"max_steps":2,"max_output_bytes":1048576,"max_write_bytes":1048576}}
+{"version":"1.0.0","name":"timeout-smoke","goal":"bounded timeout","repository":"$WORK","actions":[{"type":"run_command","command":"bash scripts/slow.sh","timeout_ms":1000}],"allowed_commands":["bash"],"allowed_script_hashes":{"scripts/slow.sh":"$script_sha"},"budgets":{"max_steps":2,"max_output_bytes":1048576,"max_write_bytes":1048576}}
 EOF
 
 started_wait="$(date +%s)"

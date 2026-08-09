@@ -3,9 +3,10 @@
   "$id": "https://kujo.dev/relay/schemas/event.schema.json",
   "title": "Kujo Relay AgentEvent",
   "type": "object",
-  "required": ["type", "kind", "run_id", "agent_id", "session_id", "step_id", "event_id", "timestamp", "parent_event_id", "payload", "metadata", "integrity_sha256"],
+  "required": ["type", "contract_version", "kind", "run_id", "agent_id", "session_id", "step_id", "event_id", "timestamp", "parent_event_id", "payload", "metadata", "integrity_sha256"],
   "properties": {
     "type": {"const": "AgentEvent"},
+    "contract_version": {"const": "AgentEvent-compatible-v1"},
     "kind": {"type": "string", "minLength": 1},
     "run_id": {"type": "string", "minLength": 1, "maxLength": 160},
     "agent_id": {"type": "string", "minLength": 1},

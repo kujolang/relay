@@ -1,5 +1,5 @@
 {
-  "version": "0.1.0",
+  "version": "1.0.0",
   "id": "relay-agents-sdk-tools-mission",
   "name": "relay-agents-sdk-tools-mission",
   "goal": "Use the Agents SDK tool registry to create one bounded repository artifact.",

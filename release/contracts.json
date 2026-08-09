@@ -1,0 +1,18 @@
+{
+  "format": "relay-release-contract-inventory-v1",
+  "relay_product": "1.0.0",
+  "mission_current": "1.0.0",
+  "mission_supported": ["1.0.0", "0.1.0"],
+  "machine_contracts": {
+    "events": "AgentEvent-compatible-v1",
+    "receipts": "relay-receipt-v1",
+    "run_state": "relay-run-v1",
+    "run_export": "relay-run-export-v1",
+    "partial_export": "relay-run-export-partial-v1",
+    "run_verification": "relay-run-verification-v1",
+    "run_sizes": "relay-run-sizes-v1",
+    "tool_results": "relay-tool-result-bundle-v1",
+    "packet_manifest": "relay-packwrite-manifest-v1",
+    "agent_capability": "relay-agent-capability-v1"
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "version": "0.1.0",
+  "name": "legacy-v0.1.0-compatibility-fixture",
+  "goal": "Prove that the Relay v1 line accepts the documented pre-v1 mission format.",
+  "repository": ".",
+  "actions": []
+}
