@@ -16,7 +16,6 @@ WORK="/tmp/relay-agents-sdk-tools-workspace"
 rm -rf "$WORK"
 rm -rf "$RELAY_STATE_ROOT/capabilities"
 trap 'rm -rf "$RELAY_STATE_ROOT/capabilities"' EXIT
-trap 'echo "FAIL relay Agents SDK tool smoke at line $LINENO" >&2' ERR
 mkdir -p "$WORK"
 git init -q "$WORK"
 git -C "$WORK" config user.email relay@example.invalid
@@ -70,7 +69,7 @@ denied_fixture="$(issue_capability relay-denied-smoke relay-denied-smoke-session
 denied_secret="$(printf '%s' "$denied_fixture" | jq -r .secret)"
 denied_payload="$(jq -cn --arg root "$ROOT" --arg kujo "$KUJO" --arg work "$WORK" --arg capability "$denied_capability" --arg nonce "$denied_nonce" --arg secret "$denied_secret" '{relay_root:$root,kujo_bin:$kujo,capability:$capability,capability_nonce:$nonce,capability_secret:$secret,run_id:"relay-denied-smoke",session_id:"relay-denied-smoke-session",workspace:$work,approval_approved:false,mission_spec:{allow_writes:true,approval:{approved:false},allowed_commands:["git"],budgets:{max_output_bytes:1048576,max_write_bytes:1048576}},tool_calls:[{name:"relay.write_file",input:{path:"RELAY_AGENT_TOOL_DENIED.txt",content:"must not be written\n"}}]}')"
 set +e
-denied_output="$(RELAY_AGENT_PAYLOAD="$denied_payload" "$KUJO" run "$ROOT/src/agent_bridge.kujo" --interpreter 2>&1)"
+denied_output="$(cd "$AGENTS_SDK" && RELAY_AGENT_PAYLOAD="$denied_payload" "$KUJO" run "$ROOT/src/agent_bridge.kujo" --interpreter 2>&1)"
 denied_exit=$?
 set -e
 test "$denied_exit" -ne 0
@@ -79,7 +78,7 @@ test ! -e "$WORK/RELAY_AGENT_TOOL_DENIED.txt"
 
 tampered_payload="$(printf '%s' "$denied_payload" | jq '.relay_root="/tmp" | .approval_approved=true | .mission_spec.approval.approved=true')"
 set +e
-tampered_output="$(RELAY_AGENT_PAYLOAD="$tampered_payload" "$KUJO" run "$ROOT/src/agent_bridge.kujo" --interpreter 2>&1)"
+tampered_output="$(cd "$AGENTS_SDK" && RELAY_AGENT_PAYLOAD="$tampered_payload" "$KUJO" run "$ROOT/src/agent_bridge.kujo" --interpreter 2>&1)"
 tampered_exit=$?
 set -e
 test "$tampered_exit" -ne 0
@@ -167,7 +166,7 @@ budget_fixture="$(issue_capability relay-budget-smoke relay-budget-smoke-session
 budget_secret="$(printf '%s' "$budget_fixture" | jq -r .secret)"
 budget_payload="$(jq -cn --arg root "$ROOT" --arg kujo "$KUJO" --arg work "$WORK" --arg capability "$budget_capability" --arg nonce "$budget_nonce" --arg secret "$budget_secret" '{relay_root:$root,kujo_bin:$kujo,capability:$capability,capability_nonce:$nonce,capability_secret:$secret,run_id:"relay-budget-smoke",session_id:"relay-budget-smoke-session",workspace:$work,approval_approved:false,mission_spec:{allow_writes:false,approval:{approved:false},allowed_commands:["git"],budgets:{max_tool_calls:1,max_output_bytes:1048576,max_write_bytes:1048576}},tool_calls:[{name:"relay.run_command",input:{command:"git status --short"}},{name:"relay.run_command",input:{command:"git status --short"}}]}')"
 set +e
-budget_output="$(RELAY_AGENT_PAYLOAD="$budget_payload" "$KUJO" run "$ROOT/src/agent_bridge.kujo" --interpreter 2>&1)"
+budget_output="$(cd "$AGENTS_SDK" && RELAY_AGENT_PAYLOAD="$budget_payload" "$KUJO" run "$ROOT/src/agent_bridge.kujo" --interpreter 2>&1)"
 budget_exit=$?
 set -e
 test "$budget_exit" -ne 0
