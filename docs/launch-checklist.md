@@ -36,7 +36,7 @@ Until these items pass, external provider compatibility is an explicit release b
 
 - [x] GitHub-hosted Linux, macOS x86_64, and macOS arm64 runners start successfully for the candidate branch.
 - [x] Required pinned ecosystem sources are publicly readable by the least-privilege GitHub token, including `kujolang/kujo-agents` revision `f0c95b66fbc74057481ef228961eb6e69ff8886a`; CI does not require a private cross-repository token.
-- [ ] Required checks and branch protection are configured by a repository administrator.
+- [x] `main` requires the Linux, macOS x86_64, macOS arm64, and artifact-guard checks; administrators are included, force pushes and deletion are blocked, and the approval-gated `release` environment is configured.
 - [ ] The final candidate CI and release-preparation workflow runs are retained and reviewed.
 
 ## Release-owner actions
