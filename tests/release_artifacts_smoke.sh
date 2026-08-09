@@ -39,8 +39,11 @@ KUJO_BIN="$KUJO" \
 RELAY_AI_SDK_PATH="$ROOT/../ai-sdk" \
 RELAY_AGENTS_SDK_PATH="$ROOT/../agents-sdk" \
 KUJO_AGENTS_PATH="$ROOT/../kujo-agents" \
+RELAY_PACKWRITE_BIN="$ROOT/../packwrite/bin/packwrite" \
 RELAY_PACKWRITE_ROOT="$ROOT/../packwrite" \
+RELAY_RUNLEDGER_BIN="$ROOT/../runledger/bin/runledger" \
 RELAY_RUNLEDGER_ROOT="$ROOT/../runledger" \
+RELAY_CHANGEBUCKET_BIN="$ROOT/../changebucket/bin/changebucket" \
 RELAY_CHANGEBUCKET_ROOT="$ROOT/../changebucket" \
 RELAY_EVAL_ENTRY="$ROOT/../eval/main.kujo" \
 "$PACKAGE/bin/relay" doctor --json | jq -e '.ok == true and .mode == "fixture"' >/dev/null
