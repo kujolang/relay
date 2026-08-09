@@ -23,9 +23,13 @@ bash "$ROOT/tests/release_metadata.sh"
 smoke_count=0
 for smoke in "$ROOT"/tests/*_smoke.sh; do
   echo "RUN ${smoke#"$ROOT/"}"
-  if ! bash "$smoke"; then
+  set +e
+  bash "$smoke"
+  smoke_status=$?
+  set -e
+  if [[ "$smoke_status" -ne 0 ]]; then
     echo "FAIL ${smoke#"$ROOT/"}" >&2
-    exit 1
+    exit "$smoke_status"
   fi
   smoke_count=$((smoke_count + 1))
 done
