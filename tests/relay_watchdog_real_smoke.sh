@@ -31,10 +31,15 @@ WDG_DEPLOYMENT_PROFILE=local \
 watchdog_pid=$!
 
 cleanup() {
-  kill "$watchdog_pid" 2>/dev/null || true
-  kill "$stub_pid" 2>/dev/null || true
-  wait "$watchdog_pid" 2>/dev/null || true
-  wait "$stub_pid" 2>/dev/null || true
+  for pid in "$watchdog_pid" "$stub_pid"; do
+    kill "$pid" 2>/dev/null || true
+    for _ in $(seq 1 25); do
+      kill -0 "$pid" 2>/dev/null || break
+      sleep 0.02
+    done
+    if kill -0 "$pid" 2>/dev/null; then kill -9 "$pid" 2>/dev/null || true; fi
+    wait "$pid" 2>/dev/null || true
+  done
   rm -f "$DB_PATH" "$DB_PATH"-wal "$DB_PATH"-shm
 }
 trap cleanup EXIT

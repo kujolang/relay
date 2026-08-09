@@ -15,7 +15,26 @@ WATCHDOG_LOG="/tmp/relay-provider-tools-watchdog.log"
 DB_PATH="/tmp/relay-provider-tools-$$.db"
 
 rm -rf "$WORK" "$MISSION" "$STUB_LOG" "$WATCHDOG_LOG" "$DB_PATH" "$RELAY_STATE_ROOT"
-trap 'kill "${watchdog_pid:-}" 2>/dev/null || true; kill "${stub_pid:-}" 2>/dev/null || true; wait "${watchdog_pid:-}" 2>/dev/null || true; wait "${stub_pid:-}" 2>/dev/null || true; rm -rf "$WORK" "$MISSION" "$RELAY_STATE_ROOT"; rm -f "$DB_PATH" "$DB_PATH-wal" "$DB_PATH-shm" "$STUB_LOG" "$WATCHDOG_LOG"' EXIT
+
+terminate_child() {
+  local pid="${1:-}"
+  test -n "$pid" || return 0
+  kill "$pid" 2>/dev/null || true
+  for _ in $(seq 1 25); do
+    kill -0 "$pid" 2>/dev/null || break
+    sleep 0.02
+  done
+  if kill -0 "$pid" 2>/dev/null; then kill -9 "$pid" 2>/dev/null || true; fi
+  wait "$pid" 2>/dev/null || true
+}
+
+cleanup() {
+  terminate_child "${watchdog_pid:-}"
+  terminate_child "${stub_pid:-}"
+  rm -rf "$WORK" "$MISSION" "$RELAY_STATE_ROOT"
+  rm -f "$DB_PATH" "$DB_PATH-wal" "$DB_PATH-shm" "$STUB_LOG" "$WATCHDOG_LOG"
+}
+trap cleanup EXIT
 
 mkdir -p "$WORK"
 git init -q "$WORK"
