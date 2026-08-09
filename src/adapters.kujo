@@ -198,6 +198,7 @@ func canonical_provider_tool_name(value) {
     if name == "read_file" || name == "relay_read_file" { return "relay.read_file" }
     if name == "write_file" || name == "relay_write_file" { return "relay.write_file" }
     if name == "run_command" || name == "relay_run_command" { return "relay.run_command" }
+    if name == "submit_answer" || name == "relay_submit_answer" { return "relay.submit_answer" }
     return name
 }
 
