@@ -9,7 +9,7 @@ grep -Fqx 'version = "1.0.0"' "$ROOT/kujo.toml"
 grep -Fqx 'version = "1.0.0"' "$ROOT/kennel.toml"
 grep -Fq 'export RELAY_VERSION := "1.0.0"' "$ROOT/src/contracts.kujo"
 grep -Fq 'export MISSION_SPEC_VERSION := "1.0.0"' "$ROOT/src/contracts.kujo"
-grep -Fq 'Version 1.0.0' "$ROOT/README.md"
+grep -Fq '[![Version](https://img.shields.io/badge/version-1.0.0-black)]' "$ROOT/README.md"
 grep -Fq '## [1.0.0]' "$ROOT/CHANGELOG.md"
 test "$(tr -d '\r\n' < "$ROOT/RUNTIME_VERSION")" = "$(jq -r '.dependencies.kujo.revision' "$ROOT/release/dependencies.json")"
 jq -e --arg version "$version" '.relay_version == $version and (.dependencies | type == "object") and (all(.dependencies[]; (.revision | test("^[0-9a-f]{40}$")) and (.required | type == "boolean")))' "$ROOT/release/dependencies.json" >/dev/null
