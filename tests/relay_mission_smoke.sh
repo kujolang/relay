@@ -18,19 +18,19 @@ git -C "$WORK" commit -qm baseline
 
 export RELAY_ROOT="$ROOT"
 paused="$($KUJO run "$ROOT/main.kujo" -- missions run "$ROOT/examples/fixture-mission.json" --fixture --pause-after-plan --json)"
-printf '%s' "$paused" | grep -q '"status":"paused"'
-printf '%s' "$paused" | grep -q '"checkpoint"'
+grep -q '"status":"paused"' <<<"$paused"
+grep -q '"checkpoint"' <<<"$paused"
 
 run_id="$(printf '%s' "$paused" | ruby -rjson -e 'd=JSON.parse(STDIN.read); print d["run"]["run_id"]')"
 test -n "$run_id"
 resumed="$($KUJO run "$ROOT/main.kujo" -- missions resume "$run_id" --json)"
-printf '%s' "$resumed" | grep -q '"ok":true'
-printf '%s' "$resumed" | grep -q '"status":"completed"'
-printf '%s' "$resumed" | grep -q '"runledger_finish"'
-printf '%s' "$resumed" | grep -q '"packet_revision":1'
-printf '%s' "$resumed" | grep -q '"runledger_id"'
-printf '%s' "$resumed" | grep -q '"provider":"fixture"'
-printf '%s' "$resumed" | grep -q '"receipts"'
+grep -q '"ok":true' <<<"$resumed"
+grep -q '"status":"completed"' <<<"$resumed"
+grep -q '"runledger_finish"' <<<"$resumed"
+grep -q '"packet_revision":1' <<<"$resumed"
+grep -q '"runledger_id"' <<<"$resumed"
+grep -q '"provider":"fixture"' <<<"$resumed"
+grep -q '"receipts"' <<<"$resumed"
 
 run_dir="$(printf '%s' "$resumed" | ruby -rjson -e 'print JSON.parse(STDIN.read)["run_dir"]')"
 python3 "$ROOT/scripts/validate_json.py" "$ROOT/schemas/run.schema.json" "$run_dir/state.json"

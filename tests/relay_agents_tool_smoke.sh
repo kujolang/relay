@@ -158,7 +158,7 @@ secret_failure_output="$(cd "$AGENTS_SDK" && RELAY_AGENT_PAYLOAD="$secret_failur
 secret_failure_exit=$?
 set -e
 test "$secret_failure_exit" -eq 0
-if printf '%s' "$secret_failure_output" | grep -q 'sk-secret-leak-probe'; then
+if grep -q 'sk-secret-leak-probe' <<<"$secret_failure_output"; then
   echo "Agents SDK bridge leaked a credential-shaped output value" >&2
   exit 1
 fi

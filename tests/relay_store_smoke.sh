@@ -21,7 +21,7 @@ ruby -rjson -e 'spec=JSON.parse(File.read(ARGV.fetch(0))); spec["repository"]=AR
 
 export RELAY_ROOT="$ROOT"
 result="$($KUJO run "$ROOT/main.kujo" -- missions run "$SPEC" --fixture --skip-agent-smoke --json)"
-printf '%s' "$result" | grep -q '"status":"completed"'
+grep -q '"status":"completed"' <<<"$result"
 run_id="$(printf '%s' "$result" | ruby -rjson -e 'print JSON.parse(STDIN.read)["run"]["run_id"]')"
 test -n "$run_id"
 second_result="$($KUJO run "$ROOT/main.kujo" -- missions run "$SPEC" --fixture --skip-agent-smoke --json)"
@@ -38,7 +38,7 @@ bad_run_limit="$($KUJO run "$ROOT/main.kujo" -- runs list --limit 4097 --json 2>
 bad_run_limit_status=$?
 set -e
 test "$bad_run_limit_status" -ne 0
-printf '%s' "$bad_run_limit" | grep -q 'run limit must be between 1 and 4096'
+grep -q 'run limit must be between 1 and 4096' <<<"$bad_run_limit"
 
 # A corrupt or tampered cache must not become an arbitrary filesystem read.
 printf '%s' '{"attacker":{"run_dir":"/etc","status":"completed"}}' > "$RELAY_STATE_ROOT/index.json"
@@ -46,10 +46,10 @@ listed="$($KUJO run "$ROOT/main.kujo" -- runs list --json)"
 printf '%s\n' "$listed" > "/tmp/relay-run-list-contract-$$.json"
 python3 "$ROOT/scripts/validate_json.py" "$ROOT/schemas/run-bundle.schema.json" "/tmp/relay-run-list-contract-$$.json"
 rm -f "/tmp/relay-run-list-contract-$$.json"
-printf '%s' "$listed" | grep -q "\"$run_id\""
-printf '%s' "$listed" | grep -q '"index_source":"validated_cache_or_rebuild"'
+grep -q "\"$run_id\"" <<<"$listed"
+grep -q '"index_source":"validated_cache_or_rebuild"' <<<"$listed"
 printf '%s' "$listed" | jq -e --arg run_id "$run_id" '.runs[$run_id].updated_at != null and .runs[$run_id].updated_at != ""' >/dev/null
-if printf '%s' "$listed" | grep -q 'attacker'; then
+if grep -q 'attacker' <<<"$listed"; then
   echo "tampered index entry was trusted" >&2
   exit 1
 fi
@@ -58,15 +58,15 @@ fi
 # attacker-controlled document has already been loaded.
 ruby -e 'path=ARGV.fetch(0); File.write(path, "{\"oversized\":\"" + ("x" * 8388609) + "\"}")' "$RELAY_STATE_ROOT/index.json"
 oversized_listed="$($KUJO run "$ROOT/main.kujo" -- runs list --json)"
-printf '%s' "$oversized_listed" | grep -q "\"$run_id\""
-if printf '%s' "$oversized_listed" | grep -q 'oversized'; then
+grep -q "\"$run_id\"" <<<"$oversized_listed"
+if grep -q 'oversized' <<<"$oversized_listed"; then
   echo "oversized index entry was trusted" >&2
   exit 1
 fi
 
 rebuilt="$($KUJO run "$ROOT/main.kujo" -- runs rebuild --json)"
-printf '%s' "$rebuilt" | grep -q '"index_source":"rebuild"'
-printf '%s' "$rebuilt" | grep -q "\"$run_id\""
+grep -q '"index_source":"rebuild"' <<<"$rebuilt"
+grep -q "\"$run_id\"" <<<"$rebuilt"
 
 # A failed index write must not be reported as a successful rebuild.
 mv "$RELAY_STATE_ROOT/index.json" "$RELAY_STATE_ROOT/index.json.persistence-backup"
@@ -76,14 +76,14 @@ failed_rebuild="$($KUJO run "$ROOT/main.kujo" -- runs rebuild --json 2>&1)"
 failed_rebuild_rc=$?
 set -e
 test "$failed_rebuild_rc" -ne 0
-printf '%s' "$failed_rebuild" | grep -q 'Run index could not be persisted'
+grep -q 'Run index could not be persisted' <<<"$failed_rebuild"
 rmdir "$RELAY_STATE_ROOT/index.json"
 mv "$RELAY_STATE_ROOT/index.json.persistence-backup" "$RELAY_STATE_ROOT/index.json"
 
 export_path="/tmp/relay-run-export-$run_id.json"
 rm -f "$export_path"
 exported="$($KUJO run "$ROOT/main.kujo" -- runs export "$run_id" --output "$export_path" --json)"
-printf '%s' "$exported" | grep -q '"integrity_valid":true'
+grep -q '"integrity_valid":true' <<<"$exported"
 test -f "$export_path"
 jq -e --arg run_id "$run_id" '.format == "relay-run-export-v1" and .run_id == $run_id and .integrity_valid == true and .receipts_valid == true and .receipts_consistent == true and (.events | length) > 0 and (.receipts | length) >= 7 and (.receipts | map(.receipt_id) as $ids | (($ids | unique | length) == ($ids | length)))' "$export_path" >/dev/null
 jq -e --arg run_id "$run_id" '.events | all(.metadata.mission_id == "relay-fixture-mission" and .metadata.run_id == $run_id and (.metadata | has("tool")) and (.metadata | has("artifact")) and (.metadata | has("retry_id")) and (.metadata | has("repair_id")))' "$export_path" >/dev/null
@@ -98,7 +98,7 @@ symlink_events="$($KUJO run "$ROOT/main.kujo" -- runs events "$run_id" --json 2>
 symlink_rc=$?
 set -e
 test "$symlink_rc" -ne 0
-printf '%s' "$symlink_events" | grep -q 'symbolic-linked'
+grep -q 'symbolic-linked' <<<"$symlink_events"
 rm "$events_path"
 mv "$events_path.regular" "$events_path"
 
@@ -110,7 +110,7 @@ tampered_receipts="$($KUJO run "$ROOT/main.kujo" -- runs events "$run_id" --json
 receipts_rc=$?
 set -e
 test "$receipts_rc" -ne 0
-printf '%s' "$tampered_receipts" | grep -q '"receipts_valid":false'
+grep -q '"receipts_valid":false' <<<"$tampered_receipts"
 mv "$receipts_path.backup" "$receipts_path"
 
 # The state copy is not a substitute for the persisted receipt evidence file.
@@ -122,7 +122,7 @@ missing_receipts="$($KUJO run "$ROOT/main.kujo" -- runs events "$run_id" --json 
 missing_receipts_rc=$?
 set -e
 test "$missing_receipts_rc" -ne 0
-printf '%s' "$missing_receipts" | grep -q '"receipts_valid":false'
+grep -q '"receipts_valid":false' <<<"$missing_receipts"
 mv "$receipts_path.missing" "$receipts_path"
 
 # Run inspection must fail closed when authoritative state is absent; the
@@ -192,13 +192,13 @@ bad_limit="$($KUJO run "$ROOT/main.kujo" -- runs events "$run_id" --limit 4097 -
 bad_limit_status=$?
 set -e
 test "$bad_limit_status" -ne 0
-printf '%s' "$bad_limit" | grep -q 'event limit must be between 1 and 4096'
+grep -q 'event limit must be between 1 and 4096' <<<"$bad_limit"
 set +e
 zero_limit="$($KUJO run "$ROOT/main.kujo" -- runs events "$run_id" --limit 0 --json 2>&1)"
 zero_limit_status=$?
 set -e
 test "$zero_limit_status" -ne 0
-printf '%s' "$zero_limit" | grep -q 'event limit must be between 1 and 4096'
+grep -q 'event limit must be between 1 and 4096' <<<"$zero_limit"
 
 # The authoritative state seal must also protect read-side status and
 # workspace authority, not only resume and event-sequence checks.
@@ -209,7 +209,7 @@ tampered_state_inspect="$($KUJO run "$ROOT/main.kujo" -- runs inspect "$run_id" 
 tampered_state_rc=$?
 set -e
 test "$tampered_state_rc" -ne 0
-printf '%s' "$tampered_state_inspect" | grep -q 'integrity verification failed'
+grep -q 'integrity verification failed' <<<"$tampered_state_inspect"
 mv "$run_dir/state.json.sealed-backup" "$run_dir/state.json"
 
 # A shape-valid report with the wrong run identity is not valid evidence.
@@ -226,7 +226,7 @@ tampered_report_command="$($KUJO run "$ROOT/main.kujo" -- missions report "$run_
 tampered_report_command_rc=$?
 set -e
 test "$tampered_report_command_rc" -ne 0
-printf '%s' "$tampered_report_command" | grep -q 'does not match authoritative state'
+grep -q 'does not match authoritative state' <<<"$tampered_report_command"
 mv "$run_dir/report.json.backup" "$run_dir/report.json"
 
 # The Markdown report is also required evidence for inspection and export.
@@ -251,8 +251,8 @@ complete_export="$($KUJO run "$ROOT/main.kujo" -- runs export "$paused_id" --jso
 complete_export_rc=$?
 set -e
 test "$complete_export_rc" -ne 0
-printf '%s' "$complete_export" | grep -q 'run export evidence is incomplete'
-printf '%s' "$complete_export" | grep -q '"partial_export_available":true'
+grep -q 'run export evidence is incomplete' <<<"$complete_export"
+grep -q '"partial_export_available":true' <<<"$complete_export"
 partial_export="$($KUJO run "$ROOT/main.kujo" -- runs export "$paused_id" --partial --json)"
 printf '%s\n' "$partial_export" > "/tmp/relay-partial-export-contract-$$.json"
 python3 "$ROOT/scripts/validate_json.py" "$ROOT/schemas/run-export-partial.schema.json" "/tmp/relay-partial-export-contract-$$.json"
@@ -268,7 +268,7 @@ missing_changes="$($KUJO run "$ROOT/main.kujo" -- runs changes "$run_id" --json 
 missing_changes_rc=$?
 set -e
 test "$missing_changes_rc" -ne 0
-printf '%s' "$missing_changes" | grep -q 'run artifact evidence is missing'
+grep -q 'run artifact evidence is missing' <<<"$missing_changes"
 mv "$changes_path.missing" "$changes_path"
 
 mv "$changes_path" "$changes_path.missing"
@@ -277,8 +277,8 @@ missing_export_changes="$($KUJO run "$ROOT/main.kujo" -- runs export "$run_id" -
 missing_export_changes_rc=$?
 set -e
 test "$missing_export_changes_rc" -ne 0
-printf '%s' "$missing_export_changes" | grep -q 'run export evidence is incomplete'
-printf '%s' "$missing_export_changes" | grep -q '"changes_valid":false'
+grep -q 'run export evidence is incomplete' <<<"$missing_export_changes"
+grep -q '"changes_valid":false' <<<"$missing_export_changes"
 mv "$changes_path.missing" "$changes_path"
 
 evaluations_path="$run_dir/evaluations.json"
@@ -288,7 +288,7 @@ missing_evaluations="$($KUJO run "$ROOT/main.kujo" -- runs evaluations "$run_id"
 missing_evaluations_rc=$?
 set -e
 test "$missing_evaluations_rc" -ne 0
-printf '%s' "$missing_evaluations" | grep -q 'run artifact evidence is missing'
+grep -q 'run artifact evidence is missing' <<<"$missing_evaluations"
 mv "$evaluations_path.missing" "$evaluations_path"
 
 report_path="$run_dir/report.json"
@@ -298,8 +298,8 @@ missing_export_report="$($KUJO run "$ROOT/main.kujo" -- runs export "$run_id" --
 missing_export_report_rc=$?
 set -e
 test "$missing_export_report_rc" -ne 0
-printf '%s' "$missing_export_report" | grep -q 'run export evidence is incomplete'
-printf '%s' "$missing_export_report" | grep -q '"report_valid":false'
+grep -q 'run export evidence is incomplete' <<<"$missing_export_report"
+grep -q '"report_valid":false' <<<"$missing_export_report"
 mv "$report_path.missing" "$report_path"
 
 # The authoritative state event list must match the verified JSONL payloads,
@@ -313,7 +313,7 @@ state_divergence="$($KUJO run "$ROOT/main.kujo" -- runs events "$run_id" --json 
 state_divergence_rc=$?
 set -e
 test "$state_divergence_rc" -ne 0
-printf '%s' "$state_divergence" | grep -q '"state_consistent":false'
+grep -q '"state_consistent":false' <<<"$state_divergence"
 mv "$state_path.backup" "$state_path"
 
 cp "$events_path" "$events_path.backup"
@@ -325,7 +325,7 @@ truncated_events="$($KUJO run "$ROOT/main.kujo" -- runs events "$run_id" --json 
 truncated_rc=$?
 set -e
 test "$truncated_rc" -ne 0
-printf '%s' "$truncated_events" | grep -q '"state_consistent":false'
+grep -q '"state_consistent":false' <<<"$truncated_events"
 mv "$events_path.backup" "$events_path"
 
 # Integrity-sealed event records must fail closed when an on-disk payload is
@@ -336,13 +336,13 @@ tampered_events="$($KUJO run "$ROOT/main.kujo" -- runs events "$run_id" --json 2
 events_rc=$?
 set -e
 test "$events_rc" -ne 0
-printf '%s' "$tampered_events" | grep -q '"integrity_valid":false'
+grep -q '"integrity_valid":false' <<<"$tampered_events"
 
 set +e
 unknown="$($KUJO run "$ROOT/main.kujo" -- runs inspect attacker --json 2>&1)"
 rc=$?
 set -e
 test "$rc" -ne 0
-printf '%s' "$unknown" | grep -q 'unknown run'
+grep -q 'unknown run' <<<"$unknown"
 
 echo "PASS relay store smoke"

@@ -22,6 +22,6 @@ result="$($KUJO run "$ROOT/main.kujo" -- missions run "$ROOT/examples/step-budge
 rc=$?
 set -e
 test "$rc" -ne 0
-printf '%s' "$result" | grep -q '"class":"budget_exceeded"'
-printf '%s' "$result" | grep -q '"status":"failed"'
+grep -q '"class":"budget_exceeded"' <<<"$result"
+grep -q '"status":"failed"' <<<"$result"
 echo "PASS relay budget smoke"

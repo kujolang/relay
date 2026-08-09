@@ -37,7 +37,7 @@ unsafe_output="$($KUJO run "$ROOT/main.kujo" -- runs sizes "$run_id" --json 2>&1
 unsafe_status=$?
 set -e
 test "$unsafe_status" -ne 0
-printf '%s\n' "$unsafe_output" | grep -q "symbolic link"
+grep -q "symbolic link" <<<"$unsafe_output"
 rm "$run_dir/unsafe-link"
 
 # A single directory with more entries than the inventory budget is rejected
@@ -52,7 +52,7 @@ overflow_output="$($KUJO run "$ROOT/main.kujo" -- runs sizes "$run_id" --json 2>
 overflow_status=$?
 set -e
 test "$overflow_status" -ne 0
-printf '%s\n' "$overflow_output" | grep -q 'entry limit'
+grep -q 'entry limit' <<<"$overflow_output"
 rm -rf "$overflow"
 
 # A byte budget is required in addition to entry/depth budgets: thousands of
@@ -66,7 +66,7 @@ byte_output="$($KUJO run "$ROOT/main.kujo" -- runs sizes "$run_id" --json 2>&1)"
 byte_status=$?
 set -e
 test "$byte_status" -ne 0
-printf '%s\n' "$byte_output" | grep -q 'total byte limit'
+grep -q 'total byte limit' <<<"$byte_output"
 rm -rf "$byte_overflow"
 
 # Artifact inventory is bounded by both entry count and directory depth so a
@@ -82,6 +82,6 @@ deep_output="$($KUJO run "$ROOT/main.kujo" -- runs sizes "$run_id" --json 2>&1)"
 deep_status=$?
 set -e
 test "$deep_status" -ne 0
-printf '%s\n' "$deep_output" | grep -q '16-level directory depth limit'
+grep -q '16-level directory depth limit' <<<"$deep_output"
 
 echo "PASS relay sizes smoke"

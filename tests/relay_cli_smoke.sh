@@ -17,7 +17,7 @@ case "$doctor" in
   *'"ok":true'*'"mode":"fixture"'*) ;;
   *) echo "fixture doctor contract did not pass" >&2; exit 1 ;;
 esac
-printf '%s' "$doctor" | grep -q 'Relay source tree'
+grep -q 'Relay source tree' <<<"$doctor"
 printf '%s' "$doctor" | jq -e 'all(.checks[] | select(.name | endswith(" version")); .safe == true and (.version | length > 0))' >/dev/null
 printf '%s' "$doctor" | jq -e 'all(.checks[] | select(has("path") and .required == true); .safe == true)' >/dev/null
 capability_fixture="$(jq -cn --arg root "$ROOT" '{root:$root,run_id:"relay-doctor-stale",session_id:"relay-doctor-stale-session",workspace:"/tmp",nonce:"relay-doctor-stale-nonce",max_calls:1,ttl_ms:1000}')"
@@ -56,7 +56,7 @@ set -e
 rm -f "$unsafe_bridge"
 test "$unsafe_bridge_status" -ne 0
 printf '%s' "$unsafe_bridge_output" | jq -e '.error.code == "invalid_ai_bridge_path"' >/dev/null
-if printf '%s' "$unsafe_bridge_output" | grep -q "$unsafe_bridge"; then
+if grep -q "$unsafe_bridge" <<<"$unsafe_bridge_output"; then
   echo "unsafe AI bridge path leaked into output" >&2
   exit 1
 fi
@@ -128,15 +128,15 @@ case "$chat" in
 esac
 
 token_output="$(RELAY_WATCHDOG_PROXY_TOKEN='relay-test-proxy-token' "$KUJO" run "$ROOT/main.kujo" -- chat token-boundary --fixture --json)"
-printf '%s' "$token_output" | grep -q '"watchdog_auth_configured":true'
-if printf '%s' "$token_output" | grep -q 'relay-test-proxy-token'; then
+grep -q '"watchdog_auth_configured":true' <<<"$token_output"
+if grep -q 'relay-test-proxy-token' <<<"$token_output"; then
   echo "Watchdog proxy token leaked into fixture output" >&2
   exit 1
 fi
 
 route_output="$(RELAY_WATCHDOG_URL='https://watchdog.example.com/proxy/v1' "$KUJO" run "$ROOT/main.kujo" -- chat route-boundary --fixture --json)"
-printf '%s' "$route_output" | grep -q '"watchdog_route"'
-if printf '%s' "$route_output" | grep -q 'watchdog.example.com'; then
+grep -q '"watchdog_route"' <<<"$route_output"
+if grep -q 'watchdog.example.com' <<<"$route_output"; then
   echo "Watchdog route leaked into fixture telemetry" >&2
   exit 1
 fi
@@ -146,15 +146,15 @@ credential_route_output="$(RELAY_WATCHDOG_URL='https://user:route-secret@watchdo
 credential_route_status=$?
 set -e
 test "$credential_route_status" -ne 0
-printf '%s' "$credential_route_output" | grep -q '"reason":"embedded_credentials"'
-if printf '%s' "$credential_route_output" | grep -q 'route-secret\|watchdog.example.com'; then
+grep -q '"reason":"embedded_credentials"' <<<"$credential_route_output"
+if grep -q 'route-secret\|watchdog.example.com' <<<"$credential_route_output"; then
   echo "Credential-bearing Watchdog route leaked into fixture telemetry" >&2
   exit 1
 fi
 
 correlation_output="$(RELAY_CORRELATION_ID='relay&extra=1' "$KUJO" run "$ROOT/main.kujo" -- chat correlation-boundary --fixture --json)"
-printf '%s' "$correlation_output" | grep -q '"correlation_id":"relay-ai-'
-if printf '%s' "$correlation_output" | grep -q 'relay&extra=1'; then
+grep -q '"correlation_id":"relay-ai-' <<<"$correlation_output"
+if grep -q 'relay&extra=1' <<<"$correlation_output"; then
   echo "Unsafe correlation ID reached telemetry" >&2
   exit 1
 fi
@@ -164,22 +164,22 @@ invalid_watchdog="$(RELAY_OFFLINE_FIXTURE=false RELAY_WATCHDOG_URL='file:///tmp/
 watchdog_status=$?
 set -e
 test "$watchdog_status" -ne 0
-printf '%s' "$invalid_watchdog" | grep -q 'invalid_watchdog_route'
+grep -q 'invalid_watchdog_route' <<<"$invalid_watchdog"
 
 set +e
 external_http_watchdog="$(RELAY_OFFLINE_FIXTURE=false RELAY_WATCHDOG_URL='http://watchdog.example.com/proxy/v1' "$KUJO" run "$ROOT/main.kujo" -- chat external-http-route --json 2>&1)"
 external_http_status=$?
 set -e
 test "$external_http_status" -ne 0
-printf '%s' "$external_http_watchdog" | grep -q 'invalid_watchdog_route'
+grep -q 'invalid_watchdog_route' <<<"$external_http_watchdog"
 
 set +e
 unsafe_doctor="$(RELAY_OFFLINE_FIXTURE=false RELAY_WATCHDOG_URL='http://watchdog.example.com/proxy/v1' "$KUJO" run "$ROOT/main.kujo" -- doctor --json 2>&1)"
 unsafe_doctor_status=$?
 set -e
 test "$unsafe_doctor_status" -ne 0
-printf '%s' "$unsafe_doctor" | grep -q '"valid":false'
-if printf '%s' "$unsafe_doctor" | grep -q 'watchdog.example.com'; then
+grep -q '"valid":false' <<<"$unsafe_doctor"
+if grep -q 'watchdog.example.com' <<<"$unsafe_doctor"; then
   echo "doctor leaked the configured Watchdog route" >&2
   exit 1
 fi
@@ -189,8 +189,8 @@ credential_doctor="$(RELAY_OFFLINE_FIXTURE=false RELAY_WATCHDOG_URL='https://use
 credential_doctor_status=$?
 set -e
 test "$credential_doctor_status" -ne 0
-printf '%s' "$credential_doctor" | grep -q 'embedded_credentials'
-if printf '%s' "$credential_doctor" | grep -q 'route-secret\|watchdog.example.com'; then
+grep -q 'embedded_credentials' <<<"$credential_doctor"
+if grep -q 'route-secret\|watchdog.example.com' <<<"$credential_doctor"; then
   echo "doctor leaked an unsafe Watchdog route" >&2
   exit 1
 fi
@@ -200,15 +200,15 @@ unreachable_doctor="$(RELAY_OFFLINE_FIXTURE=false RELAY_WATCHDOG_URL='https://12
 unreachable_doctor_status=$?
 set -e
 test "$unreachable_doctor_status" -ne 0
-printf '%s' "$unreachable_doctor" | grep -q 'Watchdog HTTP request failed'
-if printf '%s' "$unreachable_doctor" | grep -q '127.0.0.1:1\|proxy/v1'; then
+grep -q 'Watchdog HTTP request failed' <<<"$unreachable_doctor"
+if grep -q '127.0.0.1:1\|proxy/v1' <<<"$unreachable_doctor"; then
   echo "doctor leaked the configured Watchdog endpoint on request failure" >&2
   exit 1
 fi
 
 stream="$($KUJO run "$ROOT/main.kujo" -- chat stream-boundary --fixture --stream --json)"
-printf '%s' "$stream" | grep -q '"type":"delta"'
-printf '%s' "$stream" | grep -q '"type":"done"'
+grep -q '"type":"delta"' <<<"$stream"
+grep -q '"type":"done"' <<<"$stream"
 test "$(printf '%s' "$stream" | grep -o '"type":"done"' | wc -l | tr -d ' ')" -eq 1
 
 set +e
@@ -226,6 +226,6 @@ invalid_tool="$($KUJO run "$ROOT/main.kujo" -- missions run "$ROOT/examples/inva
 tool_status=$?
 set -e
 test "$tool_status" -ne 0
-printf '%s' "$invalid_tool" | grep -q 'agent tool is not supported'
+grep -q 'agent tool is not supported' <<<"$invalid_tool"
 
 echo "PASS relay CLI smoke"
