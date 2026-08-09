@@ -192,6 +192,15 @@ func tool_definitions(allowlist) {
     return definitions
 }
 
+func canonical_provider_tool_name(value) {
+    name := string_or(value, "")
+    if name == "list_files" || name == "relay_list_files" { return "relay.list_files" }
+    if name == "read_file" || name == "relay_read_file" { return "relay.read_file" }
+    if name == "write_file" || name == "relay_write_file" { return "relay.write_file" }
+    if name == "run_command" || name == "relay_run_command" { return "relay.run_command" }
+    return name
+}
+
 func normalize_provider_tool_calls(raw_calls) {
     if type(raw_calls) != "array" { return {"ok": false, "error": "provider tool call payload must be an array"} }
     calls := []
@@ -201,7 +210,7 @@ func normalize_provider_tool_calls(raw_calls) {
         if type(item) != "dict" { return {"ok": false, "error": "provider tool call must be an object"} }
         function := dict_get_or(item, "function", {})
         if type(function) != "dict" { function = {} }
-        name := string_or(dict_get_or(item, "tool_name", dict_get_or(item, "name", dict_get_or(function, "name", ""))), "")
+        name := canonical_provider_tool_name(dict_get_or(item, "tool_name", dict_get_or(item, "name", dict_get_or(function, "name", ""))))
         raw_input := dict_get_or(item, "input", dict_get_or(item, "arguments", dict_get_or(function, "arguments", {})))
         input := raw_input
         if type(raw_input) == "string" {

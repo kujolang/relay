@@ -195,6 +195,8 @@ failed = failed + check("provider tool definitions are bounded", len(provider_to
 failed = failed + check("provider read tool supports bounded continuation", has_key(provider_tools[1]["function"]["parameters"]["properties"], "offset"))
 normalized_provider_tools := normalize_provider_tool_calls([{"id": "call-1", "function": {"name": "relay.write_file", "arguments": "{\"path\":\"out.txt\",\"content\":\"ok\"}"}}])
 failed = failed + check("provider tool calls normalize", normalized_provider_tools["ok"] && normalized_provider_tools["calls"][0]["name"] == "relay.write_file" && normalized_provider_tools["calls"][0]["input"]["path"] == "out.txt")
+provider_tool_aliases := normalize_provider_tool_calls([{"id": "call-short", "function": {"name": "write_file", "arguments": "{\"path\":\"short.txt\",\"content\":\"ok\"}"}}, {"id": "call-underscore", "function": {"name": "relay_run_command", "arguments": "{\"command\":\"git diff --check\"}"}}])
+failed = failed + check("provider tool aliases normalize to Relay authority", provider_tool_aliases["ok"] && provider_tool_aliases["calls"][0]["name"] == "relay.write_file" && provider_tool_aliases["calls"][1]["name"] == "relay.run_command")
 failed = failed + check("malformed provider tool arguments reject", normalize_provider_tool_calls([{"function": {"name": "relay.write_file", "arguments": "not-json"}}])["ok"] == false)
 duplicate_provider_tools := normalize_provider_tool_calls([{"id": "same", "function": {"name": "relay.write_file", "arguments": "{\"path\":\"a\",\"content\":\"x\"}"}}, {"id": "same", "function": {"name": "relay.write_file", "arguments": "{\"path\":\"b\",\"content\":\"y\"}"}}])
 failed = failed + check("duplicate provider tool IDs reject", duplicate_provider_tools["ok"] == false)
