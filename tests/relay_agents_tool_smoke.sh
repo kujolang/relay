@@ -37,10 +37,15 @@ issue_capability() {
   RELAY_CAPABILITY_FIXTURE="$fixture" "$KUJO" run "$ROOT/tests/relay_capability_fixture.kujo" --interpreter
 }
 
-result="$($KUJO run "$ROOT/main.kujo" -- missions run "$ROOT/examples/agents-sdk-tools-mission.json" --fixture --skip-agent-smoke --json)"
-[[ "$result" == *'"status":"completed"'* ]]
-[[ "$result" == *'"agents_sdk_tools"'* ]]
-[[ "$result" == *'"kind":"agents_sdk_tool_registry"'* ]]
+set +e
+result="$("$KUJO" run "$ROOT/main.kujo" -- missions run "$ROOT/examples/agents-sdk-tools-mission.json" --fixture --skip-agent-smoke --json)"
+result_exit=$?
+set -e
+if [[ "$result_exit" -ne 0 ]] || ! printf '%s' "$result" | jq -e '.ok == true and .run.status == "completed" and .run.agent_sdk_tools.ok == true and (.run.events | any(.payload.kind == "agents_sdk_tool_registry"))' >/dev/null; then
+  echo "Relay Agents SDK fixture mission did not satisfy its JSON contract" >&2
+  printf '%s' "$result" | jq -c '{ok, error, run: {status: .run.status, failure: .run.failure, agent_sdk_tools: .run.agent_sdk_tools}}' >&2 || true
+  exit 1
+fi
 test -f "$WORK/RELAY_AGENT_TOOL_OUTPUT.txt"
 grep -q 'Agents SDK tool registry' "$WORK/RELAY_AGENT_TOOL_OUTPUT.txt"
 
