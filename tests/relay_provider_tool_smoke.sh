@@ -102,7 +102,7 @@ set -e
 test "$tampered_tool_results_rc" -ne 0
 printf '%s' "$tampered_tool_results" | jq -e '.ok == false and .tool_results_required == true and .tool_results_valid == false and .integrity_valid == false' >/dev/null
 mv "$RELAY_STATE_ROOT/runs/$run_id/tool-results.json.backup" "$RELAY_STATE_ROOT/runs/$run_id/tool-results.json"
-if printf '%s' "$result" | grep -q 'relay-proxy-token\|relay-api-token\|relay-stub-provider-key'; then
+if grep -q 'relay-proxy-token\|relay-api-token\|relay-stub-provider-key' <<<"$result"; then
   echo "provider tool smoke leaked a credential" >&2
   exit 1
 fi

@@ -20,8 +20,8 @@ ruby -rjson -e 'spec=JSON.parse(File.read(ARGV.fetch(0))); spec["repository"]=AR
 
 export RELAY_ROOT="$ROOT"
 paused="$($KUJO run "$ROOT/main.kujo" -- missions run "$SPEC" --fixture --pause-after-plan --json)"
-printf '%s' "$paused" | grep -q '"ok":true'
-printf '%s' "$paused" | grep -q '"status":"paused"'
+grep -q '"ok":true' <<<"$paused"
+grep -q '"status":"paused"' <<<"$paused"
 run_id="$(printf '%s' "$paused" | ruby -rjson -e 'print JSON.parse(STDIN.read)["run"]["run_id"]')"
 run_dir="$RELAY_STATE_ROOT/runs/$run_id"
 test -n "$run_id"
@@ -34,7 +34,7 @@ workspace_tamper="$($KUJO run "$ROOT/main.kujo" -- missions resume "$run_id" --j
 workspace_rc=$?
 set -e
 test "$workspace_rc" -ne 0
-printf '%s' "$workspace_tamper" | grep -q 'state_integrity_failure'
+grep -q 'state_integrity_failure' <<<"$workspace_tamper"
 test ! -e "$WORK/RESUME_INTEGRITY_OUTPUT.txt"
 
 cp "$run_dir/state.clean.json" "$run_dir/state.json"
@@ -44,13 +44,13 @@ policy_tamper="$($KUJO run "$ROOT/main.kujo" -- missions resume "$run_id" --json
 policy_rc=$?
 set -e
 test "$policy_rc" -ne 0
-printf '%s' "$policy_tamper" | grep -q 'state_integrity_failure'
+grep -q 'state_integrity_failure' <<<"$policy_tamper"
 test ! -e "$WORK/RESUME_INTEGRITY_OUTPUT.txt"
 
 cp "$run_dir/state.clean.json" "$run_dir/state.json"
 cancelled="$($KUJO run "$ROOT/main.kujo" -- missions cancel "$run_id" --json)"
-printf '%s' "$cancelled" | grep -q '"ok":true'
-printf '%s' "$cancelled" | grep -q '"status":"cancelled"'
+grep -q '"ok":true' <<<"$cancelled"
+grep -q '"status":"cancelled"' <<<"$cancelled"
 test ! -e "$WORK/RESUME_INTEGRITY_OUTPUT.txt"
 
 echo "PASS relay resume integrity smoke"

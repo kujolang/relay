@@ -89,6 +89,6 @@ dangling_watch_output="$($KUJO run "$ROOT/main.kujo" -- runs watch "$run_id" --p
 dangling_watch_status=$?
 set -e
 test "$dangling_watch_status" -ne 0
-printf '%s' "$dangling_watch_output" | grep -q 'symbolic link'
+grep -q 'symbolic link' <<<"$dangling_watch_output"
 
 echo "PASS relay watch event disappearance smoke"

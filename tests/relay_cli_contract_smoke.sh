@@ -12,10 +12,10 @@ trap 'rm -rf "$RELAY_TEST_TMP_ROOT"' EXIT
 version="$($ROOT/bin/relay --version)"
 test "$version" = "relay 1.0.0"
 help="$($ROOT/bin/relay --help)"
-printf '%s' "$help" | grep -q 'Relay 1.0.0'
-printf '%s' "$help" | grep -q 'chat <prompt>'
-printf '%s' "$help" | grep -q 'missions create'
-printf '%s' "$help" | grep -q 'runs list'
+grep -q 'Relay 1.0.0' <<<"$help"
+grep -q 'chat <prompt>' <<<"$help"
+grep -q 'missions create' <<<"$help"
+grep -q 'runs list' <<<"$help"
 
 set +e
 unknown="$($ROOT/bin/relay unknown-command 2>&1)"
@@ -25,7 +25,7 @@ missing_chat_status=$?
 set -e
 test "$unknown_status" -eq 2
 test "$missing_chat_status" -eq 1
-printf '%s' "$unknown" | grep -q 'Usage: relay'
+grep -q 'Usage: relay' <<<"$unknown"
 printf '%s' "$missing_chat" | jq -e '.ok == false and (.error | contains("prompt"))' >/dev/null
 
 "$ROOT/bin/relay" chat "Summarize the mission boundary" --fixture --json > "$RELAY_TEST_TMP_ROOT/chat.json"

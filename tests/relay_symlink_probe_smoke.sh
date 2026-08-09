@@ -32,12 +32,12 @@ printf 'relay-atomic-target' > "$atomic_target"
 ln -s "$atomic_target" "$atomic_link"
 
 output="$(RELAY_SYMLINK_PROBE_PATH="$probe" RELAY_EXPECT_SYMLINK_PROBE=true RELAY_STORE_PROBE_PATH="$parent_link/.relay" RELAY_DEPENDENCY_PROBE_PATH="$dependency_link/kujo" RELAY_DANGLING_APPEND_PATH="$dangling_append_link" RELAY_DANGLING_CANCEL_RUN_DIR="$dangling_cancel_dir" RELAY_ATOMIC_PROBE_PATH="$atomic_link" RELAY_ATOMIC_TARGET_PATH="$atomic_target" "$KUJO" run "$ROOT/tests/relay_contract_tests.kujo" --interpreter)"
-printf '%s\n' "$output" | grep -q 'PASS configured symlink probe boundary'
-printf '%s\n' "$output" | grep -q 'PASS parent symlink store rejected'
-printf '%s\n' "$output" | grep -q 'PASS parent symlink dependency rejected'
-printf '%s\n' "$output" | grep -q 'PASS dangling JSONL append rejected'
-printf '%s\n' "$output" | grep -q 'PASS dangling cancellation request rejected'
-printf '%s\n' "$output" | grep -q 'PASS atomic write replaces link safely'
+grep -q 'PASS configured symlink probe boundary' <<<"$output"
+grep -q 'PASS parent symlink store rejected' <<<"$output"
+grep -q 'PASS parent symlink dependency rejected' <<<"$output"
+grep -q 'PASS dangling JSONL append rejected' <<<"$output"
+grep -q 'PASS dangling cancellation request rejected' <<<"$output"
+grep -q 'PASS atomic write replaces link safely' <<<"$output"
 test ! -e "$dangling_append_target"
 test -f "$atomic_link" && test ! -L "$atomic_link"
 test "$(cat "$atomic_target")" = 'relay-atomic-target'

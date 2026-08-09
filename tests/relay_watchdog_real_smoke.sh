@@ -63,13 +63,13 @@ export OPENAI_API_KEY=relay-stub-provider-key
 export KUJO_AI_SDK_ALLOW_INSECURE_LOCALHOST=true
 
 result="$($KUJO run "$ROOT/main.kujo" -- chat watchdog-real-smoke --model stub-model --provider openai-compatible --json)"
-printf '%s' "$result" | grep -q 'relay-watchdog-upstream-ok'
-printf '%s' "$result" | grep -q '"ok":true'
-printf '%s' "$result" | grep -q '"route":"watchdog_proxy"'
-printf '%s' "$result" | grep -q '"matched":true'
-printf '%s' "$result" | grep -q '"usage_reconciliation"'
-printf '%s' "$result" | grep -q '"correlation_id":"relay-real-watchdog-correlation"'
-if printf '%s' "$result" | grep -q 'relay-proxy-token\|relay-api-token\|relay-stub-provider-key'; then
+grep -q 'relay-watchdog-upstream-ok' <<<"$result"
+grep -q '"ok":true' <<<"$result"
+grep -q '"route":"watchdog_proxy"' <<<"$result"
+grep -q '"matched":true' <<<"$result"
+grep -q '"usage_reconciliation"' <<<"$result"
+grep -q '"correlation_id":"relay-real-watchdog-correlation"' <<<"$result"
+if grep -q 'relay-proxy-token\|relay-api-token\|relay-stub-provider-key' <<<"$result"; then
   echo "Watchdog/provider secret leaked into output" >&2
   exit 1
 fi

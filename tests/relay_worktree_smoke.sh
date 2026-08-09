@@ -19,9 +19,9 @@ baseline="$(git -C "$WORK" rev-parse HEAD)"
 
 export RELAY_ROOT="$ROOT"
 result="$($KUJO run "$ROOT/main.kujo" -- missions run "$ROOT/examples/worktree-mission.json" --fixture --skip-agent-smoke --json)"
-printf '%s' "$result" | grep -q '"ok":true'
-printf '%s' "$result" | grep -q '"status":"completed"'
-printf '%s' "$result" | grep -q '"mode":"worktree"'
+grep -q '"ok":true' <<<"$result"
+grep -q '"status":"completed"' <<<"$result"
+grep -q '"mode":"worktree"' <<<"$result"
 run_dir="$(printf '%s' "$result" | ruby -rjson -e 'd=JSON.parse(STDIN.read); print d["run_dir"]')"
 test -f "$run_dir/workspace/WORKTREE_OUTPUT.txt"
 test ! -e "$WORK/WORKTREE_OUTPUT.txt"
@@ -34,15 +34,15 @@ tampered_cleanup="$($KUJO run "$ROOT/main.kujo" -- missions cleanup "$(printf '%
 tampered_rc=$?
 set -e
 test "$tampered_rc" -ne 0
-printf '%s' "$tampered_cleanup" | grep -q 'state_integrity_failure'
+grep -q 'state_integrity_failure' <<<"$tampered_cleanup"
 mv "$state_path.backup" "$state_path"
 set +e
 cleanup="$($KUJO run "$ROOT/main.kujo" -- missions cleanup "$(printf '%s' "$result" | ruby -rjson -e 'd=JSON.parse(STDIN.read); print d["run"]["run_id"]')" --json 2>&1)"
 rc=$?
 set -e
 test "$rc" -ne 0
-printf '%s' "$cleanup" | grep -q 'requires --confirm'
+grep -q 'requires --confirm' <<<"$cleanup"
 cleanup="$($KUJO run "$ROOT/main.kujo" -- missions cleanup "$(printf '%s' "$result" | ruby -rjson -e 'd=JSON.parse(STDIN.read); print d["run"]["run_id"]')" --confirm --json)"
-printf '%s' "$cleanup" | grep -q '"cleaned":true'
+grep -q '"cleaned":true' <<<"$cleanup"
 test ! -e "$run_dir/workspace"
 echo "PASS relay worktree smoke"

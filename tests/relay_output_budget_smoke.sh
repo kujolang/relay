@@ -18,9 +18,9 @@ git -C "$WORK" commit -qm baseline
 
 export RELAY_ROOT="$ROOT"
 result="$($KUJO run "$ROOT/main.kujo" -- missions run "$ROOT/examples/output-budget-mission.json" --fixture --skip-agent-smoke --json)"
-printf '%s' "$result" | grep -q '"status":"completed"'
-printf '%s' "$result" | grep -q '"max_output_bytes":16'
-printf '%s' "$result" | grep -q '"output_truncated":true'
+grep -q '"status":"completed"' <<<"$result"
+grep -q '"max_output_bytes":16' <<<"$result"
+grep -q '"output_truncated":true' <<<"$result"
 test -f "$WORK/OUTPUT_BUDGET.txt"
 
 invalid="$WORK/invalid-timeout.json"
@@ -30,5 +30,5 @@ rejected="$($KUJO run "$ROOT/main.kujo" -- missions run "$invalid" --fixture --j
 rc=$?
 set -e
 test "$rc" -ne 0
-printf '%s' "$rejected" | grep -q 'timeout_ms must be between'
+grep -q 'timeout_ms must be between' <<<"$rejected"
 echo "PASS relay output budget smoke"
