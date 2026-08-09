@@ -5,6 +5,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 WORKCELL_ROOT="${WORKCELL_ROOT:-$ROOT/../workcell}"
 KUJO="${KUJO:-${KUJO_BIN:-$ROOT/../kujo/target/release/kujo}}"
 OUTPUT="${1:-}"
+HOST_TMP="${WORKCELL_HOST_TMP:-$ROOT/../.workcell-host-tmp}"
 
 test -n "$OUTPUT" && test ! -e "$OUTPUT"
 test -x "$KUJO"
@@ -13,13 +14,15 @@ test -z "$(git -C "$ROOT" status --porcelain)"
 test "$(git -C "$WORKCELL_ROOT" rev-parse HEAD)" = "$(jq -r '.dependencies.workcell.revision' "$ROOT/release/dependencies.json")"
 test "$(git -C "$ROOT" rev-parse HEAD)" = "${RELAY_EXPECTED_COMMIT:-$(git -C "$ROOT" rev-parse HEAD)}"
 mkdir -p "$OUTPUT"
+mkdir -p "$HOST_TMP"
+HOST_TMP="$(cd "$HOST_TMP" && pwd -P)"
 
 if ! docker image inspect kujolang/workcell-base:local >/dev/null 2>&1; then
   docker build --tag kujolang/workcell-base:local "$WORKCELL_ROOT/docker"
 fi
 
 before_success="$(find "$ROOT/.workcell/runs" -mindepth 1 -maxdepth 1 -type d -print 2>/dev/null | sort || true)"
-KUJO="$KUJO" "$WORKCELL_ROOT/bin/workcell" run --file "$ROOT/docs/workcell-launch-gate.json" --repo "$ROOT" --no-pull > "$OUTPUT/success-run.txt"
+TMPDIR="$HOST_TMP" KUJO="$KUJO" "$WORKCELL_ROOT/bin/workcell" run --file "$ROOT/docs/workcell-launch-gate.json" --repo "$ROOT" --no-pull > "$OUTPUT/success-run.txt"
 success_dir="$(comm -13 <(printf '%s\n' "$before_success" | sed '/^$/d') <(find "$ROOT/.workcell/runs" -mindepth 1 -maxdepth 1 -type d -print | sort) | tail -1)"
 test -n "$success_dir"
 KUJO="$KUJO" "$WORKCELL_ROOT/bin/workcell" verify --run "$success_dir" --json > "$OUTPUT/success-verify.json"
@@ -27,7 +30,7 @@ jq -e '.ok == true' "$OUTPUT/success-verify.json" >/dev/null
 
 before_failure="$(find "$ROOT/.workcell/runs" -mindepth 1 -maxdepth 1 -type d -print | sort)"
 set +e
-KUJO="$KUJO" "$WORKCELL_ROOT/bin/workcell" run --file "$ROOT/docs/workcell-failure-gate.json" --repo "$ROOT" --no-pull > "$OUTPUT/failure-run.txt" 2>&1
+TMPDIR="$HOST_TMP" KUJO="$KUJO" "$WORKCELL_ROOT/bin/workcell" run --file "$ROOT/docs/workcell-failure-gate.json" --repo "$ROOT" --no-pull > "$OUTPUT/failure-run.txt" 2>&1
 failure_status=$?
 set -e
 test "$failure_status" -eq 7
