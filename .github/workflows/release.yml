@@ -7,8 +7,13 @@ on:
         description: Existing verified tag; required only when publish_release is enabled
         required: false
         type: string
+      run_live_provider:
+        description: Run the approval-gated live-provider proof without publishing
+        required: true
+        default: false
+        type: boolean
       publish_release:
-        description: Run approval-gated live proof and publish the existing verified tag
+        description: Run the live proof and publish the existing verified tag
         required: true
         default: false
         type: boolean
@@ -123,7 +128,7 @@ jobs:
           retention-days: 90
 
   live-provider:
-    if: github.event_name == 'workflow_dispatch' && inputs.publish_release == true
+    if: github.event_name == 'workflow_dispatch' && (inputs.run_live_provider == true || inputs.publish_release == true)
     needs: [gates, workcell]
     environment: release
     runs-on: ubuntu-24.04
