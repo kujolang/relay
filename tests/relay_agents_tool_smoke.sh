@@ -26,6 +26,17 @@ git -C "$WORK" commit -qm baseline
 
 export RELAY_ROOT="$ROOT"
 
+expect_contains() {
+  local value="$1"
+  local expected="$2"
+  local label="$3"
+  if [[ "$value" != *"$expected"* ]]; then
+    echo "FAIL relay Agents SDK tool smoke: $label" >&2
+    printf '%s' "$value" | jq -c '{ok, error_kind, error_message, error, tool_calls: [.tool_calls[]? | {ok, error_kind, error_message, output_error: .output.error}]}' >&2 || echo "Bridge result was not JSON" >&2
+    return 1
+  fi
+}
+
 issue_capability() {
   local run_id="$1"
   local session_id="$2"
@@ -73,7 +84,7 @@ denied_output="$(cd "$AGENTS_SDK" && RELAY_AGENT_PAYLOAD="$denied_payload" "$KUJ
 denied_exit=$?
 set -e
 test "$denied_exit" -ne 0
-[[ "$denied_output" == *'"error_kind":"approval_denied"'* ]]
+expect_contains "$denied_output" '"error_kind":"approval_denied"' "approval denial result"
 test ! -e "$WORK/RELAY_AGENT_TOOL_DENIED.txt"
 
 tampered_payload="$(printf '%s' "$denied_payload" | jq '.relay_root="/tmp" | .approval_approved=true | .mission_spec.approval.approved=true')"
@@ -82,7 +93,7 @@ tampered_output="$(cd "$AGENTS_SDK" && RELAY_AGENT_PAYLOAD="$tampered_payload" "
 tampered_exit=$?
 set -e
 test "$tampered_exit" -ne 0
-[[ "$tampered_output" == *'relay_root_mismatch'* ]]
+expect_contains "$tampered_output" 'Agents SDK worker root must match trusted RELAY_ROOT' "tampered Relay root rejection"
 test ! -e "$WORK/RELAY_AGENT_TOOL_DENIED.txt"
 
 direct_nonce="relay-direct-policy-private-nonce"
@@ -95,7 +106,7 @@ direct_output="$(RELAY_TOOL_REQUEST="$direct_payload" RELAY_TOOL_CAPABILITY="$di
 direct_exit=$?
 set -e
 test "$direct_exit" -ne 0
-[[ "$direct_output" == *'write-enabled tool requests require approval.approved=true'* ]]
+expect_contains "$direct_output" 'write-enabled tool requests require approval.approved=true' "direct write approval rejection"
 test ! -e "$WORK/RELAY_AGENT_TOOL_DIRECT_DENIED.txt"
 
 replay_nonce="relay-replay-smoke-private-nonce"
@@ -110,7 +121,7 @@ replay_second="$(RELAY_TOOL_REQUEST="$replay_payload" RELAY_TOOL_CAPABILITY="$re
 replay_exit=$?
 set -e
 test "$replay_exit" -ne 0
-[[ "$replay_second" == *'capability_replay_detected'* ]]
+expect_contains "$replay_second" 'capability_replay_detected' "capability replay rejection"
 
 expiry_nonce="relay-expiry-smoke-private-nonce"
 expiry_capability="$(printf '%s' "relay-expiry-smoke|relay-expiry-smoke-session|$WORK|$expiry_nonce|relay-agent-tools" | shasum -a 256 | awk '{print $1}')"
@@ -123,7 +134,7 @@ expiry_output="$(RELAY_TOOL_REQUEST="$expiry_payload" RELAY_TOOL_CAPABILITY="$ex
 expiry_exit=$?
 set -e
 test "$expiry_exit" -ne 0
-[[ "$expiry_output" == *'capability_expired'* ]]
+expect_contains "$expiry_output" 'capability_expired' "capability expiry rejection"
 
 legacy_payload="$(printf '%s' "$direct_payload" | jq 'del(.capability_nonce)')"
 set +e
@@ -131,7 +142,7 @@ legacy_output="$(RELAY_TOOL_REQUEST="$legacy_payload" RELAY_TOOL_CAPABILITY="$di
 legacy_exit=$?
 set -e
 test "$legacy_exit" -ne 0
-[[ "$legacy_output" == *'tool capability is invalid'* ]]
+expect_contains "$legacy_output" 'tool capability is invalid' "legacy capability rejection"
 
 timeout_payload="$(jq -cn --arg work "$WORK" --arg capability "$direct_capability" --arg nonce "$direct_nonce" '{capability:$capability,capability_nonce:$nonce,run_id:"relay-direct-policy",session_id:"relay-direct-policy-session",workspace:$work,mission_spec:{allow_writes:false,approval:{approved:false},allowed_commands:["git"],budgets:{max_output_bytes:1048576,max_write_bytes:1048576}},tool_name:"relay.run_command",input:{command:"git status --short",timeout_ms:0}}')"
 set +e
@@ -139,7 +150,7 @@ timeout_output="$(RELAY_TOOL_REQUEST="$timeout_payload" RELAY_TOOL_CAPABILITY="$
 timeout_exit=$?
 set -e
 test "$timeout_exit" -ne 0
-[[ "$timeout_output" == *'tool timeout_ms must be between 1 and 600000'* ]]
+expect_contains "$timeout_output" 'tool timeout_ms must be between 1 and 600000' "timeout bound rejection"
 
 secret_failure_payload="$(jq -cn --arg root "$ROOT" --arg kujo "$KUJO" --arg work "$WORK" --arg capability "$direct_capability" --arg nonce "$direct_nonce" --arg secret "$direct_secret" '{relay_root:$root,kujo_bin:$kujo,capability:$capability,capability_nonce:$nonce,capability_secret:$secret,run_id:"relay-direct-policy",session_id:"relay-direct-policy-session",workspace:$work,approval_approved:false,mission_spec:{allow_writes:false,approval:{approved:false},allowed_commands:["git"],budgets:{max_output_bytes:1048576,max_write_bytes:1048576}},tool_calls:[{name:"relay.run_command",input:{command:"git status --short"}}],output_text:"Authorization: Bearer sk-secret-leak-probe"}')"
 set +e
@@ -154,11 +165,11 @@ fi
 
 budget_payload="$(jq -cn --arg work "$WORK" --arg capability "$direct_capability" --arg nonce "$direct_nonce" '{capability:$capability,capability_nonce:$nonce,run_id:"relay-direct-policy",session_id:"relay-direct-policy-session",workspace:$work,mission_spec:{allow_writes:false,approval:{approved:false},allowed_commands:["git"],budgets:{max_output_bytes:0,max_write_bytes:1048576}},tool_name:"relay.run_command",input:{command:"git status --short"}}')"
 set +e
-budget_output="$(RELAY_TOOL_REQUEST="$budget_payload" RELAY_TOOL_CAPABILITY="$direct_capability" "$KUJO" run "$ROOT/main.kujo" -- tools execute --json 2>&1)"
+budget_output="$(RELAY_TOOL_REQUEST="$budget_payload" RELAY_TOOL_CAPABILITY="$direct_capability" RELAY_TOOL_CAPABILITY_SECRET="$direct_secret" "$KUJO" run "$ROOT/main.kujo" -- tools execute --json 2>&1)"
 budget_exit=$?
 set -e
 test "$budget_exit" -ne 0
-[[ "$budget_output" == *'tool budgets must be between 1 and 8388608 bytes'* ]]
+expect_contains "$budget_output" 'tool budgets must be between 1 and 8388608 bytes' "invalid byte budget rejection"
 
 budget_nonce="relay-budget-smoke-private-nonce"
 budget_capability="$(printf '%s' "relay-budget-smoke|relay-budget-smoke-session|$WORK|$budget_nonce|relay-agent-tools" | shasum -a 256 | awk '{print $1}')"
@@ -170,6 +181,6 @@ budget_output="$(cd "$AGENTS_SDK" && RELAY_AGENT_PAYLOAD="$budget_payload" "$KUJ
 budget_exit=$?
 set -e
 test "$budget_exit" -ne 0
-[[ "$budget_output" == *'budget_exceeded'* ]]
+expect_contains "$budget_output" 'Tool capability call budget is exhausted' "tool-call budget rejection"
 
 echo "PASS relay Agents SDK tool smoke"
