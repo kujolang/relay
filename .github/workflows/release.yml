@@ -223,7 +223,8 @@ jobs:
         shell: bash
         env:
           KUJO_BIN: ${{ github.workspace }}/kujo/target/release/kujo
-          KUJO_AI_SDK_PATH: ${{ github.workspace }}/ai-sdk
+          RELAY_AI_SDK_PATH: ${{ github.workspace }}/ai-sdk
+          RELAY_AGENTS_SDK_PATH: ${{ github.workspace }}/agents-sdk
           KUJO_AGENTS_PATH: ${{ github.workspace }}/kujo-agents
           RELAY_PACKWRITE_ROOT: ${{ github.workspace }}/packwrite
           RELAY_RUNLEDGER_ROOT: ${{ github.workspace }}/runledger

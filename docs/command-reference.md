@@ -14,7 +14,8 @@ This document defines the stable Relay 1.x CLI. Relay commands return process ex
 | `RELAY_PACKWRITE_ROOT` / `RELAY_RUNLEDGER_ROOT` / `RELAY_CHANGEBUCKET_ROOT` | Trusted sibling roots used for entrypoints and module context | ecosystem sibling directories |
 | `RELAY_EVAL_ENTRY` / `RELAY_CAPSULE_BIN` | Optional Eval entrypoint or Capsule binary | ecosystem paths |
 | `RELAY_STATE_ROOT` | Local state/evidence root | `<RELAY_ROOT>/.relay` |
-| `KUJO_AGENTS_PATH` / `KUJO_AI_SDK_PATH` | Trusted Agents SDK catalog and AI SDK source roots | ecosystem sibling directories |
+| `KUJO_AGENTS_PATH` | Trusted Kujo agent catalog root | `../kujo-agents` |
+| `RELAY_AI_SDK_PATH` / `RELAY_AGENTS_SDK_PATH` | Trusted AI SDK and Agents SDK source roots | ecosystem sibling directories |
 | `RELAY_OFFLINE_FIXTURE` | Select deterministic fixture mode | `true` |
 | `RELAY_WATCHDOG_URL` | Watchdog-compatible OpenAI base URL for live calls | required when live |
 | `RELAY_WATCHDOG_PROXY_TOKEN` | Optional Watchdog proxy-route token forwarded as a bounded request header | unset |

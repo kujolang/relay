@@ -123,7 +123,8 @@ jobs:
         env:
           KUJO_BIN: ${{ github.workspace }}/kujo/target/release/kujo
           KUJO_SOURCE_ROOT: ${{ github.workspace }}/kujo
-          KUJO_AI_SDK_PATH: ${{ github.workspace }}/ai-sdk
+          RELAY_AI_SDK_PATH: ${{ github.workspace }}/ai-sdk
+          RELAY_AGENTS_SDK_PATH: ${{ github.workspace }}/agents-sdk
           KUJO_AGENTS_PATH: ${{ github.workspace }}/kujo-agents
           RELAY_WATCHDOG_ROOT: ${{ github.workspace }}/watchdog
           RELAY_PACKWRITE_ROOT: ${{ github.workspace }}/packwrite
