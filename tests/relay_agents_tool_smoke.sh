@@ -16,6 +16,7 @@ WORK="/tmp/relay-agents-sdk-tools-workspace"
 rm -rf "$WORK"
 rm -rf "$RELAY_STATE_ROOT/capabilities"
 trap 'rm -rf "$RELAY_STATE_ROOT/capabilities"' EXIT
+trap 'echo "FAIL relay Agents SDK tool smoke at line $LINENO" >&2' ERR
 mkdir -p "$WORK"
 git init -q "$WORK"
 git -C "$WORK" config user.email relay@example.invalid
