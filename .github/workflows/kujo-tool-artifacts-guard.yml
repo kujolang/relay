@@ -2,6 +2,8 @@ name: kujo-tool-artifacts-guard
 
 on:
   push:
+    branches:
+      - main
   pull_request:
 
 permissions:
