@@ -24,7 +24,7 @@ printf '%s' "$result" | grep -q '"output_truncated":true'
 test -f "$WORK/OUTPUT_BUDGET.txt"
 
 invalid="$WORK/invalid-timeout.json"
-printf '%s' '{"name":"invalid-timeout","goal":"reject","repository":"/tmp/relay-output-budget-workspace","actions":[{"type":"run_command","command":"git status --short","timeout_ms":0}]}' > "$invalid"
+printf '%s' '{"version":"1.0.0","name":"invalid-timeout","goal":"reject","repository":"/tmp/relay-output-budget-workspace","actions":[{"type":"run_command","command":"git status --short","timeout_ms":0}]}' > "$invalid"
 set +e
 rejected="$($KUJO run "$ROOT/main.kujo" -- missions run "$invalid" --fixture --json 2>&1)"
 rc=$?

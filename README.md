@@ -1,232 +1,160 @@
 # Kujo Relay
 
-Kujo Relay is a Kujo-native composition and execution layer for bounded agent missions. The CLI is a thin wrapper over reusable runtime modules. It composes existing AI SDK, Agents SDK, PackWrite, RunLedger, ChangeBucket, Eval, Capsule, and Chain of Command contracts instead of replacing them.
+![Version 1.0.0](https://img.shields.io/badge/version-1.0.0-blue)
+[![MIT License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+[![CI](https://github.com/kujolang/relay/actions/workflows/ci.yml/badge.svg)](https://github.com/kujolang/relay/actions/workflows/ci.yml)
+[![Built with Kujo](https://img.shields.io/badge/built%20with-Kujo-6f42c1)](https://github.com/kujolang/kujo)
 
-Status: `0.1.0` hardened local alpha. Offline execution, bounded repository work, bounded mission-spec inputs, bounded JSON evidence parsing, bounded AI/Agents SDK/tool bridge payloads, bounded provider request/response sizes, bounded provider tool arguments and unique tool-call IDs, hash-pinned repository script execution, recursively manifest-verified PackWrite packets, validated and secret-safe live Watchdog route posture with HTTPS required for non-loopback hosts, non-disclosing Watchdog route posture in diagnostics and AI telemetry, bounded safe correlation IDs, dependency-integrity doctor checks that reject unsafe required files and symlinked executables, deterministic upstream version probes and optional SHA-256 dependency pinning in `doctor --json`, dangerous dynamic-loader/interpreter/Git/proxy override credential environment names rejected before bridge spawn, explicit cancellation/timeout failure classes in action evidence, bounded JSONL event/receipt evidence, race-safe concurrent store probes, descendant-safe cancellation through the Kujo process-group runtime, trusted Agents SDK worker-root binding, trusted in-tree AI bridge source enforcement, integrity-bound run state, resume, pause, cancel, and worktree cleanup controls, explicit bounded repair replay with typed start/completion/failure receipts and a four-attempt ceiling, fail-closed evidence persistence, required ChangeBucket/Eval/report artifact verification, RunLedger finish authority before completion, state-store symlink rejection across parent path components, identity-bound sealed cancellation requests, cooperative mission cancellation, symlink-safe evidence reads that fail closed on probe errors and preserve dangling-symlink detection, structured credential/token/private-key redaction in persisted evidence, incremental bounded `runs watch` event parsing with append-prefix and disappearance integrity checks, change-triggered chain validation, context-rich sealed RunLedger receipts, bounded adapter duration metrics, read-only run artifact size inventory with a directory-depth bound, redacted subprocess evidence, explicit environment isolation, fixed executable search paths, shell-free command execution with exact read-only Git argv profiles, bounded lock backoff with contention evidence, cache-consistent run-index metadata with single-scan registration, failure-aware model fallback, budgets, deterministic evaluation, detached worktree missions, locked/self-healing run-index rebuilds, complete event-sequence verification, verified paged event inspection with cursor metadata, integrity-verified event export, required persisted receipt/state evidence for inspection and export, machine-readable JSON Schemas including `event-bundle`, `tool-result-bundle`, and `packet-manifest`, opt-in provider-generated tool planning through the existing Watchdog/AI SDK/Agents SDK path, bounded multi-turn provider tool execution with persisted typed results, and one aggregate acceptance runner covering all local smokes are verified locally. Relay is not yet enterprise-production-ready or universally useful: external live-provider proof, authenticated multi-tenant operation, full workcell isolation/recovery, durable concurrent storage, and release gates remain open.
+Relay is a stable local or operator-controlled composition and execution layer for bounded agent missions. It provides a Kujo-native CLI for fixture and Watchdog-routed chat, mission execution in an existing repository or isolated Git worktree, policy-bound Agents SDK tools, and verifiable local evidence.
 
-For the 2026-07-28 next launch batch, the honest scope is technical preview:
-fixture/local doctor, agent validation, contract tests, aggregate acceptance,
-and Workcell proof pass, but live provider/Watchdog route evidence is not
-complete for this exact batch commit. See
-[`docs/launch-checklist.md`](docs/launch-checklist.md).
+Relay v1 is deliberately narrow. It is not hosted orchestration, an authenticated multi-tenant service, durable multi-host storage, unrestricted shell access, provider-independent production certification, or universal enterprise readiness. SHA-256 evidence seals detect local tampering; they are not signatures or identity authority.
 
-The current review also makes mission model-token requests follow the remaining
-budget, caps caller-selected completion budgets at 16,384 tokens, treats
-negative provider usage as zero, and drops caller-supplied `PWD` values from
-child environments while restoring only the trusted adapter cwd. This reduces
-cost/latency surprises and prevents cwd metadata injection at the subprocess
-boundary.
+## Stable v1 scope
 
-The current review also makes JSON/JSONL reads and appends, cancellation
-requests, and live event watching metadata-first for symlink safety. `runs watch`
-reuses the event-file existence result within each poll, while dangling event
-links fail immediately instead of being treated as missing files.
+The stable line includes:
 
-The current review adds verified `runs events --limit ... --after ...` windows
-for machine callers. Relay validates the complete event chain and authoritative
-state sequence before slicing a response; paged output is described by the
-versioned [`event-bundle` schema](schemas/event-bundle.schema.json). Cancellation
-requests now carry the target run ID and a tamper-evident seal, so copied,
-stale-format, or modified request files fail closed.
+- `chat`, `models`, `agents`, and `doctor` for bounded provider and environment operations;
+- `missions` for create, run, inspect, pause, resume, repair, cancel, cleanup, and report workflows;
+- `runs` for list, rebuild, inspect, verify, events, watch, sizes, changes, evaluations, and complete or explicitly partial export;
+- `benchmark run` for the bounded Capsule discovery slice;
+- fixture mode, mandatory Watchdog routing for live calls, provider-generated tool planning, Agents SDK policy execution, PackWrite packets, RunLedger lifecycle evidence, ChangeBucket and Eval results;
+- explicit budgets, direct-argv commands, script hashes, cooperative cancellation, timeouts, bounded repair, detached Git worktrees, evidence verification, and cleanup authority.
 
-The v83 review makes capability revocation use the same bounded per-record lock
-as issuance, consumption, and repair. Revocation rechecks the record under the
-lock and fails closed on contention or unsafe metadata; the Agents SDK smoke
-also isolates its fixture capability registry so repeated acceptance runs are
-deterministic. This remains local single-host authority, not authenticated
-multi-host authorization.
+The complete surface, exit codes, flags, environment, and JSON contracts are in the [command reference](docs/command-reference.md). Experimental and deferred integrations are classified in the [integration matrix](docs/integration-matrix.md).
 
-The v84 review makes JSONL evidence persistence honor the native Kujo write
-result. A failed file creation or append now returns an evidence failure rather
-than being reported as successful; the contract suite covers a missing-parent
-creation failure. This improves local evidence truthfulness but does not prove
-durable multi-host storage or enterprise readiness.
+## Installation
 
-The v85 review makes `runs rebuild --json` fail closed when the authoritative
-index cannot be written or read back safely. The store verifies the persisted
-cache under its existing lock, and the contract plus store smokes cover a
-directory-at-index-path failure. This improves operational truthfulness but
-does not turn the rebuildable cache into a durable multi-host store.
+Relay is distributed as source. Use Kujo 1.0.0 at the exact revision in [`RUNTIME_VERSION`](RUNTIME_VERSION); release and CI dependency revisions are recorded in [`release/dependencies.json`](release/dependencies.json).
 
-The v67 review adds a hard provider request boundary below the bridge transport
-ceiling, a 1 MiB provider-response bound, duplicate/oversized provider-tool
-argument rejection, proxy-environment denial at child-process boundaries, and
-8 MiB caps on persisted event and receipt evidence. PackWrite completion now
-requires a safe generated `agent/MASTER.md` artifact before mission preflight
-can pass. These are local resource and authority safeguards; they do not
-replace durable storage, authenticated tenancy, or live-provider compatibility
-proof.
+```bash
+git clone https://github.com/kujolang/relay.git
+cd relay
+git checkout v1.0.0
+export KUJO_BIN=/path/to/kujo
+test "$($KUJO_BIN --version | awk '{print $2}')" = "1.0.0"
+./bin/relay --version
+```
 
-The v64 review hardens the Agents SDK worker capability with a short-lived
-nonce that is not derivable from public run and workspace identifiers, keeps
-child-process `PATH` fixed while dropping unsafe environment overrides, rejects
-repository and tool-workspace parent symlink components, exposes subprocess
-`exit_code` in action evidence, and expands failure classification for policy,
-workflow, permission, malformed-tool, invalid-model, missing-context,
-implementation, and evaluation failures. These are locally tested safeguards;
-they do not replace authenticated remote authorization or a durable workcell.
+Before the final tag exists, release candidates use the approved commit on the release-preparation branch instead of `git checkout v1.0.0`. Relay never downloads or replaces Kujo or sibling tools at runtime.
 
-Sibling Kujo-tool subprocesses also receive an aligned `PWD` and module-path
-context. Relative `KUJO_BIN` and sibling-tool overrides are rooted at the
-Relay checkout before a subprocess changes cwd, so the same mission works from
-the Loop Engineering harness and direct shell launch. This keeps PackWrite,
-RunLedger, ChangeBucket, and doctor probes from resolving Relay's modules or
-losing their executable merely because the caller launched Relay from a
-different working directory.
-
-The launcher resolves Kujo from an explicit override, the system `PATH`, or the
-ecosystem sibling release path, then exports the resolved binary as `KUJO_BIN`.
-Runtime adapters independently require configured dependency binaries and
-entrypoints to be regular, non-symlinked files before invocation; `doctor` keeps
-the raw configured path in its diagnostic result so unsafe configuration is
-visible without ever being executed.
-
-Agents SDK tool capabilities now use a Relay-owned, short-lived registry record:
-the worker receives a secret only through the bounded parent/child environment,
-the authority checks identity, expiry, and call budget, and each consumption is
-persisted under a lock. Replayed or delayed calls fail closed, and the registry
-record is revoked when the worker exits. This is local process-boundary
-hardening, not authenticated remote tenancy.
-
-`doctor --repair --json` performs an explicit, bounded cleanup pass for expired
-or exhausted capability records. Cleanup takes the same per-record lock used by
-the tool authority and never removes a record while it is being consumed. Lock
-creation uses an exclusive fixed-path OS primitive rather than idempotent
-directory creation. The default `doctor --json` path is read-only; the posture
-check reports record, stale, locked, invalid, and cleaned counts without
-exposing capability secrets. The registry scan is capped at 1024 entries and
-fails closed on unsafe or malformed paths.
-
-## Enterprise-readiness position
-
-Relay is a strong Kujo showcase and a safe local foundation, not a universal enterprise platform. Enterprise adoption requires environment-specific validation for identity, tenancy, network egress, secret custody, retention, concurrency, disaster recovery, provider SLAs, and approval governance. The current implementation intentionally fails closed for unsafe paths, shell metacharacters, destructive Git operations, unapproved writes, invalid workspaces, missing PackWrite/Agents SDK/AI evidence, and failed ChangeBucket/Eval evidence.
+Supported v1 target hosts are Linux and macOS. The exact release candidate must pass the committed platform matrix before release; Windows is not claimed. Host-specific status and external runner blockers are recorded in the [launch checklist](docs/launch-checklist.md).
 
 ## Quick start
 
+Fixture mode is deterministic and makes no provider request:
+
 ```bash
-export KUJO_BIN=/Users/robertdevore/2026/Kujolang/kujo-repos/kujo/target/release/kujo
+export KUJO_BIN=/path/to/pinned/kujo
 ./bin/relay doctor --json
 ./bin/relay agents validate --json
 ./bin/relay chat "Summarize the mission boundary" --fixture --json
 ./bin/relay models probe fixture-model --fixture --json
-./bin/relay chat "Stream a short answer" --fixture --stream
 ```
 
-Run a real bounded repository mutation in a disposable isolated Git workspace:
+Run the bundled read-only mission from the Relay checkout:
 
 ```bash
-git init /tmp/relay-fixture-workspace
-git -C /tmp/relay-fixture-workspace config user.email relay@example.invalid
-git -C /tmp/relay-fixture-workspace config user.name Relay
-touch /tmp/relay-fixture-workspace/README.md
-git -C /tmp/relay-fixture-workspace add README.md
-git -C /tmp/relay-fixture-workspace commit -m baseline
+export RELAY_ROOT="$PWD"
 ./bin/relay missions run examples/fixture-mission.json --fixture --json
 ./bin/relay runs list --json
-./bin/relay runs rebuild --json
+./bin/relay runs verify <run-id> --json
+./bin/relay runs export <run-id> --output /tmp/relay-run-export.json --json
 ```
 
-The run writes a PackWrite agent pack plus recursive `packet-manifest.json`, AgentEvent-compatible JSONL, sealed `RelayReceipt` index, RunLedger receipt, ChangeBucket result, Eval result, resumable state, and Markdown/JSON reports under `.relay/runs/<run-id>/`.
+Run a write mission only against a disposable Git repository and with explicit approval in its mission file. `examples/worktree-mission.json` demonstrates a detached worktree whose cleanup requires `--confirm`.
 
-Set `RELAY_STATE_ROOT` to an alternate state directory when run evidence must be isolated, such as acceptance tests. Relay runtime, doctor checks, and Agents SDK capability receipts use the same override; the default remains `<RELAY_ROOT>/.relay`.
+## Common workflows
+
+Inspect and verify evidence:
+
+```bash
+./bin/relay missions inspect <run-id> --json
+./bin/relay runs events <run-id> --limit 100 --json
+./bin/relay runs sizes <run-id> --hashes --json
+./bin/relay runs verify <run-id> --json
+```
+
+Control a bounded run:
+
+```bash
+./bin/relay missions pause <run-id> --json
+./bin/relay missions resume <run-id> --json
+./bin/relay missions repair <run-id> --json
+./bin/relay missions cancel <run-id> --json
+./bin/relay missions cleanup <run-id> --confirm --json
+```
+
+`repair` is available only for approved repairable failure classes and respects the mission repair ceiling. Cancellation and timeouts are cooperative and recorded in evidence. `runs export --partial` is available only for incomplete runs and always reports `integrity_valid: false` and `completeness: "partial"`.
 
 ## Provider configuration
 
-Relay uses the AI SDK provider boundary through `src/ai_bridge.kujo`. Fixture mode is default for safe local operation. A live call requires a configured OpenAI-compatible endpoint and key:
+Live requests must route through Watchdog. Relay does not silently fall back to a direct provider path.
 
 ```bash
 export RELAY_OFFLINE_FIXTURE=false
-export RELAY_WATCHDOG_URL=http://127.0.0.1:7700/proxy/v1
-export RELAY_WATCHDOG_PROXY_TOKEN=... # when Watchdog proxy auth is enabled
-export RELAY_WATCHDOG_API_TOKEN=... # when Watchdog API auth is enabled
+export RELAY_WATCHDOG_URL=https://watchdog.example.invalid/proxy/v1
+export RELAY_WATCHDOG_API_URL=https://watchdog.example.invalid
+export RELAY_WATCHDOG_PROXY_TOKEN=...  # if proxy auth is enabled
+export RELAY_WATCHDOG_API_TOKEN=...    # if verification API auth is enabled
 export RELAY_WATCHDOG_VERIFY=true
 export OPENAI_API_KEY=...
-./bin/relay chat "hello" --model gpt-4.1-mini --provider openai-compatible --json
+./bin/relay chat "hello" --model <model-id> --provider openai-compatible --json
 ```
 
-For Ollama Cloud or another compatible service, keep the provider-specific details in the AI SDK-compatible endpoint configuration. Relay does not interpret vendor response formats. `RELAY_WATCHDOG_URL` is mandatory for live calls; Relay fails closed instead of silently bypassing Watchdog. Set `RELAY_WATCHDOG_VERIFY=true` when authenticated health/config/request-ID correlation and usage reconciliation are required. Fixture mode explicitly records `direct_ai_sdk` as a deterministic no-network bypass.
+Loopback HTTP is allowed for local Watchdog development; non-loopback routes require HTTPS. Embedded credentials, queries, fragments, malformed hosts, and unsafe provider credential environment names are rejected. The approval-gated exact-candidate procedure is in [live provider verification](docs/live-provider-verification.md).
 
-## CLI surface
+## Security model
 
-Implemented and truthful in this slice:
+Mission actions are declarative and policy checked. Writes require `allow_writes: true` and `approval.approved: true`; repository paths must remain inside the real non-symlink workspace. Commands use exact argv, a fixed executable path, an explicit bounded environment, and an allowlist. Repository shell scripts require exact SHA-256 entries. Destructive Git operations, pushes, force operations, credential paths, shell syntax, dynamic-loader overrides, and unrestricted production access are denied.
 
-- `chat`, including normalized stream events and JSON output
-- `models list|inspect|probe`; model profiles expose chat/streaming capabilities and the environment profile advertises opt-in provider tool planning through the AI SDK
-- `agents list|inspect|validate`
-- `doctor`, including dependency identity/version, agent-registry, secret-safe live-route posture, and credential checks
-- `missions create|run|inspect|pause|resume|repair|cancel|cleanup|report`; cancellation is cooperative and recorded as run evidence
-- `runs list|rebuild|inspect|verify|events|watch|sizes|changes|evaluations|export`; `list` and `events` support bounded validated cursor windows, `verify` provides a compact machine-readable evidence verdict, while event reads and exports verify the integrity chain, typed receipt index, recursive PackWrite packet manifest, and required result/report artifacts; provider-generated runs also require the sealed `tool-results.json` bundle; `runs export --partial` is an explicit non-valid bundle for paused/failed runs
-- `benchmark run` for the Capsule discovery slice
+Run state, events, receipts, reports, packet manifests, tool results, and exports use bounded fail-closed reads and writes. Capabilities bind run, session, workspace, nonce, expiry, and call count, and reject replay after use or revocation. Read [`SECURITY.md`](SECURITY.md) for reporting, credential handling, evidence limits, worktree authority, cancellation, persistence, and deployment limitations.
 
-`missions run` accepts explicit step, repair, token, output, write, tool-call, and tool-turn budgets. The aggregate mission token budget is capped at 65,536 while each provider request remains capped at 16,384. A mission can set `agent_tools` to bounded `relay.write_file` or `relay.run_command` calls; the Agents SDK registry and approval provider execute them through Relay's policy worker, and the run records the result. For provider-generated planning, set `agent_tool_mode` to `provider` and explicitly list the allowed tools in `agent_tool_allowlist`; the AI SDK request carries only those schemas, each provider response is normalized, and Agents SDK still executes every call through the same policy worker. Bounded follow-up turns send typed `role: tool` results back through Watchdog and persist `tool-results.json` under the run directory. `bash`/`sh` repository actions additionally require exact `allowed_script_hashes` entries, including when delegated through the Agents SDK worker. PackWrite output is recursively hashed into `packet-manifest.json`; verification and valid export fail closed if packet files change, disappear, or appear unexpectedly. A failed run may use `missions repair <run-id>` for one explicitly bounded replay when its failure class is repairable; Relay records `repair_started`, `repair_completed`, or `repair_failed` evidence and enforces `max_repairs` (0–4). Policy, authentication, evidence, and malformed-authority failures are never replayed. Cancellation, malformed responses, approval denial, tool-call limits, and tool-turn limits fail closed. The default Agents SDK aggregate smoke can be skipped for a deliberately configured run with `--skip-agent-smoke`; the run records that it was skipped. Not yet implemented: adaptive routing, full multi-step Dispatch workflow loading, interactive approval UI, authenticated service mode, full workcell recovery, durable concurrent storage, and the complete Capsule A/B benchmark rubric. Those remain explicit follow-up work rather than placeholder commands.
+## Ecosystem integrations
 
-Provider-generated multi-turn missions also persist aggregate input, output, and total token usage in the authoritative run state as `usage.relay_input_tokens`, `usage.relay_output_tokens`, and `usage.relay_total_tokens`. `budgets.used_tokens` remains the enforced aggregate total. Provider responses that omit a usage component are recorded as zero for that component rather than inferred.
+- Required and proven locally: Kujo, AI SDK fixture/provider boundary, Agents SDK, PackWrite, RunLedger, ChangeBucket, and Eval.
+- Optional and proven locally: Watchdog with a real local server and stub provider; Workcell once rerun for the exact candidate; ShipCheck and Kennel release gates.
+- Experimental: Capsule benchmark discovery, Concord drift review, CaseFile/Redact evidence adapters.
+- Deferred: full Dispatch/Spec workflow import and negotiation, authenticated service mode, durable multi-host storage, hosted orchestration, and enterprise certification.
 
-## Safety boundary
+Exact immutable revisions and evidence classifications are in the [integration matrix](docs/integration-matrix.md) and [`release/dependencies.json`](release/dependencies.json).
 
-Mission actions are declarative and policy checked. Write-enabled missions require `allow_writes: true` plus `approval.approved: true`; paths must remain inside the real workspace and cannot traverse `.git`, `.env`, or symlinked parents. Commands must match an explicit allowlist, reject shell syntax, and execute as direct argv without `/bin/sh`; destructive Git operations, credential paths, force-push, and traversal patterns are denied. Subprocesses run with an explicit bounded environment instead of inheriting the host environment wholesale; provider credential selectors also reject dynamic-loader, interpreter-injection, Git override, and trust-store override names before the AI bridge is spawned. stdout/stderr and command receipts are redacted before evidence persistence. Relay does not expose unrestricted shell, root, credential files, publishing, or production access.
+## Compatibility
 
-Read-side evidence is also fail closed: report JSON must match the authoritative
-run and status, report Markdown must exist as a bounded regular file, the run
-index cannot substitute placeholder metadata for missing state, and artifact
-inventory rejects oversized directories before recursive flattening.
+Relay product version, mission format, and evidence contracts are independent:
 
-## Repository map
+- product and CLI: `1.0.0`;
+- current mission format: `1.0.0`;
+- accepted legacy mission format: `0.1.0` for the Relay 1.x line;
+- event, receipt, run, export, verification, sizes, tool-result, packet-manifest, and capability identifiers retain their existing `v1` names.
 
-- `main.kujo`: thin CLI entrypoint
-- `src/runtime.kujo`: mission state machine, actions, evidence, resume
-- `src/adapters.kujo`: subprocess adapters to existing Kujo tools and AI SDK
-- `src/agent_bridge.kujo`: Agents SDK Tool Registry and approval-provider bridge
-- `src/contracts.kujo`: Relay run and AgentEvent-compatible contracts
-- `src/policy.kujo`: authority and failure classification
-- `src/store.kujo`: locked, validated/rebuildable run-index cache
-- `src/registry.kujo`: Chain of Command role registry
-- `docs/`: discovery report, integration matrix, ADRs, plan, final report
-- `schemas/`: machine-readable mission, run, event, receipt, doctor, probe, tool-result, run-verification, run-sizes, and packet-manifest contracts
-- `tests/relay_contract_tests.kujo`: deterministic contract tests
-- `tests/relay_acceptance.sh`: contract suite plus every committed smoke test and `git diff --check`
-- `tests/relay_cli_smoke.sh`: CLI, doctor, locked capability-registry posture/repair, probe, normalized boolean-environment, AI-bridge source-boundary, approval-boundary, Watchdog-route telemetry non-disclosure, and symlinked dependency rejection smoke test
-- `tests/relay_mission_smoke.sh`: real write, pause/resume, required ChangeBucket/Eval/report persistence, and RunLedger smoke test
-- `tests/relay_budget_smoke.sh`: bounded step-budget failure smoke test
-- `tests/relay_worktree_smoke.sh`: isolated worktree creation, source protection, and confirmed cleanup smoke test
-- `tests/relay_store_smoke.sh`: bounded-index/run-list paging, missing-state cache rejection, report identity/Markdown validation, recursive PackWrite manifest tamper rejection, event-symlink, receipt-tamper, truncation, and authoritative run-state rebuild smoke test
-- `tests/relay_lock_stress_smoke.sh`: bounded index-lock backoff and concurrent rebuild smoke test
-- `tests/relay_watch_smoke.sh`: bounded live event observation with terminal evidence verification
-- `tests/relay_watch_integrity_smoke.sh`: fail-closed event-log disappearance observation
-- `tests/relay_metrics_smoke.sh`: bounded AI/adapter duration telemetry evidence
-- `tests/relay_sizes_smoke.sh`: bounded artifact size inventory, optional SHA-256 digests, symlink rejection, and directory-depth denial
-- `tests/relay_cancel_smoke.sh`: process-group cancellation, bounded return time, and terminal evidence
-- `tests/relay_timeout_smoke.sh`: process-group timeout termination, bounded return time, and typed timeout evidence
-- `tests/relay_spec_safety_smoke.sh`: mission-spec size, input symlink, and repository parent-symlink rejection
-- `tests/relay_schema_smoke.sh`: committed JSON Schema parse, identity, and title checks (15 contracts)
-- `tests/relay_output_budget_smoke.sh`: bounded command evidence and explicit truncation smoke test
-- `tests/relay_watchdog_smoke.sh`: configured Watchdog health/config/request-correlation contract smoke test
-- `tests/relay_watchdog_real_smoke.sh`: actual local Watchdog server, token auth, stub upstream, and correlation smoke test
-- `tests/relay_agents_tool_smoke.sh`: isolated mission, issued/expiring capability registry, one-time replay rejection, nonce-bound capability and legacy rejection, denied-write approval, direct-worker approval/budget/timeout rejection, worker-output redaction, tampered worker-root rejection, and delegated script-hash preservation
-- `tests/relay_provider_tool_smoke.sh`: authenticated local Watchdog, bounded multi-turn provider-generated tool planning, typed result persistence, Agents SDK execution, and evidence-backed repository mutation
-- `tests/relay_resume_integrity_smoke.sh`: tampered paused-run workspace and mission-policy rejection before resume
-- `tests/relay_state_store_safety_smoke.sh`: state-root and runs-directory symlink redirection rejection
-- `tests/relay_symlink_probe_smoke.sh`: dangling-symlink and probe-error rejection at the shared filesystem boundary
-- `tests/relay_relative_tool_path_smoke.sh`: relative `KUJO_BIN` normalization through PackWrite, RunLedger, ChangeBucket, and Eval
-- `tests/relay_input_boundary_smoke.sh`: bounded and malformed AI, Agents SDK, and tool-worker payload rejection
-- `tests/relay_contract_tests.kujo`: contract coverage for bounded JSON/JSONL evidence, hash-pinned scripts, provider payload/tool-ID limits, proxy-environment denial, bounded repair classes, and retryable versus non-retryable fallback classes
-- `tests/relay_repair_smoke.sh`: failed-run repair replay, typed repair receipts, repair completion, and zero-budget denial
+Additive JSON fields may appear within v1 and consumers must ignore unknown fields. Removing or repurposing fields, changing established exit-code meaning, or changing integrity inputs requires a new contract identifier and migration guidance. Unsupported mission versions fail before execution. See [machine contracts](schemas/README.md) and [compatibility policy](docs/compatibility.md).
 
-## Repository layout decision
+## Limitations
 
-The small root is intentional and follows mature Kujo conventions: `main.kujo` is the executable entrypoint, `kujo.toml` is package metadata, and `bin/relay` is a thin launcher. Runtime implementation belongs under `src/`; moving the entrypoint or package manifest there would make the repository less idiomatic and break the documented CLI shape.
+- The run index is a rebuildable local cache; evidence storage is not a transactional, retained, replicated, or multi-host data service.
+- Git worktrees isolate source changes but are not containers, VMs, or hostile-code sandboxes.
+- Provider compatibility must be verified for the chosen provider/model through the exact Watchdog and SDK revisions.
+- Integrity hashes are not signing, authentication, custody, or authorization.
+- Relay does not expose hosted orchestration, tenant identity, unrestricted shell, publishing, deployment, or autonomous production access.
+- `benchmark run` is a bounded Capsule discovery slice, not a general benchmark certification system.
 
-## Verification
+## Troubleshooting
 
-The local acceptance set is:
+- `Kujo runtime not found`: set `KUJO_BIN` or `KUJO` to the trusted executable at the revision in `RUNTIME_VERSION`.
+- `doctor` reports unsafe/missing dependencies: configure the documented `RELAY_*_ROOT`/path variables and verify exact revisions; Relay refuses symlinked or wrong-hash dependencies.
+- Live chat stays in fixture mode: set `RELAY_OFFLINE_FIXTURE=false` and configure a valid Watchdog route.
+- Live chat fails with Watchdog verification errors: confirm proxy/API auth, correlation visibility, and usage fields; do not disable verification for release evidence.
+- A run cannot resume or export: inspect `missions inspect`, `runs events`, and `runs verify`; tampered, missing, oversized, or inconsistent evidence fails closed.
+- Cleanup is denied: only a verified run-owned worktree can be removed, and `--confirm` is mandatory.
+
+## Release verification
 
 ```bash
-export KUJO_BIN=/Users/robertdevore/2026/Kujolang/kujo-repos/kujo/target/release/kujo
-bash tests/relay_acceptance.sh
+export KUJO_BIN=/path/to/pinned/kujo
+bash scripts/release_gate.sh
+bash tests/release_artifacts_smoke.sh
 ```
 
-The aggregate runner executes the contract suite, all committed `*_smoke.sh`
-tests, the schema smoke, and `git diff --check`, so new smoke coverage is
-automatically included without maintaining a second hand-written test list.
+The release gate checks source, CLI and machine contracts, every committed smoke test, schemas, Markdown links, metadata consistency, Kennel, ShipCheck, and deterministic clean-install artifacts. Workcell and external live-provider evidence are exact-commit gates tracked separately in the [launch checklist](docs/launch-checklist.md).
 
-For the full integration evidence boundary and deferred enterprise work, see [`docs/enterprise-readiness-review-2026-07-11.md`](docs/enterprise-readiness-review-2026-07-11.md), [`docs/command-reference.md`](docs/command-reference.md), the machine contracts in [`schemas/`](schemas/), and the current [`docs/next-session-enhancement-backlog-2026-07-13-v85.md`](docs/next-session-enhancement-backlog-2026-07-13-v85.md).
+Relay is licensed under the [MIT License](LICENSE). Contributions follow [`CONTRIBUTING.md`](CONTRIBUTING.md).

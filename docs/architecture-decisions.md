@@ -1,5 +1,7 @@
 # Architecture Decision Records
 
+These ADRs preserve the context and consequences recorded when each decision landed. Later ADRs and the current [command reference](command-reference.md), [compatibility policy](compatibility.md), and [integration matrix](integration-matrix.md) supersede earlier forward-looking statements where the implementation has since advanced.
+
 ## ADR-001: New composition repository
 
 Context: Dispatch, Agents SDK, and the workflow kits each own adjacent but different concerns. Decision: create `relay` as a thin composition/runtime repository. Rationale: adding mission coordination to any one subsystem would blur ownership. Consequence: adapters must preserve upstream contracts and report unavailable integrations honestly. Rejected: replacing Dispatch or embedding a second provider SDK.
@@ -1218,9 +1220,10 @@ model call, but the adapter always requested 700 completion tokens. A mission
 with a smaller budget could therefore spend more than its declared limit before
 failing, while negative provider usage could reduce the recorded total.
 
-Decision: require positive `max_tokens` values, cap them at 16,384, pass the
-mission budget to the AI SDK bridge, reduce each follow-up request to the
-remaining budget, and normalize negative usage to zero before accounting.
+Decision: require positive aggregate mission `max_tokens` values, cap them at
+65,536, cap every provider request at 16,384, pass the remaining mission budget
+to the AI SDK bridge, reduce each follow-up request to the remaining budget,
+and normalize negative usage to zero before accounting.
 Drop caller-supplied `PWD` from generic child environment overrides and restore
 only the trusted adapter working-directory value.
 

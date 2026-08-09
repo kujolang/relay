@@ -15,7 +15,14 @@
     "timestamp": {"type": "string", "minLength": 1},
     "parent_event_id": {"type": "string"},
     "payload": {"type": ["object", "array", "string", "number", "boolean", "null"]},
-    "metadata": {"type": "object"},
+    "metadata": {
+      "type": "object",
+      "required": ["contract_version"],
+      "properties": {
+        "contract_version": {"const": "AgentEvent-compatible-v1"}
+      },
+      "additionalProperties": true
+    },
     "integrity_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
   },
   "additionalProperties": true

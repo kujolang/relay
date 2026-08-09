@@ -3,9 +3,10 @@
   "$id": "https://kujo.dev/relay/schemas/run.schema.json",
   "title": "Kujo Relay run",
   "type": "object",
-  "required": ["type", "contract_version", "mission_id", "run_id", "workflow", "status", "repository", "events", "receipts", "integrity_sha256"],
+  "required": ["type", "relay_version", "contract_version", "mission_id", "run_id", "workflow", "status", "repository", "events", "receipts", "integrity_sha256"],
   "properties": {
     "type": {"const": "RelayRun"},
+    "relay_version": {"const": "1.0.0"},
     "contract_version": {"const": "relay-run-v1"},
     "mission_id": {"type": "string", "minLength": 1},
     "run_id": {"type": "string", "minLength": 1},

@@ -43,6 +43,9 @@ printf '%s' "$bad_run_limit" | grep -q 'run limit must be between 1 and 4096'
 # A corrupt or tampered cache must not become an arbitrary filesystem read.
 printf '%s' '{"attacker":{"run_dir":"/etc","status":"completed"}}' > "$RELAY_STATE_ROOT/index.json"
 listed="$($KUJO run "$ROOT/main.kujo" -- runs list --json)"
+printf '%s\n' "$listed" > "/tmp/relay-run-list-contract-$$.json"
+python3 "$ROOT/scripts/validate_json.py" "$ROOT/schemas/run-bundle.schema.json" "/tmp/relay-run-list-contract-$$.json"
+rm -f "/tmp/relay-run-list-contract-$$.json"
 printf '%s' "$listed" | grep -q "\"$run_id\""
 printf '%s' "$listed" | grep -q '"index_source":"validated_cache_or_rebuild"'
 printf '%s' "$listed" | jq -e --arg run_id "$run_id" '.runs[$run_id].updated_at != null and .runs[$run_id].updated_at != ""' >/dev/null
@@ -84,6 +87,7 @@ printf '%s' "$exported" | grep -q '"integrity_valid":true'
 test -f "$export_path"
 jq -e --arg run_id "$run_id" '.format == "relay-run-export-v1" and .run_id == $run_id and .integrity_valid == true and .receipts_valid == true and .receipts_consistent == true and (.events | length) > 0 and (.receipts | length) >= 7 and (.receipts | map(.receipt_id) as $ids | (($ids | unique | length) == ($ids | length)))' "$export_path" >/dev/null
 jq -e --arg run_id "$run_id" '.events | all(.metadata.mission_id == "relay-fixture-mission" and .metadata.run_id == $run_id and (.metadata | has("tool")) and (.metadata | has("artifact")) and (.metadata | has("retry_id")) and (.metadata | has("repair_id")))' "$export_path" >/dev/null
+python3 "$ROOT/scripts/validate_json.py" "$ROOT/schemas/run-export.schema.json" "$export_path"
 
 run_dir="$RELAY_STATE_ROOT/runs/$run_id"
 events_path="$run_dir/events.jsonl"
@@ -153,6 +157,9 @@ inspected="$($KUJO run "$ROOT/main.kujo" -- runs inspect "$run_id" --json)"
 printf '%s' "$inspected" | jq -e --arg run_id "$run_id" '.ok == true and .run.run_id == $run_id' >/dev/null
 
 verified="$($KUJO run "$ROOT/main.kujo" -- runs verify "$run_id" --json)"
+printf '%s\n' "$verified" > "/tmp/relay-run-verification-contract-$$.json"
+python3 "$ROOT/scripts/validate_json.py" "$ROOT/schemas/run-verification.schema.json" "/tmp/relay-run-verification-contract-$$.json"
+rm -f "/tmp/relay-run-verification-contract-$$.json"
 printf '%s' "$verified" | jq -e --arg run_id "$run_id" '.ok == true and .format == "relay-run-verification-v1" and .run_id == $run_id and .integrity_valid == true and .state_valid == true and .events_valid == true and .receipts_valid == true and .receipts_consistent == true and .changes_valid == true and .evaluations_valid == true and .tool_results_required == false and .tool_results_valid == true and .packet_manifest_required == true and .packet_manifest_valid == true' >/dev/null
 printf '%s' "$verified" | jq -e '.report_valid == true' >/dev/null
 
@@ -173,6 +180,9 @@ mv "$master_path.packet-backup" "$master_path"
 # JSONL payload. Integrity is still checked against the complete authoritative
 # chain before the window is returned.
 window="$($KUJO run "$ROOT/main.kujo" -- runs events "$run_id" --limit 2 --json)"
+printf '%s\n' "$window" > "/tmp/relay-event-bundle-contract-$$.json"
+python3 "$ROOT/scripts/validate_json.py" "$ROOT/schemas/event-bundle.schema.json" "/tmp/relay-event-bundle-contract-$$.json"
+rm -f "/tmp/relay-event-bundle-contract-$$.json"
 printf '%s' "$window" | jq -e '.ok == true and .integrity_valid == true and .event_count > 2 and (.events | length) == 2 and .has_more == true and (.next_after | length) > 0 and .events_jsonl == ""' >/dev/null
 cursor="$(printf '%s' "$window" | jq -r '.next_after')"
 next_window="$($KUJO run "$ROOT/main.kujo" -- runs events "$run_id" --after "$cursor" --limit 2 --json)"
@@ -244,6 +254,9 @@ test "$complete_export_rc" -ne 0
 printf '%s' "$complete_export" | grep -q 'run export evidence is incomplete'
 printf '%s' "$complete_export" | grep -q '"partial_export_available":true'
 partial_export="$($KUJO run "$ROOT/main.kujo" -- runs export "$paused_id" --partial --json)"
+printf '%s\n' "$partial_export" > "/tmp/relay-partial-export-contract-$$.json"
+python3 "$ROOT/scripts/validate_json.py" "$ROOT/schemas/run-export-partial.schema.json" "/tmp/relay-partial-export-contract-$$.json"
+rm -f "/tmp/relay-partial-export-contract-$$.json"
 printf '%s' "$partial_export" | jq -e --arg run_id "$paused_id" '.ok == true and .format == "relay-run-export-partial-v1" and .run_id == $run_id and .partial == true and .completeness == "partial" and .integrity_valid == false and .artifact_presence.changes == false and .artifact_presence.evaluations == false and .artifact_presence.report == true and .changes == null and .evaluations == null' >/dev/null
 
 # Run artifact readers must fail closed instead of turning a missing result

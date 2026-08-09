@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kujo.dev/relay/schemas/run-export.schema.json",
+  "title": "Kujo Relay complete run export",
+  "type": "object",
+  "required": ["format", "run_id", "integrity_valid", "chain_integrity_valid", "state_consistent", "receipts_valid", "receipts_consistent", "changes_valid", "evaluations_valid", "report_valid", "run", "events", "receipts", "changes", "evaluations", "report"],
+  "properties": {
+    "ok": {"const": true},
+    "format": {"const": "relay-run-export-v1"},
+    "run_id": {"type": "string", "minLength": 1},
+    "integrity_valid": {"const": true},
+    "chain_integrity_valid": {"const": true},
+    "state_consistent": {"const": true},
+    "receipts_valid": {"const": true},
+    "receipts_consistent": {"const": true},
+    "changes_valid": {"const": true},
+    "evaluations_valid": {"const": true},
+    "report_valid": {"const": true},
+    "run": {"$ref": "run.schema.json"},
+    "events": {"type": "array", "items": {"$ref": "event.schema.json"}},
+    "receipts": {"type": "array", "items": {"$ref": "receipt.schema.json"}},
+    "changes": {"type": "object"},
+    "evaluations": {"type": "array"},
+    "report": {"$ref": "report.schema.json"},
+    "tool_results": {"type": ["object", "null"]},
+    "packet_manifest": {"type": ["object", "null"]}
+  },
+  "additionalProperties": true
+}

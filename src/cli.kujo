@@ -686,6 +686,7 @@ func cmd_tools(tokens) {
 
 export func main(argv) {
     if len(argv) == 0 || argv[0] == "help" || argv[0] == "--help" { print(help_text()); return 0 }
+    if argv[0] == "version" || argv[0] == "--version" { print("relay " + RELAY_VERSION); return 0 }
     command := argv[0]
     rest := slice(argv, 1, len(argv))
     parsed := parse_tokens(rest)

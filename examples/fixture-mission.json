@@ -1,5 +1,5 @@
 {
-  "version": "0.1.0",
+  "version": "1.0.0",
   "id": "relay-fixture-mission",
   "name": "relay-fixture-mission",
   "goal": "Make one bounded repository change and verify it deterministically.",

@@ -1,5 +1,5 @@
 {
-  "version": "0.1.0",
+  "version": "1.0.0",
   "id": "relay-worktree-mission",
   "name": "relay-worktree-mission",
   "goal": "Make one bounded change in an automatically isolated Git worktree.",

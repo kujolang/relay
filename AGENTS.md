@@ -1,6 +1,6 @@
 # Relay Agent Instructions
 
-Relay is a local-first composition and execution layer for bounded agent missions. Treat it as a hardened local alpha/showcase unless live-provider, durable storage, tenancy, Workcell, and release-gate proof exist for the exact commit.
+Relay is a stable local-first composition and execution layer for bounded agent missions. Keep hosted orchestration, authenticated tenancy, durable multi-host storage, provider-independent certification, and universal enterprise claims outside the v1 boundary. External provider and Workcell release evidence must apply to the exact candidate commit.
 
 ## Required Reading
 
@@ -8,7 +8,8 @@ Relay is a local-first composition and execution layer for bounded agent mission
 - `docs/command-reference.md`
 - `docs/integration-matrix.md`
 - `docs/launch-checklist.md`
-- Latest `docs/next-session-enhancement-backlog*.md`
+- `docs/compatibility.md`
+- `docs/live-provider-verification.md`
 
 ## Validation
 

@@ -1,0 +1,45 @@
+[package]
+name = "relay"
+version = "1.0.0"
+description = "Local-first composition and execution layer for bounded, evidence-backed agent missions."
+license = "MIT"
+authors = ["Kujolang <contact@kujolang.ai>"]
+homepage = "https://github.com/kujolang/relay"
+repository = "https://github.com/kujolang/relay"
+documentation = "https://github.com/kujolang/relay/tree/main/docs"
+keywords = ["kujo", "agents", "orchestration", "worktrees", "evidence"]
+categories = ["ai", "developer-tools"]
+readme = "README.md"
+
+[package.status]
+stage = "production"
+stability = "stable"
+public_api = true
+notes = "Stable for the documented local and operator-controlled Relay v1 CLI, mission, evidence, and export contracts; hosted, multi-tenant, durable multi-host, and universal enterprise operation remain out of scope."
+
+[kujo]
+minimum_version = "1.0.0"
+entry = "main.kujo"
+sources = ["src", "."]
+includes = ["README.md", "LICENSE", "VERSION", "RUNTIME_VERSION", "CHANGELOG.md", "CONTRIBUTING.md", "SECURITY.md", "bin", "docs", "examples", "schemas", "tests", "scripts", "release"]
+excludes = [".git", ".relay", ".workcell", ".loop-engineering", "dist", "build", "node_modules", "kennel_packages"]
+
+[dependencies]
+
+[dev-dependencies]
+
+[scripts]
+test = "bash tests/relay_acceptance.sh"
+contracts = '"$KUJO_BIN" run tests/relay_contract_tests.kujo --interpreter'
+verify-release = "bash scripts/release_gate.sh"
+
+[package.exports]
+cli = "main.kujo"
+contracts = "src/contracts.kujo"
+runtime = "src/runtime.kujo"
+policy = "src/policy.kujo"
+
+[trust]
+checksum = ""
+signature = ""
+signing_key = ""

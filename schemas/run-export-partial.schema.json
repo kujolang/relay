@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kujo.dev/relay/schemas/run-export-partial.schema.json",
+  "title": "Kujo Relay partial run export",
+  "type": "object",
+  "required": ["format", "run_id", "integrity_valid", "completeness", "partial", "status", "artifact_presence", "run", "events", "receipts"],
+  "properties": {
+    "ok": {"const": true},
+    "format": {"const": "relay-run-export-partial-v1"},
+    "run_id": {"type": "string", "minLength": 1},
+    "integrity_valid": {"const": false},
+    "completeness": {"const": "partial"},
+    "partial": {"const": true},
+    "status": {"enum": ["created", "running", "paused", "finalizing", "failed", "cancelled"]},
+    "artifact_presence": {"type": "object"},
+    "run": {"$ref": "run.schema.json"},
+    "events": {"type": "array", "items": {"$ref": "event.schema.json"}},
+    "receipts": {"type": "array", "items": {"$ref": "receipt.schema.json"}}
+  },
+  "additionalProperties": true
+}

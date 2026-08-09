@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kujo.dev/relay/schemas/benchmark.schema.json",
+  "title": "Kujo Relay benchmark result",
+  "type": "object",
+  "required": ["ok", "benchmark"],
+  "properties": {
+    "ok": {"type": "boolean"},
+    "benchmark": {"const": "capsule-discovery"},
+    "error": {"type": "string"}
+  },
+  "additionalProperties": true
+}

@@ -1,0 +1,8 @@
+{
+  "ok": true,
+  "model": "fixture-model",
+  "provider": "openai-compatible",
+  "output_text": "Bounded fixture response.",
+  "usage": {"input_tokens": 4, "output_tokens": 3, "total_tokens": 7},
+  "relay_telemetry": {"correlation_id": "relay-fixture-contract", "route": "direct_ai_sdk"}
+}
