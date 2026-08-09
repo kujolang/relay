@@ -1,6 +1,6 @@
 # Relay machine contracts
 
-These JSON Schemas describe the stable machine-facing shapes emitted by Relay.
+These JSON Schemas describe the stable Relay v1 machine-facing shapes.
 They are interoperability contracts for Paperclip, Hermes, CI, MCP adapters,
 and other Kujo programs; they do not replace Relay's fail-closed in-code
 validation or the upstream schemas owned by AI SDK, Agents SDK, PackWrite,
@@ -10,15 +10,29 @@ The schemas are intentionally forward-compatible: unknown fields are allowed
 so upstream evidence can be carried without Relay silently dropping it. The
 `format` and `contract_version` fields identify the owning boundary.
 
-`mission.schema.json` bounds model output budgets to positive values up to
-16,384 tokens. Relay passes the remaining mission budget to each provider
-request rather than silently using an unbounded caller-controlled completion
-limit.
+`mission.schema.json` requires mission version `1.0.0` or the supported legacy
+`0.1.0` format and bounds the aggregate mission token budget to 65,536. Each
+provider request remains capped at 16,384 and receives no more than the
+remaining mission budget. Unsupported or missing mission versions fail before
+execution.
+
+Product `1.0.0` does not rename the existing `v1` event, receipt, run, export,
+verification, sizes, tool-result, packet-manifest, or capability identifiers.
+Those identifiers describe their own compatibility generations. Additive
+fields are allowed where `additionalProperties` permits them; incompatible
+changes require a new schema ID/file, migration notes, and old/new fixtures.
+See [`docs/compatibility.md`](../docs/compatibility.md).
 
 | Schema | Boundary |
 | --- | --- |
+| `chat.schema.json` | `chat --json` |
+| `models.schema.json` | `models list|inspect --json` |
+| `agents.schema.json` | `agents list|inspect|validate --json` |
+| `benchmark.schema.json` | `benchmark run --json` wrapper result |
 | `mission.schema.json` | `missions create` / `missions run` input |
 | `run.schema.json` | persisted `state.json` and report JSON |
+| `run-export.schema.json` | complete verified `runs export` response |
+| `run-export-partial.schema.json` | explicit incomplete `runs export --partial` response |
 | `event.schema.json` | AgentEvent-compatible `events.jsonl` records |
 | `event-bundle.schema.json` | verified `runs events` response, including paged windows |
 | `run-bundle.schema.json` | validated `runs list` response, including paged windows |

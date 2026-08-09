@@ -1,6 +1,8 @@
 # Relay command reference
 
-Relay commands return process exit code `0` on success and nonzero on invalid input, policy denial, failed evidence, or failed provider execution. Add `--json` to machine-facing commands; JSON output is the stable integration surface and terminal prose is for humans.
+This document defines the stable Relay 1.x CLI. Relay commands return process exit code `0` on success and nonzero on invalid input, policy denial, failed evidence, or failed provider execution. Add `--json` to machine-facing commands; JSON output and the committed schemas/fixtures are the stable integration surface, while terminal prose is for humans.
+
+`chat`, `models`, `agents`, `doctor`, `missions`, and `runs` are stable. `benchmark run` is a stable command wrapper around an explicitly limited Capsule discovery slice; its benchmark methodology and result detail remain experimental. `tools execute` is a stable internal callback contract and is not an operator command.
 
 ## Environment
 
@@ -9,7 +11,10 @@ Relay commands return process exit code `0` on success and nonzero on invalid in
 | `KUJO_BIN` | Kujo runtime binary | `../kujo/target/release/kujo` |
 | `RELAY_ROOT` | Relay checkout used to resolve sibling tools | current directory |
 | `RELAY_PACKWRITE_BIN` / `RELAY_RUNLEDGER_BIN` / `RELAY_CHANGEBUCKET_BIN` | Optional explicit sibling tool binaries | ecosystem release paths |
+| `RELAY_PACKWRITE_ROOT` / `RELAY_RUNLEDGER_ROOT` / `RELAY_CHANGEBUCKET_ROOT` | Trusted sibling roots used for entrypoints and module context | ecosystem sibling directories |
 | `RELAY_EVAL_ENTRY` / `RELAY_CAPSULE_BIN` | Optional Eval entrypoint or Capsule binary | ecosystem paths |
+| `RELAY_STATE_ROOT` | Local state/evidence root | `<RELAY_ROOT>/.relay` |
+| `KUJO_AGENTS_PATH` / `KUJO_AI_SDK_PATH` | Trusted Agents SDK catalog and AI SDK source roots | ecosystem sibling directories |
 | `RELAY_OFFLINE_FIXTURE` | Select deterministic fixture mode | `true` |
 | `RELAY_WATCHDOG_URL` | Watchdog-compatible OpenAI base URL for live calls | required when live |
 | `RELAY_WATCHDOG_PROXY_TOKEN` | Optional Watchdog proxy-route token forwarded as a bounded request header | unset |
@@ -103,6 +108,8 @@ avoid repeating the same filesystem lookup.
 ## Commands
 
 ```text
+relay --version
+relay --help
 relay doctor [--repair] [--json]
 relay chat <prompt> [--model <id>] [--provider <id>] [--fixture] [--stream] [--json]
 relay models list [--json]
@@ -118,6 +125,8 @@ relay tools execute --json (internal capability-bound worker callback)
 relay benchmark run <repository> [--json]
 ```
 
+`relay --version` prints `relay 1.0.0`; `relay --help` prints the complete stable synopsis. A successful command exits `0`, a command-level or evidence failure exits `1`, an unknown top-level command exits `2`, and an unexpected Kujo/runtime failure exits `3`. Stream mode emits JSONL and uses the same final success/failure exit meaning.
+
 `models list --json` and `models probe --json` expose a routing object with the
 selection reason. The environment profile advertises
 `tool_planning: "opt_in_provider_profile"` and
@@ -127,7 +136,7 @@ bounded by the explicit tool allowlist and Agents SDK policy worker.
 
 ## Mission contract
 
-Mission specs are JSON objects with `name`, `goal`, a Git `repository`, `actions`, and optional `workflow`, `model`, `provider`, `allow_writes`, `approval`, `allowed_commands`, `acceptance_criteria`, `budgets`, bounded `agent_tools`, `agent_tool_mode`, and `agent_tool_allowlist` fields. Supported actions are deliberately narrow:
+Mission specs are JSON objects with required `version`, `name`, `goal`, Git `repository`, and `actions` fields, plus optional `workflow`, `model`, `provider`, `allow_writes`, `approval`, `allowed_commands`, `acceptance_criteria`, `budgets`, bounded `agent_tools`, `agent_tool_mode`, and `agent_tool_allowlist` fields. Mission format `1.0.0` is current. Relay 1.x also accepts the pre-v1 `0.1.0` mission format without changing its meaning; unsupported or missing versions fail before repository or provider action. Supported actions are deliberately narrow:
 
 - `write_file`: relative path, only with `allow_writes: true` and `approval.approved: true`.
 - `run_command`: read-oriented `git`, `kujo`, `bash scripts/`, or `sh scripts/` commands that pass policy. Commands are tokenized and executed as direct argv; shell pipelines, substitutions, globbing, tabs, and quoting expressions are rejected.
@@ -460,6 +469,14 @@ in-code checks and the upstream SDK contracts.
 runs the Kujo contract suite, every committed `relay_*_smoke.sh` test (including
 the schema smoke), and `git diff --check`, so newly added smoke tests are not
 silently omitted from the documented verification path.
+
+## Compatibility policy
+
+Relay product version, mission format, and machine contracts are independent. Product `1.0.0` does not rename `AgentEvent-compatible-v1`, `relay-receipt-v1`, `relay-run-v1`, `relay-run-export-v1`, `relay-run-export-partial-v1`, `relay-run-verification-v1`, `relay-run-sizes-v1`, `relay-tool-result-bundle-v1`, `relay-packwrite-manifest-v1`, or `relay-agent-capability-v1`.
+
+Within a v1 machine contract, Relay may add optional fields and new enum-like values only where consumers are already required to ignore unknown fields. Relay will not remove or repurpose fields, change established exit-code meaning, weaken integrity requirements, or change integrity inputs without a new contract identifier and migration notes. CLI patch releases preserve flags and JSON field meaning; minor releases may add optional flags, commands, or fields. Deprecated stable flags remain for at least one minor release with documentation before removal in a future product major.
+
+Persisted state and evidence are read only when their independent identifiers, integrity values, identities, bounds, and required artifacts validate. Legacy runs that predate an explicitly recorded optional requirement remain readable only where source already defines that compatibility path; Relay never fabricates missing evidence. Export bundles and PackWrite manifests retain their owning contract versions. See [the compatibility policy](compatibility.md) for the complete matrix.
 
 ## Exit-code guidance
 
