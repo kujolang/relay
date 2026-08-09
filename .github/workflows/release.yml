@@ -1,0 +1,332 @@
+name: Relay release preparation
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Existing verified tag; required only when publish_release is enabled
+        required: false
+        type: string
+      publish_release:
+        description: Run approval-gated live proof and publish the existing verified tag
+        required: true
+        default: false
+        type: boolean
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: read
+
+jobs:
+  gates:
+    uses: ./.github/workflows/ci.yml
+    secrets: inherit
+
+  workcell:
+    needs: gates
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    outputs:
+      run_id: ${{ steps.proof.outputs.run_id }}
+    steps:
+      - name: Checkout Relay
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          path: relay
+          fetch-depth: 0
+      - name: Checkout Kujo
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: kujolang/kujo
+          ref: 9b77dce592047121cb71066629836ad89252f3ce
+          path: kujo
+          token: ${{ secrets.KUJO_ECOSYSTEM_TOKEN || github.token }}
+      - name: Checkout Workcell
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: kujolang/workcell
+          ref: 28d2c4a3b8d317fedd5e20be618f98bd3859eaea
+          path: workcell
+          token: ${{ secrets.KUJO_ECOSYSTEM_TOKEN || github.token }}
+      - name: Setup pinned Rust toolchain action
+        uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8
+      - name: Build pinned Kujo runtime
+        run: cargo build --release --locked --manifest-path kujo/Cargo.toml --bin kujo
+      - name: Verify tag and candidate identity
+        working-directory: relay
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected_tag="v$(cat VERSION)"
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            test "$GITHUB_REF_NAME" = "$expected_tag"
+            test "$(git rev-parse "$GITHUB_REF_NAME^{commit}")" = "$GITHUB_SHA"
+          fi
+          if [[ "${{ inputs.publish_release || false }}" == "true" ]]; then
+            test "${{ inputs.release_tag }}" = "$expected_tag"
+            test "$(git rev-parse "${{ inputs.release_tag }}^{commit}")" = "$GITHUB_SHA"
+          fi
+      - name: Run exact-candidate Workcell proof
+        id: proof
+        working-directory: relay
+        shell: bash
+        env:
+          KUJO_BIN: ${{ github.workspace }}/kujo/target/release/kujo
+          WORKCELL_ROOT: ${{ github.workspace }}/workcell
+          RELAY_EXPECTED_COMMIT: ${{ github.sha }}
+        run: |
+          bash scripts/workcell_release_proof.sh "$RUNNER_TEMP/relay-workcell"
+          echo "run_id=$(jq -r '.success.run_id' "$RUNNER_TEMP/relay-workcell/proof.json")" >> "$GITHUB_OUTPUT"
+      - name: Upload Workcell proof
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: relay-${{ github.sha }}-workcell-proof
+          path: ${{ runner.temp }}/relay-workcell/
+          if-no-files-found: error
+          retention-days: 90
+
+  candidate-artifacts:
+    needs: [gates, workcell]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout candidate source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 0
+      - name: Build deterministic candidate artifacts
+        shell: bash
+        env:
+          RELAY_SOURCE_CHECK_RESULT: passed
+          RELAY_CLI_CONTRACT_RESULT: passed
+          RELAY_ACCEPTANCE_RESULT: passed
+          RELAY_SCHEMA_RESULT: passed
+          RELAY_MARKDOWN_RESULT: passed
+          RELAY_METADATA_RESULT: passed
+          RELAY_KENNEL_RESULT: passed
+          RELAY_SHIPCHECK_RESULT: passed-16-of-16
+          RELAY_WORKCELL_RESULT: passed
+          RELAY_WORKCELL_RUN_ID: ${{ needs.workcell.outputs.run_id }}
+          RELAY_LIVE_PROVIDER_RESULT: blocked-approval-or-credentials-required
+          RELAY_PLATFORM_LINUX_X86_64: passed
+          RELAY_PLATFORM_MACOS_X86_64: passed
+          RELAY_PLATFORM_MACOS_ARM64: passed
+        run: bash scripts/build_release_artifacts.sh "$RUNNER_TEMP/relay-release" "$GITHUB_SHA"
+      - name: Upload candidate artifacts
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: relay-${{ github.sha }}-candidate-release
+          path: ${{ runner.temp }}/relay-release/
+          if-no-files-found: error
+          retention-days: 90
+
+  live-provider:
+    if: github.event_name == 'workflow_dispatch' && inputs.publish_release == true
+    needs: [gates, workcell]
+    environment: release
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    outputs:
+      provider: ${{ steps.proof.outputs.provider }}
+      model: ${{ steps.proof.outputs.model }}
+    steps:
+      - name: Checkout Relay
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          path: relay
+          fetch-depth: 0
+      - name: Checkout Kujo
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: kujolang/kujo
+          ref: 9b77dce592047121cb71066629836ad89252f3ce
+          path: kujo
+          token: ${{ secrets.KUJO_ECOSYSTEM_TOKEN || github.token }}
+      - name: Checkout AI SDK
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: kujolang/ai-sdk
+          ref: d3c6def0f7844f8b42bd92d3b176e80283af8e79
+          path: ai-sdk
+          token: ${{ secrets.KUJO_ECOSYSTEM_TOKEN || github.token }}
+      - name: Checkout Agents SDK
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: kujolang/agents-sdk
+          ref: e92a61ec1df21c89ae26f411838b4669405a0765
+          path: agents-sdk
+          token: ${{ secrets.KUJO_ECOSYSTEM_TOKEN || github.token }}
+      - name: Checkout Kujo Agents
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: kujolang/kujo-agents
+          ref: f0c95b66fbc74057481ef228961eb6e69ff8886a
+          path: kujo-agents
+          token: ${{ secrets.KUJO_ECOSYSTEM_TOKEN || github.token }}
+      - name: Checkout Watchdog source identity
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: kujolang/watchdog
+          ref: 7c46cd0bf1680d037c24506be4ed0a2405a9841f
+          path: watchdog
+          token: ${{ secrets.KUJO_ECOSYSTEM_TOKEN || github.token }}
+      - name: Checkout PackWrite
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: kujolang/packwrite
+          ref: 0cb9487e4c02218bb4a18efe68b8a0c22998f715
+          path: packwrite
+          token: ${{ secrets.KUJO_ECOSYSTEM_TOKEN || github.token }}
+      - name: Checkout RunLedger
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: kujolang/runledger
+          ref: 5cf186c9b56b540970f75e33a06f50d3dac833a8
+          path: runledger
+          token: ${{ secrets.KUJO_ECOSYSTEM_TOKEN || github.token }}
+      - name: Checkout ChangeBucket
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: kujolang/changebucket
+          ref: 373ac51a572bd3bb0510ac718ac1bab065c84735
+          path: changebucket
+          token: ${{ secrets.KUJO_ECOSYSTEM_TOKEN || github.token }}
+      - name: Checkout Eval
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: kujolang/eval
+          ref: dce9d030a3547803dab876b404c44c25b247dde1
+          path: eval
+          token: ${{ secrets.KUJO_ECOSYSTEM_TOKEN || github.token }}
+      - name: Setup pinned Rust toolchain action
+        uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8
+      - name: Build pinned Kujo runtime
+        run: cargo build --release --locked --manifest-path kujo/Cargo.toml --bin kujo
+      - name: Prepare bounded disposable mission repository
+        working-directory: relay
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/relay-provider-tools-workspace
+          git -C /tmp/relay-provider-tools-workspace init -q
+          git -C /tmp/relay-provider-tools-workspace config user.email relay@example.invalid
+          git -C /tmp/relay-provider-tools-workspace config user.name Relay
+          touch /tmp/relay-provider-tools-workspace/README.md
+          git -C /tmp/relay-provider-tools-workspace add README.md
+          git -C /tmp/relay-provider-tools-workspace commit -qm baseline
+          jq --arg model "${{ vars.RELAY_LIVE_MODEL }}" '.model = $model' examples/provider-tools-mission.json > /tmp/relay-live-mission.json
+      - name: Run approval-gated external proof
+        id: proof
+        working-directory: relay
+        shell: bash
+        env:
+          KUJO_BIN: ${{ github.workspace }}/kujo/target/release/kujo
+          KUJO_AI_SDK_PATH: ${{ github.workspace }}/ai-sdk
+          KUJO_AGENTS_PATH: ${{ github.workspace }}/kujo-agents
+          RELAY_PACKWRITE_ROOT: ${{ github.workspace }}/packwrite
+          RELAY_RUNLEDGER_ROOT: ${{ github.workspace }}/runledger
+          RELAY_CHANGEBUCKET_ROOT: ${{ github.workspace }}/changebucket
+          RELAY_EVAL_ENTRY: ${{ github.workspace }}/eval/main.kujo
+          RELAY_LIVE_PROVIDER_APPROVED: "true"
+          RELAY_EXPECTED_COMMIT: ${{ github.sha }}
+          RELAY_OFFLINE_FIXTURE: "false"
+          RELAY_WATCHDOG_URL: ${{ secrets.RELAY_WATCHDOG_URL }}
+          RELAY_WATCHDOG_API_URL: ${{ secrets.RELAY_WATCHDOG_API_URL }}
+          RELAY_WATCHDOG_PROXY_TOKEN: ${{ secrets.RELAY_WATCHDOG_PROXY_TOKEN }}
+          RELAY_WATCHDOG_API_TOKEN: ${{ secrets.RELAY_WATCHDOG_API_TOKEN }}
+          RELAY_WATCHDOG_VERIFY: "true"
+          RELAY_WATCHDOG_DEPLOYED_REVISION: 7c46cd0bf1680d037c24506be4ed0a2405a9841f
+          RELAY_LIVE_MODEL: ${{ vars.RELAY_LIVE_MODEL }}
+          RELAY_LIVE_PROVIDER: openai-compatible
+          RELAY_LIVE_MISSION: /tmp/relay-live-mission.json
+          OPENAI_API_KEY: ${{ secrets.RELAY_LIVE_PROVIDER_API_KEY }}
+        run: |
+          bash scripts/live_provider_verification.sh "$RUNNER_TEMP/relay-live-provider"
+          echo "provider=$(jq -r '.provider' "$RUNNER_TEMP/relay-live-provider/proof.json")" >> "$GITHUB_OUTPUT"
+          echo "model=$(jq -r '.model' "$RUNNER_TEMP/relay-live-provider/proof.json")" >> "$GITHUB_OUTPUT"
+      - name: Upload redacted live-provider proof
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: relay-${{ github.sha }}-live-provider-proof
+          path: ${{ runner.temp }}/relay-live-provider/
+          if-no-files-found: error
+          retention-days: 90
+
+  publish-artifacts:
+    if: github.event_name == 'workflow_dispatch' && inputs.publish_release == true
+    needs: [gates, workcell, live-provider]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout verified tag
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 0
+      - name: Require valid existing tag
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected_tag="v$(cat VERSION)"
+          test "${{ inputs.release_tag }}" = "$expected_tag"
+          test "$(git rev-parse "${{ inputs.release_tag }}^{commit}")" = "$GITHUB_SHA"
+      - name: Build publishable deterministic artifacts
+        shell: bash
+        env:
+          RELAY_SOURCE_CHECK_RESULT: passed
+          RELAY_CLI_CONTRACT_RESULT: passed
+          RELAY_ACCEPTANCE_RESULT: passed
+          RELAY_SCHEMA_RESULT: passed
+          RELAY_MARKDOWN_RESULT: passed
+          RELAY_METADATA_RESULT: passed
+          RELAY_KENNEL_RESULT: passed
+          RELAY_SHIPCHECK_RESULT: passed-16-of-16
+          RELAY_WORKCELL_RESULT: passed
+          RELAY_WORKCELL_RUN_ID: ${{ needs.workcell.outputs.run_id }}
+          RELAY_LIVE_PROVIDER_RESULT: passed
+          RELAY_LIVE_PROVIDER_ID: ${{ needs.live-provider.outputs.provider }}
+          RELAY_LIVE_MODEL_ID: ${{ needs.live-provider.outputs.model }}
+          RELAY_PLATFORM_LINUX_X86_64: passed
+          RELAY_PLATFORM_MACOS_X86_64: passed
+          RELAY_PLATFORM_MACOS_ARM64: passed
+        run: bash scripts/build_release_artifacts.sh "$RUNNER_TEMP/relay-release" "$GITHUB_SHA"
+      - name: Upload publishable release artifacts
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: relay-${{ github.sha }}-publishable-release
+          path: ${{ runner.temp }}/relay-release/
+          if-no-files-found: error
+          retention-days: 90
+
+  publish:
+    if: github.event_name == 'workflow_dispatch' && inputs.publish_release == true
+    needs: publish-artifacts
+    runs-on: ubuntu-24.04
+    environment: release
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout verified tag
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 0
+      - name: Download publishable artifacts
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: relay-${{ github.sha }}-publishable-release
+          path: ${{ runner.temp }}/relay-release
+      - name: Publish only the approved existing tag
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          set -euo pipefail
+          expected_tag="v$(cat VERSION)"
+          test "$RELEASE_TAG" = "$expected_tag"
+          test "$(git rev-parse "$RELEASE_TAG^{commit}")" = "$GITHUB_SHA"
+          cd "$RUNNER_TEMP/relay-release"
+          if command -v sha256sum >/dev/null 2>&1; then sha256sum -c "relay-$RELEASE_TAG.SHA256SUMS"; else shasum -a 256 -c "relay-$RELEASE_TAG.SHA256SUMS"; fi
+          gh release view "$RELEASE_TAG" >/dev/null 2>&1 || gh release create "$RELEASE_TAG" --verify-tag --title "Relay $RELEASE_TAG" --notes-file "relay-$RELEASE_TAG.evidence.md"
+          gh release upload "$RELEASE_TAG" relay-* --clobber
