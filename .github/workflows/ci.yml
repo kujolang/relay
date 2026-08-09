@@ -28,82 +28,82 @@ jobs:
 
     steps:
       - name: Checkout Relay
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
           path: relay
           fetch-depth: 0
       - name: Checkout Kujo
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
           repository: kujolang/kujo
           ref: 9b77dce592047121cb71066629836ad89252f3ce
           path: kujo
           token: ${{ secrets.KUJO_ECOSYSTEM_TOKEN || github.token }}
       - name: Checkout AI SDK
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
           repository: kujolang/ai-sdk
           ref: d3c6def0f7844f8b42bd92d3b176e80283af8e79
           path: ai-sdk
           token: ${{ secrets.KUJO_ECOSYSTEM_TOKEN || github.token }}
       - name: Checkout Agents SDK
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
           repository: kujolang/agents-sdk
           ref: e92a61ec1df21c89ae26f411838b4669405a0765
           path: agents-sdk
           token: ${{ secrets.KUJO_ECOSYSTEM_TOKEN || github.token }}
       - name: Checkout Kujo Agents
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
           repository: kujolang/kujo-agents
           ref: f0c95b66fbc74057481ef228961eb6e69ff8886a
           path: kujo-agents
           token: ${{ secrets.KUJO_ECOSYSTEM_TOKEN || github.token }}
       - name: Checkout Watchdog
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
           repository: kujolang/watchdog
           ref: 7c46cd0bf1680d037c24506be4ed0a2405a9841f
           path: watchdog
           token: ${{ secrets.KUJO_ECOSYSTEM_TOKEN || github.token }}
       - name: Checkout PackWrite
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
           repository: kujolang/packwrite
           ref: 0cb9487e4c02218bb4a18efe68b8a0c22998f715
           path: packwrite
           token: ${{ secrets.KUJO_ECOSYSTEM_TOKEN || github.token }}
       - name: Checkout RunLedger
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
           repository: kujolang/runledger
           ref: 5cf186c9b56b540970f75e33a06f50d3dac833a8
           path: runledger
           token: ${{ secrets.KUJO_ECOSYSTEM_TOKEN || github.token }}
       - name: Checkout ChangeBucket
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
           repository: kujolang/changebucket
           ref: 373ac51a572bd3bb0510ac718ac1bab065c84735
           path: changebucket
           token: ${{ secrets.KUJO_ECOSYSTEM_TOKEN || github.token }}
       - name: Checkout Eval
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
           repository: kujolang/eval
           ref: dce9d030a3547803dab876b404c44c25b247dde1
           path: eval
           token: ${{ secrets.KUJO_ECOSYSTEM_TOKEN || github.token }}
       - name: Checkout Kennel
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
           repository: kujolang/kennel
           ref: 6df043c3ba0bde4445cc8f8f7d4c01c60c9c6d7e
           path: kennel
           token: ${{ secrets.KUJO_ECOSYSTEM_TOKEN || github.token }}
       - name: Checkout ShipCheck
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
           repository: kujolang/shipcheck
           ref: 2768e3040e766b0befd354db4427afc4c7a81899
