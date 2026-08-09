@@ -33,6 +33,19 @@ printf '%s' "$resumed" | grep -q '"provider":"fixture"'
 printf '%s' "$resumed" | grep -q '"receipts"'
 
 run_dir="$(printf '%s' "$resumed" | ruby -rjson -e 'print JSON.parse(STDIN.read)["run_dir"]')"
+python3 "$ROOT/scripts/validate_json.py" "$ROOT/schemas/run.schema.json" "$run_dir/state.json"
+python3 "$ROOT/scripts/validate_json.py" "$ROOT/schemas/report.schema.json" "$run_dir/report.json"
+python3 "$ROOT/scripts/validate_json.py" "$ROOT/schemas/packet-manifest.schema.json" "$run_dir/packet-manifest.json"
+contract_item="/tmp/relay-mission-contract-item-$$.json"
+jq -c '.[]' "$run_dir/receipts.json" | while IFS= read -r item; do
+  printf '%s\n' "$item" > "$contract_item"
+  python3 "$ROOT/scripts/validate_json.py" "$ROOT/schemas/receipt.schema.json" "$contract_item" >/dev/null
+done
+while IFS= read -r item; do
+  printf '%s\n' "$item" > "$contract_item"
+  python3 "$ROOT/scripts/validate_json.py" "$ROOT/schemas/event.schema.json" "$contract_item" >/dev/null
+done < "$run_dir/events.jsonl"
+rm -f "$contract_item"
 jq -e '.receipts | length >= 7 and (map(.receipt_id) as $ids | (($ids | unique | length) == ($ids | length))) and (all(.[]; (.metadata.workflow == "verified-feature" and .metadata.model == "fixture-model" and .metadata.provider == "fixture" and (.metadata.packet_revision == 0 or .metadata.packet_revision == 1) and (.metadata.runledger_id != null))))' "$run_dir/state.json" >/dev/null
 test -f "$run_dir/receipts.json"
 

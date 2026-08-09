@@ -1,0 +1,7 @@
+{
+  "ok": true,
+  "models": [
+    {"id": "fixture-model", "provider": "fixture", "capabilities": ["chat"], "offline": true}
+  ],
+  "routing": {"mode": "explicit_profile", "reason": "fixture"}
+}

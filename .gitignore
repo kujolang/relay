@@ -2,6 +2,8 @@
 .loop-engineering/
 target/
 *.tmp
+__pycache__/
+*.pyc
 RELAY_OUTPUT.txt
 # Kujo ecosystem local artifact ignore block.
 # Keep this block repo-local by default. Promote intentionally reviewed examples

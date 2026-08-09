@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kujo.dev/relay/schemas/models.schema.json",
+  "title": "Kujo Relay models result",
+  "type": "object",
+  "required": ["ok"],
+  "properties": {
+    "ok": {"type": "boolean"},
+    "models": {"type": "array", "items": {"type": "object", "required": ["id", "provider", "capabilities", "offline"]}},
+    "model": {"type": "object", "required": ["id", "provider"]},
+    "routing": {"type": "object", "required": ["mode", "reason"]},
+    "error": {"type": "string"}
+  },
+  "additionalProperties": true
+}

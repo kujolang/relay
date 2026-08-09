@@ -65,6 +65,7 @@ test -f "$WORK/PROVIDER_TOOL_OUTPUT.txt"
 grep -q 'provider-generated tool call' "$WORK/PROVIDER_TOOL_OUTPUT.txt"
 test -f "$RELAY_STATE_ROOT/runs/$run_id/tool-results.json"
 jq -e --arg run_id "$run_id" '.contract_version == "relay-tool-result-bundle-v1" and .run_id == $run_id and (.results | length) == 1 and .results[0].result.ok == true' "$RELAY_STATE_ROOT/runs/$run_id/tool-results.json" >/dev/null
+python3 "$ROOT/scripts/validate_json.py" "$ROOT/schemas/tool-result-bundle.schema.json" "$RELAY_STATE_ROOT/runs/$run_id/tool-results.json"
 
 events="$($KUJO run "$ROOT/main.kujo" -- runs events "$run_id" --json)"
 printf '%s' "$events" | jq -e '.ok == true and any(.events[]; .kind == "tool_plan_resolved" and .payload.provider_generated == true) and any(.events[]; .kind == "tool_result_persisted")' >/dev/null

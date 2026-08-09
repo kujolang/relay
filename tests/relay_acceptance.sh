@@ -11,9 +11,11 @@ fi
 
 export KUJO
 "$KUJO" run "$ROOT/tests/relay_contract_tests.kujo" --interpreter
+bash "$ROOT/tests/markdown_links.sh"
+bash "$ROOT/tests/release_metadata.sh"
 
 smoke_count=0
-for smoke in "$ROOT"/tests/relay_*_smoke.sh; do
+for smoke in "$ROOT"/tests/*_smoke.sh; do
   bash "$smoke"
   smoke_count=$((smoke_count + 1))
 done
