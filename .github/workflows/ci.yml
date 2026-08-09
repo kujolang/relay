@@ -32,6 +32,15 @@ jobs:
         with:
           path: relay
           fetch-depth: 0
+      - name: Require private ecosystem dependency access
+        shell: bash
+        env:
+          KUJO_ECOSYSTEM_TOKEN: ${{ secrets.KUJO_ECOSYSTEM_TOKEN }}
+        run: |
+          if [[ -z "$KUJO_ECOSYSTEM_TOKEN" ]]; then
+            echo "::error::KUJO_ECOSYSTEM_TOKEN is required to fetch the pinned private kujolang/kujo-agents dependency"
+            exit 1
+          fi
       - name: Checkout Kujo
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
@@ -59,7 +68,7 @@ jobs:
           repository: kujolang/kujo-agents
           ref: f0c95b66fbc74057481ef228961eb6e69ff8886a
           path: kujo-agents
-          token: ${{ secrets.KUJO_ECOSYSTEM_TOKEN || github.token }}
+          token: ${{ secrets.KUJO_ECOSYSTEM_TOKEN }}
       - name: Checkout Watchdog
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
