@@ -35,7 +35,7 @@ Until these items pass, external provider compatibility is an explicit release b
 ## External GitHub administration
 
 - [x] GitHub-hosted Linux, macOS x86_64, and macOS arm64 runners start successfully for the candidate branch.
-- [ ] Configure `KUJO_ECOSYSTEM_TOKEN` with read access to the private `kujolang/kujo-agents` repository. Candidate CI run `31290237627` started all three platform jobs but each failed closed while fetching pinned revision `f0c95b66fbc74057481ef228961eb6e69ff8886a`; artifact guard run `31290237616` passed.
+- [x] Required pinned ecosystem sources are publicly readable by the least-privilege GitHub token, including `kujolang/kujo-agents` revision `f0c95b66fbc74057481ef228961eb6e69ff8886a`; CI does not require a private cross-repository token.
 - [ ] Required checks and branch protection are configured by a repository administrator.
 - [ ] The final candidate CI and release-preparation workflow runs are retained and reviewed.
 
