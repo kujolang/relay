@@ -4,7 +4,13 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 KUJO="${KUJO:-${KUJO_BIN:-$ROOT/../kujo/target/release/kujo}}"
 
-if rg -n 'rm -rf .*\$ROOT/\.relay' "$ROOT"/tests/relay_*_smoke.sh; then
+if command -v rg >/dev/null 2>&1; then
+  unsafe_cleanup="$(rg -n 'rm -rf .*\$ROOT/\.relay' "$ROOT"/tests/relay_*_smoke.sh || true)"
+else
+  unsafe_cleanup="$(grep -En 'rm -rf .*\$ROOT/\.relay' "$ROOT"/tests/relay_*_smoke.sh || true)"
+fi
+if [[ -n "$unsafe_cleanup" ]]; then
+  printf '%s\n' "$unsafe_cleanup" >&2
   echo "FAIL Relay smoke test may delete the repository evidence store" >&2
   exit 1
 fi
@@ -16,7 +22,11 @@ bash "$ROOT/tests/release_metadata.sh"
 
 smoke_count=0
 for smoke in "$ROOT"/tests/*_smoke.sh; do
-  bash "$smoke"
+  echo "RUN ${smoke#"$ROOT/"}"
+  if ! bash "$smoke"; then
+    echo "FAIL ${smoke#"$ROOT/"}" >&2
+    exit 1
+  fi
   smoke_count=$((smoke_count + 1))
 done
 
