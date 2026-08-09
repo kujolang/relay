@@ -3,7 +3,7 @@
   "$id": "https://kujo.dev/relay/schemas/run-export.schema.json",
   "title": "Kujo Relay complete run export",
   "type": "object",
-  "required": ["ok", "format", "run_id", "integrity_valid", "chain_integrity_valid", "state_consistent", "receipts_valid", "receipts_consistent", "changes_valid", "evaluations_valid", "report_valid", "run", "events", "receipts", "changes", "evaluations", "report"],
+  "required": ["format", "run_id", "integrity_valid", "chain_integrity_valid", "state_consistent", "receipts_valid", "receipts_consistent", "changes_valid", "evaluations_valid", "report_valid", "run", "events", "receipts", "changes", "evaluations", "report"],
   "properties": {
     "ok": {"const": true},
     "format": {"const": "relay-run-export-v1"},
