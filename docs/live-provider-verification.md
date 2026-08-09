@@ -26,6 +26,8 @@ bash scripts/live_provider_verification.sh /absolute/path/to/evidence-output
 
 The script performs one bounded chat request and one provider-generated tool mission. It requires Watchdog correlation and usage reconciliation, verifies the persisted tool-result bundle, run evidence, and complete export, scans the captured evidence for configured secret values, and records product/dependency/provider/model identifiers without credential values.
 
+The same proof can be run on the exact GitHub candidate by manually dispatching `Relay release preparation` with `run_live_provider=true` and `publish_release=false`. The protected `release` environment supplies approval and the documented secrets plus `RELAY_LIVE_MODEL`; this verification-only path cannot create a tag or GitHub release. Publishing remains a separate dispatch against an existing verified tag.
+
 ## Required review
 
 The release owner must verify:
