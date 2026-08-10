@@ -2,7 +2,7 @@ from src.contracts import event, event_integrity_valid, event_chain_integrity_va
 from src.policy import classify_failure, repair_allowed, path_is_safe, path_is_within_workspace, command_is_allowed, tool_decision
 from src.runtime import load_spec, resume_state_safe, cleanup_state_safe, control_state_safe, save_state, mark_evidence_failure, cancellation_request, cancellation_integrity_input, persist_required_json, report, provider_failure_message, provider_followup_token_ceiling, provider_synthesis_messages, provider_synthesis_tool, provider_synthesis_answer, preflight_failure_message
 from src.common import safe_id, redact_text, shell_quote_single, command_args, process_options, process_options_with_cancel, safe_process_path, safe_env_name, path_is_symlink_safe, path_has_symlink_component, path_has_parent_component, read_json_limited, append_jsonl, append_jsonl_bounded, write_json, write_text_atomic, create_exclusive_dir, dict_get_or, bool_or, string_or, safe_json, issue_agent_capability, revoke_agent_capability
-from src.adapters import fallback_allowed, fallback_decision, watchdog_route_allowed, tool_definitions, normalize_provider_tool_calls, provider_payload_size, provider_payload_allowed, bounded_max_tokens
+from src.adapters import fallback_allowed, fallback_decision, watchdog_route_allowed, tool_definitions, normalize_provider_tool_calls, provider_payload_size, provider_payload_allowed, safe_watchdog_upstream_profile, bounded_max_tokens
 from src.store import safe_run_key, store_root_safe, acquire_index_lock, acquire_index_lock_retry, release_index_lock, rebuild_and_persist_run_index, rebuild_and_persist_run_index_result
 from src.watchdog import safe_base, safe_correlation_id, route_policy, usage_reconciliation, usage_reconciliation_for_rows
 
@@ -227,6 +227,8 @@ failed = failed + check("repair allows timeout", repair_allowed("timeout"))
 failed = failed + check("repair denies policy violation", repair_allowed("policy_violation") == false)
 failed = failed + check("repair denies authentication failure", repair_allowed("authentication_failure") == false)
 failed = failed + check("safe Watchdog route", watchdog_route_allowed("http://127.0.0.1:7700/proxy/v1"))
+failed = failed + check("safe Watchdog upstream profile", safe_watchdog_upstream_profile("openrouter-work") && safe_watchdog_upstream_profile("ollama.tud_1"))
+failed = failed + check("unsafe Watchdog upstream profile rejected", safe_watchdog_upstream_profile("openrouter-work\r\nX-Test: injected") == false && safe_watchdog_upstream_profile(repeat("a", 129)) == false)
 failed = failed + check("HTTPS external Watchdog route", watchdog_route_allowed("https://watchdog.example.com/proxy/v1"))
 failed = failed + check("HTTP external Watchdog route denied", watchdog_route_allowed("http://watchdog.example.com/proxy/v1") == false)
 failed = failed + check("HTTP IPv6 loopback Watchdog route", watchdog_route_allowed("http://[::1]:7700/proxy/v1"))

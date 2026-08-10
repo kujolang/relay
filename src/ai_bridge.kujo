@@ -36,6 +36,13 @@ watchdog_token := env("RELAY_WATCHDOG_PROXY_TOKEN")
 if type(watchdog_token) != "null" && trim(to_string(watchdog_token)) != "" {
     options["headers"] := {"X-Watchdog-Proxy-Token": watchdog_token}
 }
+watchdog_profile := env("RELAY_WATCHDOG_UPSTREAM_PROFILE")
+if type(watchdog_profile) != "null" && trim(to_string(watchdog_profile)) != "" {
+    headers := get(options, "headers", {})
+    if type(headers) != "dict" { headers = {} }
+    headers["X-Watchdog-Upstream-Profile"] := watchdog_profile
+    options["headers"] := headers
+}
 correlation_id := get(payload, "correlation_id", "")
 if type(correlation_id) == "string" && trim(correlation_id) != "" {
     headers := get(options, "headers", {})

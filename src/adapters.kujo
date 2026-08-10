@@ -238,6 +238,19 @@ func provider_payload_allowed(payload) {
     return provider_payload_size(payload) <= 114688
 }
 
+func safe_watchdog_upstream_profile(value) {
+    profile := string_or(value, "")
+    if profile == "" { return true }
+    if len(profile) > 128 { return false }
+    mut index := 0
+    while index < len(profile) {
+        character := substring(profile, index, index + 1)
+        if index_of("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-", character) < 0 { return false }
+        index = index + 1
+    }
+    return true
+}
+
 func call_ai_with_tools(messages, model, provider, base_url, api_key_env, offline, stream, correlation_id, tools, max_tokens) {
     if offline == false && watchdog_url() == "" {
         return {"ok": false, "error": {"code": "watchdog_route_required", "message": "Live AI calls require RELAY_WATCHDOG_URL"}, "relay_telemetry": {"route": "blocked_no_watchdog", "provider": provider, "model": model}}
@@ -278,9 +291,14 @@ func call_ai_with_tools(messages, model, provider, base_url, api_key_env, offlin
     if provider_payload_allowed(payload) == false {
         return {"ok": false, "error": {"code": "ai_payload_too_large", "message": "AI request payload exceeds the 112 KiB Relay safety limit"}, "relay_telemetry": {"route": "blocked_payload_size", "provider": provider, "model": model, "payload_bytes": provider_payload_size(payload)}}
     }
+    watchdog_profile := env_or("RELAY_WATCHDOG_UPSTREAM_PROFILE", "")
+    if safe_watchdog_upstream_profile(watchdog_profile) == false {
+        return {"ok": false, "error": {"code": "invalid_watchdog_upstream_profile", "message": "RELAY_WATCHDOG_UPSTREAM_PROFILE must contain only letters, digits, dot, underscore, or hyphen and be at most 128 characters"}, "relay_telemetry": {"route": "blocked_invalid_watchdog_upstream_profile", "provider": provider, "model": model}}
+    }
     env_map := {"RELAY_AI_PAYLOAD": safe_json(payload), "AI_SDK_PATH": ai_sdk_root()}
     watchdog_token := env_or("RELAY_WATCHDOG_PROXY_TOKEN", "")
     if watchdog_token != "" { env_map["RELAY_WATCHDOG_PROXY_TOKEN"] := watchdog_token }
+    if watchdog_profile != "" { env_map["RELAY_WATCHDOG_UPSTREAM_PROFILE"] := watchdog_profile }
     allow_insecure_localhost := env_or("KUJO_AI_SDK_ALLOW_INSECURE_LOCALHOST", "")
     if allow_insecure_localhost != "" { env_map["KUJO_AI_SDK_ALLOW_INSECURE_LOCALHOST"] := allow_insecure_localhost }
     api_key := env(api_key_env)
@@ -301,7 +319,7 @@ func call_ai_with_tools(messages, model, provider, base_url, api_key_env, offlin
     route := "direct_ai_sdk"
     if watchdog_url() != "" && offline == false { route = "watchdog_proxy" }
     route_posture := route_policy(watchdog_url())
-    parsed["relay_telemetry"] := {"route": route, "watchdog_route": {"configured": dict_get_or(route_posture, "configured", false), "valid": dict_get_or(route_posture, "valid", false), "scheme": dict_get_or(route_posture, "scheme", ""), "reason": dict_get_or(route_posture, "reason", "")}, "watchdog_auth_configured": watchdog_token != "", "provider": provider, "model": model, "stream_requested": stream, "requested_max_tokens": request_max_tokens, "correlation_id": correlation, "duration_ms": int_or(dict_get_or(result, "duration_ms", 0), 0)}
+    parsed["relay_telemetry"] := {"route": route, "watchdog_route": {"configured": dict_get_or(route_posture, "configured", false), "valid": dict_get_or(route_posture, "valid", false), "scheme": dict_get_or(route_posture, "scheme", ""), "reason": dict_get_or(route_posture, "reason", "")}, "watchdog_auth_configured": watchdog_token != "", "watchdog_upstream_profile_configured": watchdog_profile != "", "provider": provider, "model": model, "stream_requested": stream, "requested_max_tokens": request_max_tokens, "correlation_id": correlation, "duration_ms": int_or(dict_get_or(result, "duration_ms", 0), 0)}
     if offline == false && env_bool("RELAY_WATCHDOG_VERIFY", false) {
         verification := watchdog_verify(correlation, dict_get_or(parsed, "usage", {}), string_or(dict_get_or(parsed, "request_id", ""), ""))
         parsed["relay_watchdog_verification"] := verification
@@ -498,6 +516,7 @@ export bounded_max_tokens := bounded_max_tokens
 export normalize_provider_tool_calls := normalize_provider_tool_calls
 export provider_payload_size := provider_payload_size
 export provider_payload_allowed := provider_payload_allowed
+export safe_watchdog_upstream_profile := safe_watchdog_upstream_profile
 export tool_definitions := tool_definitions
 export fallback_allowed := fallback_allowed
 export fallback_decision := fallback_decision
