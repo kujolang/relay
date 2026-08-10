@@ -28,6 +28,7 @@ server := server.route("GET", "/api/requests", func(req) {
 server := server.route("POST", "/proxy/v1/chat/completions", func(req) {
     headers := dict_get_or(req, "headers", {})
     if header_value(headers, "X-Watchdog-Proxy-Token") != "relay-proxy-token" { return http_response(401, "{\"error\":{\"message\":\"proxy auth required\"}}") }
+    if header_value(headers, "X-Watchdog-Upstream-Profile") != "relay-test-profile" { return http_response(400, "{\"error\":{\"message\":\"upstream profile required\"}}") }
     return http_response(200, "{\"id\":\"stub-request\",\"model\":\"stub-model\",\"choices\":[{\"message\":{\"content\":\"relay-watchdog-stub-ok\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":2,\"completion_tokens\":3,\"total_tokens\":5}}")
 })
 

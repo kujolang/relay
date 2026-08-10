@@ -28,6 +28,7 @@ export RELAY_WATCHDOG_URL="http://127.0.0.1:$PORT/proxy/v1"
 export RELAY_WATCHDOG_API_URL="http://127.0.0.1:$PORT"
 export RELAY_WATCHDOG_PROXY_TOKEN=relay-proxy-token
 export RELAY_WATCHDOG_API_TOKEN=relay-api-token
+export RELAY_WATCHDOG_UPSTREAM_PROFILE=relay-test-profile
 export RELAY_WATCHDOG_VERIFY=true
 export RELAY_CORRELATION_ID="$CORRELATION"
 export OPENAI_API_KEY=relay-stub-provider-key
