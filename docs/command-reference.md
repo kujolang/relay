@@ -19,6 +19,7 @@ This document defines the stable Relay 1.x CLI. Relay commands return process ex
 | `RELAY_OFFLINE_FIXTURE` | Select deterministic fixture mode | `true` |
 | `RELAY_WATCHDOG_URL` | Watchdog-compatible OpenAI base URL for live calls | required when live |
 | `RELAY_WATCHDOG_PROXY_TOKEN` | Optional Watchdog proxy-route token forwarded as a bounded request header | unset |
+| `RELAY_WATCHDOG_UPSTREAM_PROFILE` | Optional trusted Watchdog named upstream profile; forwarded only as `X-Watchdog-Upstream-Profile` | Watchdog default |
 | `RELAY_WATCHDOG_API_URL` | Optional Watchdog API base URL for health/config/request verification | derived from proxy URL |
 | `RELAY_WATCHDOG_API_TOKEN` | Watchdog API token for authenticated telemetry verification | unset |
 | `RELAY_WATCHDOG_VERIFY` | Require health, proxy-config, and correlated request-row verification after live AI calls | `false` |
@@ -52,7 +53,7 @@ errors. This protects the machine boundary and stays below common process
 environment limits; larger future requests should use an authenticated file or
 socket transport rather than an unbounded environment variable.
 
-Run `relay doctor --json` before a live or CI invocation. Fixture mode does not require Watchdog or credentials; live mode fails closed when either is absent.
+Run `relay doctor --json` before a live or CI invocation. Fixture mode does not require Watchdog or credentials; live mode fails closed when either is absent. Named Watchdog profiles let Relay share the same server-side provider configuration and telemetry store as another local client without copying the upstream credential into Relay. Profile names are bounded to 128 letters, digits, dots, underscores, or hyphens; malformed values fail closed before a provider request.
 
 `relay doctor --repair --json` explicitly removes expired or exhausted Agents
 SDK capability records from the local registry. Cleanup takes each record's

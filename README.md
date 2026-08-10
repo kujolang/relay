@@ -96,12 +96,13 @@ export RELAY_WATCHDOG_URL=https://watchdog.example.invalid/proxy/v1
 export RELAY_WATCHDOG_API_URL=https://watchdog.example.invalid
 export RELAY_WATCHDOG_PROXY_TOKEN=...  # if proxy auth is enabled
 export RELAY_WATCHDOG_API_TOKEN=...    # if verification API auth is enabled
+export RELAY_WATCHDOG_UPSTREAM_PROFILE=openrouter-work  # optional named server-side route
 export RELAY_WATCHDOG_VERIFY=true
 export OPENAI_API_KEY=...
 ./bin/relay chat "hello" --model <model-id> --provider openai-compatible --json
 ```
 
-Loopback HTTP is allowed for local Watchdog development; non-loopback routes require HTTPS. Embedded credentials, queries, fragments, malformed hosts, and unsafe provider credential environment names are rejected. The approval-gated exact-candidate procedure is in [live provider verification](docs/live-provider-verification.md).
+Loopback HTTP is allowed for local Watchdog development; non-loopback routes require HTTPS. Embedded credentials, queries, fragments, malformed hosts, unsafe profile names, and unsafe provider credential environment names are rejected. A named upstream profile reuses Watchdog's server-side provider credential and shared telemetry database; Relay records that profile routing was configured without copying the credential. The approval-gated exact-candidate procedure is in [live provider verification](docs/live-provider-verification.md).
 
 ## Security model
 
