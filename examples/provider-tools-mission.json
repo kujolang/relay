@@ -2,7 +2,7 @@
   "version": "1.0.0",
   "id": "relay-provider-tools-mission",
   "name": "relay-provider-tools-mission",
-  "goal": "Use provider-generated tool planning to create one bounded repository artifact.",
+  "goal": "You must call relay.write_file exactly once to create mission-plan.md with a concise bounded mission plan, then submit the final answer. Do not answer without using the tool.",
   "workflow": "verified-feature",
   "repository": "/tmp/relay-provider-tools-workspace",
   "provider": "openai-compatible",
