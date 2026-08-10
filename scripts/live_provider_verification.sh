@@ -62,8 +62,9 @@ jq -n \
   --arg agents_sdk_revision "$(jq -r '.dependencies["agents-sdk"].revision' "$ROOT/release/dependencies.json")" \
   --arg provider "$RELAY_LIVE_PROVIDER" \
   --arg model "$RELAY_LIVE_MODEL" \
+  --arg watchdog_upstream_profile "${RELAY_WATCHDOG_UPSTREAM_PROFILE:-}" \
   --arg correlation_id "$RELAY_CORRELATION_ID" \
   --arg run_id "$run_id" \
-  '{format:$format,relay_version:$relay_version,relay_commit:$relay_commit,kujo_revision:$kujo_revision,watchdog_revision:$watchdog_revision,ai_sdk_revision:$ai_sdk_revision,agents_sdk_revision:$agents_sdk_revision,provider:$provider,model:$model,correlation_id:$correlation_id,run_id:$run_id,watchdog_bypassed:false,chat_verified:true,usage_reconciled:true,tool_results_verified:true,run_verified:true,export_verified:true,secrets_recorded:false}' > "$OUTPUT/proof.json"
+  '{format:$format,relay_version:$relay_version,relay_commit:$relay_commit,kujo_revision:$kujo_revision,watchdog_revision:$watchdog_revision,ai_sdk_revision:$ai_sdk_revision,agents_sdk_revision:$agents_sdk_revision,provider:$provider,model:$model,watchdog_upstream_profile:$watchdog_upstream_profile,correlation_id:$correlation_id,run_id:$run_id,watchdog_bypassed:false,chat_verified:true,usage_reconciled:true,tool_results_verified:true,run_verified:true,export_verified:true,secrets_recorded:false}' > "$OUTPUT/proof.json"
 
 echo "PASS live Watchdog/provider proof: $OUTPUT/proof.json"

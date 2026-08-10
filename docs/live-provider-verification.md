@@ -6,7 +6,7 @@ This procedure is a release gate for an external provider path. Local fixture an
 
 1. Check out the exact Relay candidate commit with a clean working tree.
 2. Verify the Relay commit and every dependency revision against [`release/dependencies.json`](../release/dependencies.json).
-3. Configure a real Watchdog instance and an approved OpenAI-compatible provider/model. Set `RELAY_OFFLINE_FIXTURE=false`, `RELAY_WATCHDOG_URL`, `RELAY_WATCHDOG_API_URL`, `RELAY_WATCHDOG_VERIFY=true`, required Watchdog tokens, `RELAY_API_KEY_ENV`, and the named provider credential.
+3. Configure a real Watchdog instance and an approved OpenAI-compatible provider/model. Set `RELAY_OFFLINE_FIXTURE=false`, `RELAY_WATCHDOG_URL`, `RELAY_WATCHDOG_API_URL`, `RELAY_WATCHDOG_VERIFY=true`, required Watchdog tokens, `RELAY_API_KEY_ENV`, and the named provider credential. When Watchdog owns the provider credential, set `RELAY_WATCHDOG_UPSTREAM_PROFILE` to its trusted named route; never copy that server-side credential into Relay.
    Set `RELAY_WATCHDOG_DEPLOYED_REVISION` to the independently verified deployed Watchdog Git revision; the script requires the pinned candidate value.
 4. Use an isolated disposable Git repository and a bounded provider-tool mission derived from [`provider-tools-mission.json`](../examples/provider-tools-mission.json). Keep writes, tools, calls, turns, tokens, output, and timeouts at or below the committed limits.
 5. Choose a new safe `RELAY_CORRELATION_ID`. Do not place credentials in arguments, mission files, logs, receipts, or committed evidence.
