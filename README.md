@@ -3,7 +3,7 @@
 [![Version](https://img.shields.io/badge/version-1.0.0-black)](https://github.com/kujolang/relay)
 [![License](https://img.shields.io/badge/license-MIT-lightgrey)](LICENSE)
 [![built with Kujo](https://img.shields.io/badge/built%20with-Kujo-white.svg)](https://github.com/kujolang/kujo)
-[![CI](https://github.com/kujolang/relay/actions/workflows/ci.yml/badge.svg)](https://github.com/kujolang/relay/actions/workflows/ci.yml)
+[![CI](https://img.shields.io/github/actions/workflow/status/kujolang/relay/ci.yml?branch=main&style=flat&label=CI&color=black)](https://github.com/kujolang/relay/actions/workflows/ci.yml)
 
 Relay is a stable local or operator-controlled composition and execution layer for bounded agent missions. It provides a Kujo-native CLI for fixture and Watchdog-routed chat, mission execution in an existing repository or isolated Git worktree, policy-bound Agents SDK tools, and verifiable local evidence.
 
