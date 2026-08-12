@@ -129,6 +129,11 @@ relay benchmark run <repository> [--json]
 
 `relay --version` prints `relay 1.0.0`; `relay --help` prints the complete stable synopsis. A successful command exits `0`, a command-level or evidence failure exits `1`, an unknown top-level command exits `2`, and an unexpected Kujo/runtime failure exits `3`. Stream mode emits JSONL and uses the same final success/failure exit meaning.
 
+Command parsing is fail-closed. Unknown or duplicate options, missing option
+values, and unexpected positional arguments return exit `1` instead of being
+ignored. Use `--` to end option parsing when a chat prompt begins with two
+hyphens. Options may appear before or after their command operands.
+
 `models list --json` and `models probe --json` expose a routing object with the
 selection reason. The environment profile advertises
 `tool_planning: "opt_in_provider_profile"` and
@@ -166,7 +171,8 @@ rejected so a read-only-looking request cannot escape the workspace or widen
 its authority through Git's option surface.
 
 `agent_tools` is an opt-in list of `{name,input}` calls currently limited to
-`relay.write_file` and `relay.run_command`. The Agents SDK Tool Registry and
+`relay.list_files`, `relay.read_file`, `relay.write_file`, and
+`relay.run_command`. The Agents SDK Tool Registry and
 approval provider run in `src/agent_bridge.kujo`; a capability-bound worker then
 delegates to Relay's policy executor. It does not grant the Agents SDK direct
 filesystem or shell authority. The worker rechecks write approval, command
@@ -204,6 +210,14 @@ the verified bundle is persisted as `tool-results.json` and described by
 `tool-result-bundle.schema.json`. Cancellation, malformed arguments,
 unsupported tools, approval failures, tool-call limits, and tool-turn limits
 fail closed. Provider-generated planning is not enabled by default.
+
+`relay.list_files` returns at most 256 tracked paths and 16 KiB of path text per
+call. Its optional non-negative `offset` selects the first file in the page;
+`next_offset`, `total_files`, and `has_more` support deterministic
+continuation. The underlying Git listing must fit the mission's
+`max_output_bytes` budget, so Relay never presents a process-truncated list as
+complete. An empty repository returns an empty `files` array. `relay.read_file`
+uses a separate character offset and returns at most 16 KiB per call.
 
 Provider requests are rejected before the AI bridge when their serialized
 payload exceeds 112 KiB, leaving headroom below the bridge's 128 KiB transport

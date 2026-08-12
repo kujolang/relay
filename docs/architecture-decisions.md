@@ -1548,3 +1548,51 @@ multi-host coordination, and signed export.
 
 Rejected: ignoring write status, trusting an in-memory rebuild as persisted, or
 introducing a new database solely to mask this local reporting defect.
+
+## ADR-115: Page provider-visible repository discovery
+
+Context: `relay.list_files` returned every captured tracked path in one tool
+result. A repository with a large but valid file list could therefore exceed
+the next provider request's fixed payload ceiling, while a process-truncated
+Git result could be mistaken for a complete inventory. An empty repository
+also produced a one-element array containing an empty string.
+
+Decision: return deterministic pages bounded to 256 paths and 16 KiB of path
+text, accept a non-negative file `offset`, expose `next_offset`, `total_files`,
+and `has_more`, and reject an underlying Git listing truncated by the mission
+output budget. Apply the same behavior to declared and provider-generated tool
+calls.
+
+Rationale: keep model context and tool-result evidence bounded while allowing
+large repositories to be discovered incrementally. Explicit continuation is
+more truthful than silently dropping paths and composes with the existing
+tool-call and tool-turn budgets.
+
+Consequences: callers must budget additional tool calls for later pages. A Git
+file list larger than `max_output_bytes` fails closed; streaming Git discovery
+and server-side cursors remain future work.
+
+Rejected: returning a truncated list as success, sending the full list to the
+provider, or adding an unbounded recursive filesystem walk.
+
+## ADR-116: Reject ambiguous CLI input
+
+Context: the generic token parser accepted unknown and duplicate flags, treated
+missing values as empty strings, and let commands ignore extra operands. A
+misspelled safety or routing option could therefore look accepted while Relay
+executed with defaults.
+
+Decision: classify value and boolean options, reject duplicate or missing
+values, validate each subcommand's allowed flags and argument count, and
+support `--` as the standard option terminator for prompt text.
+
+Rationale: machine callers and operators need configuration mistakes to fail
+before provider, repository, or evidence work begins. Per-command validation
+preserves the documented stable surface without changing valid invocations.
+
+Consequences: previously ignored invalid input now exits `1`. This is a
+security and correctness hardening of unsupported input, not a change to a
+documented successful contract.
+
+Rejected: warning while continuing, silently selecting the last duplicate
+value, or maintaining a permissive unknown-option namespace.
