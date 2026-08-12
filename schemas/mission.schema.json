@@ -35,7 +35,7 @@
     },
     "agent_tools": {"type": "array", "maxItems": 16},
     "agent_tool_mode": {"enum": ["declared", "provider"]},
-    "agent_tool_allowlist": {"type": "array", "items": {"enum": ["relay.write_file", "relay.run_command"]}, "maxItems": 2, "uniqueItems": true},
+    "agent_tool_allowlist": {"type": "array", "items": {"enum": ["relay.list_files", "relay.read_file", "relay.write_file", "relay.run_command"]}, "maxItems": 4, "uniqueItems": true},
     "actions": {
       "type": "array",
       "maxItems": 32,

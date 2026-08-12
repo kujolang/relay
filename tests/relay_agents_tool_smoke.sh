@@ -60,6 +60,16 @@ fi
 test -f "$WORK/RELAY_AGENT_TOOL_OUTPUT.txt"
 grep -q 'Agents SDK tool registry' "$WORK/RELAY_AGENT_TOOL_OUTPUT.txt"
 
+# Repository discovery returns a bounded page with an explicit continuation
+# contract instead of an unbounded provider-visible file list.
+list_nonce="relay-list-files-private-nonce"
+list_capability="$(printf '%s' "relay-list-files|relay-list-files-session|$WORK|$list_nonce|relay-agent-tools" | shasum -a 256 | awk '{print $1}')"
+list_fixture="$(issue_capability relay-list-files relay-list-files-session "$list_nonce" 1)"
+list_secret="$(printf '%s' "$list_fixture" | jq -r .secret)"
+list_payload="$(jq -cn --arg work "$WORK" --arg capability "$list_capability" --arg nonce "$list_nonce" '{capability:$capability,capability_nonce:$nonce,run_id:"relay-list-files",session_id:"relay-list-files-session",workspace:$work,mission_spec:{allow_writes:false,approval:{approved:false},allowed_commands:["git"],budgets:{max_output_bytes:1048576,max_write_bytes:1048576}},tool_name:"relay.list_files",input:{offset:0}}')"
+list_output="$(RELAY_TOOL_REQUEST="$list_payload" RELAY_TOOL_CAPABILITY="$list_capability" RELAY_TOOL_CAPABILITY_SECRET="$list_secret" "$KUJO" run "$ROOT/main.kujo" -- tools execute --json)"
+printf '%s' "$list_output" | jq -e '.ok == true and .result.files == ["README.md"] and .result.offset == 0 and .result.next_offset == 1 and .result.total_files == 1 and .result.has_more == false' >/dev/null
+
 # Provider/Agents SDK workers must preserve the mission's script provenance
 # policy when they delegate a command to Relay.
 mkdir -p "$WORK/scripts"

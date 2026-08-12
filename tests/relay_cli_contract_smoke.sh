@@ -22,17 +22,35 @@ unknown="$($ROOT/bin/relay unknown-command 2>&1)"
 unknown_status=$?
 missing_chat="$($ROOT/bin/relay chat --json 2>&1)"
 missing_chat_status=$?
+unknown_option="$($ROOT/bin/relay models list --modle typo --json 2>&1)"
+unknown_option_status=$?
+missing_option_value="$($ROOT/bin/relay models probe fixture-model --provider --json 2>&1)"
+missing_option_value_status=$?
+extra_argument="$($ROOT/bin/relay agents validate unexpected --json 2>&1)"
+extra_argument_status=$?
+duplicate_option="$($ROOT/bin/relay models list --json --json 2>&1)"
+duplicate_option_status=$?
 set -e
 test "$unknown_status" -eq 2
 test "$missing_chat_status" -eq 1
+test "$unknown_option_status" -eq 1
+test "$missing_option_value_status" -eq 1
+test "$extra_argument_status" -eq 1
+test "$duplicate_option_status" -eq 1
 grep -q 'Usage: relay' <<<"$unknown"
 printf '%s' "$missing_chat" | jq -e '.ok == false and (.error | contains("prompt"))' >/dev/null
+printf '%s' "$unknown_option" | jq -e '.ok == false and .error == "unknown option --modle"' >/dev/null
+printf '%s' "$missing_option_value" | jq -e '.ok == false and (.error | contains("requires a value"))' >/dev/null
+printf '%s' "$extra_argument" | jq -e '.ok == false and (.error | contains("unexpected arguments"))' >/dev/null
+printf '%s' "$duplicate_option" | jq -e '.ok == false and (.error | contains("duplicate option"))' >/dev/null
 
 "$ROOT/bin/relay" chat "Summarize the mission boundary" --fixture --json > "$RELAY_TEST_TMP_ROOT/chat.json"
 "$ROOT/bin/relay" models list --json > "$RELAY_TEST_TMP_ROOT/models.json"
 "$ROOT/bin/relay" agents validate --json > "$RELAY_TEST_TMP_ROOT/agents.json"
 "$ROOT/bin/relay" doctor --json > "$RELAY_TEST_TMP_ROOT/doctor.json"
 "$ROOT/bin/relay" models probe fixture-model --fixture --json > "$RELAY_TEST_TMP_ROOT/probe.json"
+literal_prompt="$($ROOT/bin/relay chat -- --literal-prompt)"
+grep -q 'ok: true' <<<"$literal_prompt"
 
 python3 "$ROOT/scripts/validate_json.py" "$ROOT/schemas/chat.schema.json" "$RELAY_TEST_TMP_ROOT/chat.json"
 python3 "$ROOT/scripts/validate_json.py" "$ROOT/schemas/models.schema.json" "$RELAY_TEST_TMP_ROOT/models.json"

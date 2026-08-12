@@ -100,21 +100,55 @@ func positional(values, index, fallback) {
 func parse_tokens(tokens) {
     positionals := []
     flags := {}
+    mut parse_error := ""
+    value_flags := ["model", "provider", "output", "after", "limit", "timeout-ms", "poll-ms", "capability"]
+    boolean_flags := ["json", "stream", "fixture", "offline", "help", "skip-agent-smoke", "pause-after-plan", "confirm", "hashes", "partial", "repair"]
     mut i := 0
     while i < len(tokens) {
         token := tokens[i]
-        if starts_with(token, "--") {
-            key := substring(token, 2, len(token))
-            if key == "json" || key == "stream" || key == "fixture" || key == "offline" || key == "help" || key == "skip-agent-smoke" || key == "confirm" || key == "hashes" {
-                flags[key] := true
-            } else if i + 1 < len(tokens) && starts_with(tokens[i + 1], "--") == false {
-                flags[key] := tokens[i + 1]
+        if token == "--" {
+            i = i + 1
+            while i < len(tokens) {
+                positionals = push(positionals, tokens[i])
                 i = i + 1
-            } else { flags[key] := "" }
+            }
+            break
+        } else if starts_with(token, "--") {
+            key := substring(token, 2, len(token))
+            if key == "" {
+                parse_error = "empty option name is not allowed"
+            } else if has_key(flags, key) {
+                parse_error = "duplicate option --" + key
+            } else if index_of(boolean_flags, key) >= 0 {
+                flags[key] := true
+            } else if index_of(value_flags, key) >= 0 {
+                if i + 1 < len(tokens) && starts_with(tokens[i + 1], "--") == false {
+                    flags[key] := tokens[i + 1]
+                    i = i + 1
+                } else {
+                    flags[key] := ""
+                    parse_error = "option --" + key + " requires a value"
+                }
+            } else {
+                flags[key] := true
+            }
         } else { positionals := push(positionals, token) }
         i = i + 1
     }
-    return {"positionals": positionals, "flags": flags}
+    return {"positionals": positionals, "flags": flags, "parse_error": parse_error}
+}
+
+func cli_shape(parsed, minimum_positionals, maximum_positionals, allowed_flags) {
+    parse_error := string_or(dict_get_or(parsed, "parse_error", ""), "")
+    if parse_error != "" { return {"ok": false, "error": parse_error} }
+    flags := dict_get_or(parsed, "flags", {})
+    for key in keys(flags) {
+        if index_of(allowed_flags, key) < 0 { return {"ok": false, "error": "unknown option --" + key} }
+    }
+    positionals := dict_get_or(parsed, "positionals", [])
+    if len(positionals) < minimum_positionals { return {"ok": false, "error": "command is missing required arguments"} }
+    if maximum_positionals >= 0 && len(positionals) > maximum_positionals { return {"ok": false, "error": "command received unexpected arguments"} }
+    return {"ok": true}
 }
 
 func output(payload, json_mode) {
@@ -152,6 +186,8 @@ func help_text() {
 func cmd_chat(tokens) {
     parsed := parse_tokens(tokens)
     if len(parsed["positionals"]) == 0 { return {"ok": false, "error": "chat requires a prompt"} }
+    shape := cli_shape(parsed, 1, -1, ["model", "provider", "fixture", "offline", "stream", "json"])
+    if shape["ok"] == false { return shape }
     prompt := join(parsed["positionals"], " ")
     model := string_or(dict_get_or(parsed["flags"], "model", "fixture-model"), "fixture-model")
     provider := string_or(dict_get_or(parsed["flags"], "provider", "fixture"), "fixture")
@@ -190,6 +226,10 @@ func cmd_models(tokens) {
         {"id": env_or("RELAY_MODEL", "gpt-4.1-mini"), "provider": env_or("RELAY_PROVIDER", "openai-compatible"), "capabilities": ["chat", "streaming", "provider_tool_planning"], "tool_planning": "opt_in_provider_profile", "tool_execution": "policy_bound_agents_sdk", "offline": false, "source": "environment_profile"}
     ]
     if sub != "list" && sub != "inspect" && sub != "probe" { return {"ok": false, "error": "unknown models command"} }
+    mut shape := cli_shape(parsed, 1, 1, ["json"])
+    if sub == "inspect" { shape = cli_shape(parsed, 2, 2, ["json"]) }
+    if sub == "probe" { shape = cli_shape(parsed, 2, 2, ["provider", "fixture", "offline", "json"]) }
+    if shape["ok"] == false { return shape }
     if sub == "inspect" { for model in models { if model["id"] == positional(parsed["positionals"], 1, "") { return {"ok": true, "model": model} } }; return {"ok": false, "error": "unknown model"} }
     if sub == "probe" {
         if len(parsed["positionals"]) < 2 { return {"ok": false, "error": "models probe requires a model"} }
@@ -206,6 +246,9 @@ func cmd_agents(tokens) {
     parsed := parse_tokens(tokens)
     sub := positional(parsed["positionals"], 0, "list")
     if sub != "list" && sub != "inspect" && sub != "validate" { return {"ok": false, "error": "unknown agents command"} }
+    mut shape := cli_shape(parsed, 1, 1, ["json"])
+    if sub == "inspect" { shape = cli_shape(parsed, 2, 2, ["json"]) }
+    if shape["ok"] == false { return shape }
     if sub == "inspect" {
         agent := find_agent(positional(parsed["positionals"], 1, ""))
         if type(agent) == "null" { return {"ok": false, "error": "unknown agent"} }
@@ -225,10 +268,14 @@ func cmd_missions(tokens) {
     parsed := parse_tokens(tokens)
     sub := positional(parsed["positionals"], 0, "help")
     if sub == "create" {
+        shape := cli_shape(parsed, 1, 2, ["output", "json"])
+        if shape["ok"] == false { return shape }
         source := positional(parsed["positionals"], 1, "")
         return create_mission(source, string_or(dict_get_or(parsed["flags"], "output", ""), ""))
     }
     if sub == "run" {
+        shape := cli_shape(parsed, 2, 2, ["fixture", "offline", "stream", "pause-after-plan", "skip-agent-smoke", "json"])
+        if shape["ok"] == false { return shape }
         path := positional(parsed["positionals"], 1, "")
         if path == "" { return {"ok": false, "error": "missions run requires a spec path"} }
         offline := has_flag(parsed["flags"], "fixture")
@@ -236,6 +283,10 @@ func cmd_missions(tokens) {
         return run_mission(path, {"offline_fixture": offline, "stream": has_flag(parsed["flags"], "stream"), "pause_after_plan": has_flag(parsed["flags"], "pause-after-plan"), "agents_sdk_smoke": has_flag(parsed["flags"], "skip-agent-smoke") == false})
     }
     id := positional(parsed["positionals"], 1, "")
+    allowed := ["json"]
+    if sub == "cleanup" { allowed = ["confirm", "json"] }
+    shape := cli_shape(parsed, 2, 2, allowed)
+    if shape["ok"] == false { return shape }
     store_check := state_store_check()
     if store_check["ok"] == false { return store_check }
     index := load_run_index(state_root())
@@ -513,6 +564,15 @@ func run_window(index, flags) {
 func cmd_runs(tokens) {
     parsed := parse_tokens(tokens)
     sub := positional(parsed["positionals"], 0, "list")
+    if sub != "list" && sub != "rebuild" && sub != "inspect" && sub != "verify" && sub != "events" && sub != "watch" && sub != "sizes" && sub != "changes" && sub != "evaluations" && sub != "export" { return {"ok": false, "error": "unknown runs command"} }
+    mut shape := cli_shape(parsed, 1, 2, ["json"])
+    if sub == "list" { shape = cli_shape(parsed, 0, 1, ["after", "limit", "json"]) }
+    if sub == "rebuild" { shape = cli_shape(parsed, 1, 1, ["json"]) }
+    if sub == "events" { shape = cli_shape(parsed, 2, 2, ["after", "limit", "json"]) }
+    if sub == "watch" { shape = cli_shape(parsed, 2, 2, ["timeout-ms", "poll-ms", "json"]) }
+    if sub == "sizes" { shape = cli_shape(parsed, 2, 2, ["hashes", "json"]) }
+    if sub == "export" { shape = cli_shape(parsed, 2, 2, ["partial", "output", "json"]) }
+    if shape["ok"] == false { return shape }
     store_check := state_store_check()
     if store_check["ok"] == false { return store_check }
     index := load_run_index(state_root())
@@ -667,6 +727,8 @@ func cmd_runs(tokens) {
 
 func cmd_benchmark(tokens) {
     parsed := parse_tokens(tokens)
+    shape := cli_shape(parsed, 2, 2, ["json"])
+    if shape["ok"] == false { return shape }
     if positional(parsed["positionals"], 0, "") != "run" { return {"ok": false, "error": "benchmark requires the run subcommand"} }
     repo := positional(parsed["positionals"], 1, "")
     if repo == "" { return {"ok": false, "error": "benchmark run requires a repository"} }
@@ -677,6 +739,8 @@ func cmd_benchmark(tokens) {
 
 func cmd_tools(tokens) {
     parsed := parse_tokens(tokens)
+    shape := cli_shape(parsed, 1, 1, ["capability", "json"])
+    if shape["ok"] == false { return shape }
     sub := positional(parsed["positionals"], 0, "")
     if sub != "execute" { return {"ok": false, "error": "unknown tools command"} }
     raw := env("RELAY_TOOL_REQUEST")
@@ -704,7 +768,10 @@ export func main(argv) {
     else if command == "runs" { result = cmd_runs(rest) }
     else if command == "tools" { result = cmd_tools(rest) }
     else if command == "benchmark" { result = cmd_benchmark(rest) }
-    else if command == "doctor" { result = doctor(has_flag(parsed["flags"], "repair")) }
+    else if command == "doctor" {
+        shape := cli_shape(parsed, 0, 0, ["repair", "json"])
+        if shape["ok"] == false { result = shape } else { result = doctor(has_flag(parsed["flags"], "repair")) }
+    }
     else { print(help_text()); return 2 }
     output(result, json_mode)
     if type(result) == "dict" && dict_get_or(result, "ok", true) == false { return 1 }
