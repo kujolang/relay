@@ -32,6 +32,9 @@ func route_policy(value) {
     if starts_with(host_port, "[") {
         closing := index_of(host_port, "]")
         if closing < 0 { return {"configured": true, "valid": false, "scheme": scheme, "reason": "malformed_ipv6_host"} }
+        suffix := substring(host_port, closing + 1, len(host_port))
+        if suffix != "" && starts_with(suffix, ":") == false { return {"configured": true, "valid": false, "scheme": scheme, "reason": "malformed_ipv6_host"} }
+        if starts_with(suffix, ":") && len(suffix) == 1 { return {"configured": true, "valid": false, "scheme": scheme, "reason": "malformed_ipv6_host"} }
         host = substring(host_port, 0, closing + 1)
     } else {
         colon := index_of(host_port, ":")
