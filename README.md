@@ -39,6 +39,10 @@ Before the final tag exists, release candidates use the approved commit on the r
 
 Supported v1 target hosts are Linux and macOS. The exact release candidate must pass the committed platform matrix before release; Windows is not claimed. Host-specific status and external runner blockers are recorded in the [launch checklist](docs/launch-checklist.md).
 
+## Repository layout
+
+Runtime implementation lives in `src/`. The small root `main.kujo` file is the conventional Kujo executable entrypoint, `kujo.toml` and `kennel.toml` are package manifests, and `bin/relay` resolves and launches the pinned Kujo runtime. Tests, schemas, examples, release metadata, scripts, and operator documentation remain in their named directories. The root review found no duplicate implementation files to move into `src/`.
+
 ## Quick start
 
 Fixture mode is deterministic and makes no provider request:
@@ -62,6 +66,8 @@ export RELAY_ROOT="$PWD"
 ```
 
 Run a write mission only against a disposable Git repository and with explicit approval in its mission file. `examples/worktree-mission.json` demonstrates a detached worktree whose cleanup requires `--confirm`.
+
+Relay rejects unknown or duplicate CLI options, missing option values, and unexpected positional arguments. Use the standard `--` delimiter when prompt text begins with `--`, for example `./bin/relay chat -- --summarize-this`.
 
 ## Common workflows
 

@@ -2,6 +2,12 @@
 
 All notable Relay changes are recorded here. Relay follows semantic versioning for the product; mission and evidence contract identifiers are versioned independently.
 
+## [Unreleased]
+
+- Added bounded, resumable `relay.list_files` pages for declared and provider-generated Agents SDK calls, including truthful rejection when the underlying Git listing exceeds the mission output budget.
+- Hardened CLI parsing to reject unknown and duplicate options, missing option values, and unexpected arguments; added the standard `--` option delimiter for prompt text.
+- Clarified the source-root layout and corrected the documented four-tool Agents SDK surface.
+
 ## [1.0.0] - 2026-08-08
 
 ### Stable local v1 scope
