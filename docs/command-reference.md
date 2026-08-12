@@ -53,7 +53,7 @@ errors. This protects the machine boundary and stays below common process
 environment limits; larger future requests should use an authenticated file or
 socket transport rather than an unbounded environment variable.
 
-Run `relay doctor --json` before a live or CI invocation. Fixture mode does not require Watchdog or credentials; live mode fails closed when either is absent. Named Watchdog profiles let Relay share the same server-side provider configuration and telemetry store as another local client without copying the upstream credential into Relay. Profile names are bounded to 128 letters, digits, dots, underscores, or hyphens; malformed values fail closed before a provider request.
+Run `relay doctor --json` before a live or CI invocation. Fixture mode does not require Watchdog or credentials; live mode requires a Watchdog route plus either a local provider credential or a valid named Watchdog upstream profile. Named Watchdog profiles let Relay share the same server-side provider configuration and telemetry store as another local client without copying the upstream credential into Relay. Profile names are bounded to 128 letters, digits, dots, underscores, or hyphens; malformed values fail closed before a provider request.
 
 `relay doctor --repair --json` explicitly removes expired or exhausted Agents
 SDK capability records from the local registry. Cleanup takes each record's

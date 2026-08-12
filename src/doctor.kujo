@@ -1,5 +1,5 @@
 from src.common import dict_get_or, env_or, env_bool, bool_or, safe_env_name, int_or, path_is_symlink_safe, path_has_symlink_component, capability_registry_posture
-from src.adapters import kujo_bin, trusted_executable, trusted_file, ai_sdk_root, agents_sdk_root, ai_bridge_path, watchdog_url, run_process
+from src.adapters import kujo_bin, trusted_executable, trusted_file, ai_sdk_root, agents_sdk_root, ai_bridge_path, watchdog_url, run_process, safe_watchdog_upstream_profile
 from src.policy import real_path
 from src.watchdog import health_check, proxy_config_check, route_policy
 from src.registry import agent_catalog, agent_path
@@ -111,9 +111,13 @@ func doctor(repair) {
     api_key_env := env_or("RELAY_API_KEY_ENV", "OPENAI_API_KEY")
     credential_name_ok := safe_env_name(api_key_env)
     credential_configured := credential_name_ok && env_or(api_key_env, "") != ""
-    credential_ok := credential_configured
+    upstream_profile := env_or("RELAY_WATCHDOG_UPSTREAM_PROFILE", "")
+    upstream_profile_valid := safe_watchdog_upstream_profile(upstream_profile)
+    upstream_profile_configured := upstream_profile != ""
+    checks := push(checks, {"name": "Watchdog upstream profile", "ok": upstream_profile_valid, "required": upstream_profile_configured, "safe": upstream_profile_valid, "configured": upstream_profile_configured})
+    credential_ok := credential_configured || (upstream_profile_configured && upstream_profile_valid)
     if live == false { credential_ok = true }
-    checks := push(checks, {"name": "live provider credential", "ok": credential_ok, "required": live, "safe": credential_name_ok, "environment": api_key_env, "name_valid": credential_name_ok, "configured": credential_configured})
+    checks := push(checks, {"name": "live provider credential", "ok": credential_ok, "required": live, "safe": credential_name_ok, "environment": api_key_env, "name_valid": credential_name_ok, "configured": credential_configured, "upstream_profile_configured": upstream_profile_configured})
     required_failures := 0
     for check in checks { if dict_get_or(check, "required", false) && dict_get_or(check, "ok", false) == false { required_failures = required_failures + 1 } }
     return {"ok": required_failures == 0, "mode": mode, "required_failures": required_failures, "checks": checks}
