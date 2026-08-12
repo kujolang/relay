@@ -47,6 +47,18 @@ printf '%s' "$normalized_probe" | jq -e '.ok == true and .offline == true' >/dev
 models="$($KUJO run "$ROOT/main.kujo" -- models list --json)"
 printf '%s' "$models" | jq -e '.ok == true and .models[0].tool_planning == false and .models[0].tool_execution == "declared_mission_only" and .models[1].tool_planning == "opt_in_provider_profile" and .models[1].tool_execution == "policy_bound_agents_sdk" and (.models[1].capabilities | index("provider_tool_planning")) != null and (.routing.tool_planning == false)' >/dev/null
 printf '%s' "$normalized_probe" | jq -e '.routing.tool_planning == false and .routing.tool_execution == "declared_mission_only"' >/dev/null
+
+for invalid_command in "models unknown" "agents unknown" "models probe" "benchmark unknown $ROOT" "benchmark run"; do
+  set +e
+  invalid_command_output="$($KUJO run "$ROOT/main.kujo" -- $invalid_command --json 2>&1)"
+  invalid_command_status=$?
+  set -e
+  test "$invalid_command_status" -ne 0
+  grep -q 'error' <<<"$invalid_command_output"
+done
+
+profile_doctor="$(env -u OPENAI_API_KEY RELAY_OFFLINE_FIXTURE=false RELAY_WATCHDOG_URL='https://watchdog.example.invalid/proxy/v1' RELAY_WATCHDOG_UPSTREAM_PROFILE='shared-provider' "$KUJO" run "$ROOT/main.kujo" -- doctor --json 2>&1 || true)"
+printf '%s' "$profile_doctor" | jq -e '(.checks | map(select(.name == "live provider credential"))[0]) | .ok == true and .configured == false and .upstream_profile_configured == true' >/dev/null
 unsafe_bridge="/tmp/relay-external-ai-bridge-$$.kujo"
 printf '%s' 'print({"ok":true})' > "$unsafe_bridge"
 set +e

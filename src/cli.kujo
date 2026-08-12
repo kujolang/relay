@@ -189,9 +189,11 @@ func cmd_models(tokens) {
         {"id": "fixture-model", "provider": "fixture", "capabilities": ["chat", "streaming", "structured_output"], "tool_planning": false, "tool_execution": "declared_mission_only", "offline": true, "source": "built_in_fixture"},
         {"id": env_or("RELAY_MODEL", "gpt-4.1-mini"), "provider": env_or("RELAY_PROVIDER", "openai-compatible"), "capabilities": ["chat", "streaming", "provider_tool_planning"], "tool_planning": "opt_in_provider_profile", "tool_execution": "policy_bound_agents_sdk", "offline": false, "source": "environment_profile"}
     ]
+    if sub != "list" && sub != "inspect" && sub != "probe" { return {"ok": false, "error": "unknown models command"} }
     if sub == "inspect" { for model in models { if model["id"] == positional(parsed["positionals"], 1, "") { return {"ok": true, "model": model} } }; return {"ok": false, "error": "unknown model"} }
     if sub == "probe" {
-        model := string_or(positional(parsed["positionals"], 1, env_or("RELAY_MODEL", "fixture-model")), "fixture-model")
+        if len(parsed["positionals"]) < 2 { return {"ok": false, "error": "models probe requires a model"} }
+        model := string_or(positional(parsed["positionals"], 1, ""), "")
         provider := string_or(dict_get_or(parsed["flags"], "provider", env_or("RELAY_PROVIDER", "fixture")), "fixture")
         offline := has_flag(parsed["flags"], "fixture") || has_flag(parsed["flags"], "offline") || env_bool("RELAY_OFFLINE_FIXTURE", true)
         result := ai_chat([{"role": "user", "content": "Reply with exactly: relay-probe-ok"}], model, provider, offline, false)
@@ -203,6 +205,7 @@ func cmd_models(tokens) {
 func cmd_agents(tokens) {
     parsed := parse_tokens(tokens)
     sub := positional(parsed["positionals"], 0, "list")
+    if sub != "list" && sub != "inspect" && sub != "validate" { return {"ok": false, "error": "unknown agents command"} }
     if sub == "inspect" {
         agent := find_agent(positional(parsed["positionals"], 1, ""))
         if type(agent) == "null" { return {"ok": false, "error": "unknown agent"} }
@@ -664,7 +667,9 @@ func cmd_runs(tokens) {
 
 func cmd_benchmark(tokens) {
     parsed := parse_tokens(tokens)
-    repo := positional(parsed["positionals"], 1, ".")
+    if positional(parsed["positionals"], 0, "") != "run" { return {"ok": false, "error": "benchmark requires the run subcommand"} }
+    repo := positional(parsed["positionals"], 1, "")
+    if repo == "" { return {"ok": false, "error": "benchmark run requires a repository"} }
     result := capsule_run(repo, state_root() + "/capsule")
     result["benchmark"] := "capsule-discovery"
     return result
