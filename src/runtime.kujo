@@ -447,7 +447,9 @@ export func load_spec(path) {
             relative := string_or(dict_get_or(input, "path", ""), "")
             if relative == "" || len(relative) > 4096 { return {"ok": false, "error": "relay.read_file requires a bounded path"} }
         } else if tool_name == "relay.list_files" {
-            if len(keys(input)) > 0 { return {"ok": false, "error": "relay.list_files does not accept input fields"} }
+            if len(keys(input)) > 1 || (len(keys(input)) == 1 && has_key(input, "offset") == 0) { return {"ok": false, "error": "relay.list_files accepts only offset"} }
+            list_offset := int_or(dict_get_or(input, "offset", 0), -1)
+            if list_offset < 0 { return {"ok": false, "error": "relay.list_files offset must be a non-negative integer"} }
         } else if tool_name == "relay.run_command" {
             if string_or(dict_get_or(input, "command", ""), "") == "" { return {"ok": false, "error": "relay.run_command requires command"} }
             if len(string_or(dict_get_or(input, "command", ""), "")) > MISSION_COMMAND_MAX_BYTES { return {"ok": false, "error": "relay.run_command exceeds the 16 KiB safety limit"} }
@@ -505,6 +507,31 @@ func write_prompt(run_dir, spec) {
     return {"ok": write_text_atomic(path, prompt), "path": path}
 }
 
+func list_files_page(raw, requested_offset, max_files, max_chars) {
+    offset := int_or(requested_offset, -1)
+    file_limit := int_or(max_files, 256)
+    char_limit := int_or(max_chars, 16384)
+    if offset < 0 || file_limit <= 0 || char_limit <= 0 { return {"ok": false, "error": "tracked file page bounds are invalid"} }
+    text := trim(to_string(raw))
+    all_files := []
+    if text != "" { all_files = split(text, "\n") }
+    if offset > len(all_files) { return {"ok": false, "error": "tracked file offset exceeds the file count"} }
+    files := []
+    mut used_chars := 0
+    mut cursor := offset
+    while cursor < len(all_files) && len(files) < file_limit {
+        name := all_files[cursor]
+        additional := len(name)
+        if len(files) > 0 { additional = additional + 1 }
+        if additional > char_limit || used_chars + additional > char_limit { break }
+        files = push(files, name)
+        used_chars = used_chars + additional
+        cursor = cursor + 1
+    }
+    if cursor == offset && cursor < len(all_files) { return {"ok": false, "error": "tracked file path exceeds the page byte limit"} }
+    return {"ok": true, "files": files, "offset": offset, "next_offset": cursor, "total_files": len(all_files), "has_more": cursor < len(all_files), "output_truncated": cursor < len(all_files)}
+}
+
 func execute_action(action, spec, state, run_dir) {
     kind := dict_get_or(action, "type", "")
     repo := state["repository"]
@@ -517,7 +544,11 @@ func execute_action(action, spec, state, run_dir) {
     if kind == "list_files" {
         result := spawn_process(["git", "-C", repo, "ls-files"], process_options({}, 30000, state["budgets"]["max_output_bytes"]))
         if result.success == false { return {"ok": false, "failure_class": "repository_failure", "error": "tracked file listing failed", "stderr": redact_text(result.stderr)} }
-        return {"ok": true, "tool": "list_files", "files": split(trim(result.stdout), "\n"), "output_truncated": result.stdout_truncated}
+        if result.stdout_truncated { return {"ok": false, "failure_class": "budget_exceeded", "error": "tracked file listing exceeds max_output_bytes"} }
+        page := list_files_page(result.stdout, dict_get_or(action, "offset", 0), 256, 16384)
+        if dict_get_or(page, "ok", false) == false { return {"ok": false, "failure_class": "policy_violation", "error": dict_get_or(page, "error", "tracked file page is invalid")} }
+        page["tool"] := "list_files"
+        return page
     }
     if kind == "read_file" {
         relative := string_or(dict_get_or(action, "path", ""), "")
@@ -599,7 +630,7 @@ func execute_tool_request(request, supplied_capability) {
     input := dict_get_or(request, "input", {})
     action := {}
     if tool_name == "relay.list_files" {
-        action = {"type": "list_files"}
+        action = {"type": "list_files", "offset": dict_get_or(input, "offset", 0)}
     } else if tool_name == "relay.read_file" {
         action = {"type": "read_file", "path": dict_get_or(input, "path", ""), "offset": dict_get_or(input, "offset", 0)}
     } else if tool_name == "relay.write_file" {
@@ -1397,3 +1428,4 @@ export provider_synthesis_messages := provider_synthesis_messages
 export provider_synthesis_tool := provider_synthesis_tool
 export provider_synthesis_answer := provider_synthesis_answer
 export preflight_failure_message := preflight_failure_message
+export list_files_page := list_files_page

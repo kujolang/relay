@@ -120,8 +120,14 @@ func tool_schema(tool_name) {
             "type": "function",
             "function": {
                 "name": "relay.list_files",
-                "description": "List Git-tracked workspace files. Use this instead of find, ls, shell pipelines, or redirection.",
-                "parameters": {"type": "object", "additionalProperties": false, "properties": {}}
+                "description": "List one bounded page of Git-tracked workspace files. Use offset to continue when has_more is true.",
+                "parameters": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "offset": {"type": "integer", "minimum": 0, "description": "Optional file offset; defaults to 0."}
+                    }
+                }
             }
         }
     }
