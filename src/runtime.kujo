@@ -1249,6 +1249,20 @@ func resume_run(run_id, repair_requested) {
         state["repair_id"] := "repair-" + to_string(current_timestamp()) + "-" + to_string(random_int(1000, 999999))
         state["repair_mode"] := true
         state["current_step"] := "implementation"
+        prior_ledger := dict_get_or(state, "runledger", {})
+        repair_ledger := runledger_start(record["run_dir"], string_or(dict_get_or(state, "model", "fixture-model"), "fixture-model"), string_or(dict_get_or(state, "provider", "fixture"), "fixture"), string_or(dict_get_or(dict_get_or(state, "mission_spec", {}), "name", state["mission_id"]), state["mission_id"]) + " repair " + to_string(state["repair_attempts"]), state["repository"])
+        if dict_get_or(repair_ledger, "ok", false) == false {
+            state["status"] := "failed"
+            state["failure"] := {"class": "evidence_failure", "message": "RunLedger repair entry could not be started", "repair_attempts": state["repair_attempts"]}
+            state = save_state(state, record["run_dir"])
+            register_run(state, record["run_dir"])
+            return {"ok": false, "failure_class": "evidence_failure", "error": state["failure"]["message"], "run": state, "run_dir": record["run_dir"]}
+        }
+        ledger_history := dict_get_or(state, "runledger_history", [])
+        if type(ledger_history) != "array" { ledger_history = [] }
+        if type(prior_ledger) == "dict" && len(prior_ledger) > 0 { ledger_history := push(ledger_history, prior_ledger) }
+        state["runledger_history"] := ledger_history
+        state["runledger"] := repair_ledger
         repair_receipt_result := record_receipt(state, record["run_dir"], "repair", "repair", "relay", "repair/" + state["repair_id"], "started", {"repair_id": state["repair_id"], "attempt": state["repair_attempts"], "max_repairs": state["budgets"]["max_repairs"], "failure": prior_failure})
         state = apply_receipt_result(state, repair_receipt_result)
         repair_receipt := repair_receipt_result["receipt"]
