@@ -56,9 +56,10 @@ func path_is_safe(root, requested) {
     if type(requested) != "string" || trim(requested) == "" { return false }
     clean := requested
     if starts_with(clean, "/") || contains(clean, "\\") { return false }
-    if contains_any(clean, [";", "&&", "||", "|", "`", "$(", ">", "<"]) { return false }
+    if contains_any(clean, [";", "&&", "||", "|", "`", "$(", ">", "<", "\n", "\r", "\t"]) { return false }
     for segment in split(clean, "/") {
-        if segment == ".." || segment == ".env" || starts_with(segment, ".env.") || segment == ".git" || starts_with(segment, ".ssh") { return false }
+        normalized_segment := to_lower(segment)
+        if segment == ".." || normalized_segment == ".env" || starts_with(normalized_segment, ".env.") || normalized_segment == ".git" || normalized_segment == ".relay" || starts_with(normalized_segment, ".ssh") { return false }
     }
     if starts_with(clean, "./") { clean = substring(clean, 2, len(clean)) }
     return path_is_within_root(root + "/" + clean, root)
