@@ -251,11 +251,15 @@ func load_run_index(state_root) {
 
 func migrate_run_index_sqlite(state_root) {
     if store_root_safe(state_root) == false { return {"ok": false, "error": "Run index store root is unsafe"} }
+    lock := acquire_index_lock_retry(state_root, 4, 20)
+    if dict_get_or(lock, "ok", false) == false { return {"ok": false, "error": "Store migration could not acquire the bounded run-index lock"} }
     authoritative := rebuild_run_index(state_root)
     result := sqlite_write_index(state_root, authoritative)
-    if dict_get_or(result, "ok", false) == false { return result }
+    if dict_get_or(result, "ok", false) == false { release_index_lock(state_root, lock["token"]); return result }
     verified := sqlite_read_index(state_root)
-    if dict_get_or(verified, "ok", false) == false || cached_index_is_safe(state_root, dict_get_or(verified, "index", null)) == false || run_directories_match_index(state_root, dict_get_or(verified, "index", null)) == false { return {"ok": false, "error": "Migrated SQLite run index failed authoritative verification"} }
+    valid := dict_get_or(verified, "ok", false) && cached_index_is_safe(state_root, dict_get_or(verified, "index", null)) && run_directories_match_index(state_root, dict_get_or(verified, "index", null))
+    release_index_lock(state_root, lock["token"])
+    if valid == false { return {"ok": false, "error": "Migrated SQLite run index failed authoritative verification"} }
     return {"ok": true, "format": "relay-store-migration-v1", "from": "json-cache", "to": "sqlite", "contract_version": dict_get_or(verified, "contract_version", ""), "records": dict_get_or(verified, "records", 0), "path": dict_get_or(verified, "path", "")}
 }
 

@@ -109,6 +109,7 @@ func aggregate_metrics(index) {
     mut tokens := 0
     mut retries := 0
     mut artifacts := 0
+    mut artifact_bytes := 0
     mut tool_duration_ms := 0
     statuses := {}
     for id in keys(index) {
@@ -123,11 +124,15 @@ func aggregate_metrics(index) {
         telemetry := dict_get_or(state, "telemetry", {})
         duration_ms = duration_ms + int_or(dict_get_or(telemetry, "duration_ms", 0), 0)
         tokens = tokens + int_or(dict_get_or(dict_get_or(state, "budgets", {}), "used_tokens", 0), 0)
-        retries = retries + int_or(dict_get_or(state, "attempt", 0), 0)
+        retries = retries + int_or(dict_get_or(dict_get_or(state, "failure", {}), "repair_attempts", 0), 0)
         artifacts = artifacts + len(dict_get_or(state, "artifacts", []))
-        for result in dict_get_or(state, "results", []) { tool_duration_ms = tool_duration_ms + int_or(dict_get_or(result, "duration_ms", 0), 0) }
+        for result in dict_get_or(state, "action_results", []) { tool_duration_ms = tool_duration_ms + int_or(dict_get_or(result, "duration_ms", 0), 0) }
+        for name in ["state.json", "events.jsonl", "receipts.json", "changes.json", "evaluations.json", "report.json", "report.md", "tool-results.json", "packet-manifest.json"] {
+            artifact_path := run_dir + "/" + name
+            if path_is_symlink_safe(artifact_path) == false && path_exists(artifact_path) && path_is_file(artifact_path) { artifact_bytes = artifact_bytes + file_size(artifact_path) }
+        }
     }
-    return {"ok": true, "format": "relay-aggregate-metrics-v1", "run_count": runs, "status_counts": statuses, "latency_ms_total": duration_ms, "token_total": tokens, "tool_duration_ms_total": tool_duration_ms, "retry_or_step_total": retries, "artifact_count": artifacts, "cardinality_limit": 4096}
+    return {"ok": true, "format": "relay-aggregate-metrics-v1", "run_count": runs, "status_counts": statuses, "latency_ms_total": duration_ms, "token_total": tokens, "tool_duration_ms_total": tool_duration_ms, "repair_attempt_total": retries, "artifact_count": artifacts, "artifact_bytes_total": artifact_bytes, "cardinality_limit": 4096}
 }
 
 export negotiate_contract := negotiate_contract

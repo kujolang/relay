@@ -1,0 +1,14 @@
+{
+  "commands": {
+    "runs_export": {"max_ms": 1182, "median_ms": 1092, "min_ms": 1027, "p95_ms": 1146, "samples_ms": [1146, 1061, 1027, 1182, 1092]},
+    "runs_list": {"max_ms": 306, "median_ms": 277, "min_ms": 241, "p95_ms": 285, "samples_ms": [277, 306, 253, 241, 285]},
+    "runs_verify": {"max_ms": 1236, "median_ms": 1167, "min_ms": 1126, "p95_ms": 1223, "samples_ms": [1236, 1223, 1132, 1126, 1167]},
+    "runs_watch_completed": {"max_ms": 805, "median_ms": 742, "min_ms": 706, "p95_ms": 793, "samples_ms": [742, 793, 722, 706, 805]}
+  },
+  "contract_version": "relay-run-store-benchmark-v1",
+  "iterations": 5,
+  "platform": "darwin-x86_64",
+  "relay_commit": "5b1f76f0e29a6875119721ff653141540681db60",
+  "run_id": "relay-fixture-mission-1786582586211-268411",
+  "sizes": {"excluded_count": 1, "hashes_included": false, "summary": {"bytes": 86511, "directories": 5, "files": 34}}
+}
