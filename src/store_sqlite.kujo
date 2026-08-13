@@ -1,0 +1,81 @@
+from src.common import dict_get_or, string_or, bool_or, int_or, path_is_symlink_safe, path_has_symlink_component
+
+export SQLITE_STORE_CONTRACT := "relay-run-index-sqlite-v1"
+
+func sqlite_store_path(state_root) { return state_root + "/run-index.sqlite3" }
+
+func sqlite_store_safe(state_root) {
+    path := sqlite_store_path(state_root)
+    if path_has_symlink_component(state_root) || path_is_symlink_safe(path) { return false }
+    if path_exists(path) && path_is_file(path) == false { return false }
+    return true
+}
+
+func sqlite_open(state_root) {
+    if sqlite_store_safe(state_root) == false { return null }
+    try {
+        db := db_connect("sqlite", sqlite_store_path(state_root))
+        db_query(db, "PRAGMA journal_mode=WAL", [])
+        db_execute(db, "PRAGMA synchronous=FULL", [])
+        db_execute(db, "CREATE TABLE IF NOT EXISTS schema_migrations (version INTEGER PRIMARY KEY, contract_version TEXT NOT NULL, applied_at_ms INTEGER NOT NULL)", [])
+        db_execute(db, "CREATE TABLE IF NOT EXISTS run_index (run_id TEXT PRIMARY KEY, run_dir TEXT NOT NULL, mission_id TEXT NOT NULL, status TEXT NOT NULL, updated_at TEXT NOT NULL, integrity_valid INTEGER NOT NULL)", [])
+        db_execute(db, "INSERT OR IGNORE INTO schema_migrations (version, contract_version, applied_at_ms) VALUES (1, ?, ?)", [SQLITE_STORE_CONTRACT, current_timestamp()])
+        return db
+    } except err { return null }
+}
+
+func sqlite_write_index(state_root, index) {
+    if type(index) != "dict" || len(keys(index)) > 4096 { return {"ok": false, "error": "SQLite run index input is invalid or oversized"} }
+    db := sqlite_open(state_root)
+    if type(db) == "null" { return {"ok": false, "error": "SQLite run index is unavailable or unsafe"} }
+    mut committed := false
+    try {
+        db_execute(db, "BEGIN IMMEDIATE", [])
+        db_execute(db, "DELETE FROM run_index", [])
+        for run_id in sort(keys(index)) {
+            record := index[run_id]
+            db_execute(db, "INSERT INTO run_index (run_id, run_dir, mission_id, status, updated_at, integrity_valid) VALUES (?, ?, ?, ?, ?, ?)", [run_id, string_or(dict_get_or(record, "run_dir", ""), ""), string_or(dict_get_or(record, "mission_id", ""), ""), string_or(dict_get_or(record, "status", "unknown"), "unknown"), string_or(dict_get_or(record, "updated_at", ""), ""), bool_or(dict_get_or(record, "integrity_valid", false), false)])
+        }
+        db_execute(db, "COMMIT", [])
+        committed = true
+    } except err {
+        try { db_execute(db, "ROLLBACK", []) } except rollback_err {}
+        return {"ok": false, "error": "SQLite run index transaction failed"}
+    }
+    return {"ok": committed, "path": sqlite_store_path(state_root), "contract_version": SQLITE_STORE_CONTRACT, "records": len(keys(index))}
+}
+
+func sqlite_read_index(state_root) {
+    if sqlite_store_safe(state_root) == false || path_exists(sqlite_store_path(state_root)) == false { return {"ok": false, "index": {}, "error": "SQLite run index is absent or unsafe"} }
+    db := sqlite_open(state_root)
+    if type(db) == "null" { return {"ok": false, "index": {}, "error": "SQLite run index could not be opened"} }
+    try {
+        migrations := db_query(db, "SELECT contract_version FROM schema_migrations WHERE version = 1 LIMIT 1", [])
+        if len(migrations) != 1 || string_or(dict_get_or(migrations[0], "contract_version", ""), "") != SQLITE_STORE_CONTRACT { return {"ok": false, "index": {}, "error": "SQLite run index migration contract is invalid"} }
+        rows := db_query(db, "SELECT run_id, run_dir, mission_id, status, updated_at, integrity_valid FROM run_index ORDER BY run_id ASC LIMIT 4097", [])
+        if len(rows) > 4096 { return {"ok": false, "index": {}, "error": "SQLite run index exceeds the 4096-record safety limit"} }
+        index := {}
+        for row in rows {
+            run_id := string_or(dict_get_or(row, "run_id", ""), "")
+            if run_id == "" || has_key(index, run_id) { return {"ok": false, "index": {}, "error": "SQLite run index contains an invalid identity"} }
+            index[run_id] := {"run_dir": string_or(dict_get_or(row, "run_dir", ""), ""), "mission_id": string_or(dict_get_or(row, "mission_id", ""), ""), "status": string_or(dict_get_or(row, "status", "unknown"), "unknown"), "updated_at": string_or(dict_get_or(row, "updated_at", ""), ""), "integrity_valid": int_or(dict_get_or(row, "integrity_valid", 0), 0) != 0}
+        }
+        return {"ok": true, "index": index, "path": sqlite_store_path(state_root), "contract_version": SQLITE_STORE_CONTRACT, "records": len(rows)}
+    } except err { return {"ok": false, "index": {}, "error": "SQLite run index query failed"} }
+}
+
+func sqlite_store_posture(state_root) {
+    path := sqlite_store_path(state_root)
+    configured := path_exists(path)
+    safe := sqlite_store_safe(state_root)
+    if configured == false { return {"ok": safe, "safe": safe, "configured": false, "path": path, "contract_version": SQLITE_STORE_CONTRACT, "records": 0} }
+    result := sqlite_read_index(state_root)
+    ok := safe && dict_get_or(result, "ok", false)
+    return {"ok": ok, "safe": safe, "configured": true, "path": path, "contract_version": SQLITE_STORE_CONTRACT, "records": int_or(dict_get_or(result, "records", 0), 0), "error": dict_get_or(result, "error", "")}
+}
+
+export sqlite_store_path := sqlite_store_path
+export sqlite_store_safe := sqlite_store_safe
+export sqlite_write_index := sqlite_write_index
+export sqlite_read_index := sqlite_read_index
+export sqlite_store_posture := sqlite_store_posture

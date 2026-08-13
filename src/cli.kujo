@@ -2,14 +2,17 @@ from src.common import dict_get_or, env_or, env_bool, string_or, bool_or, int_or
 from src.contracts import RELAY_VERSION, event_chain_integrity_valid, event_sequence_matches_state, receipt_sequence_valid, receipt_sequence_matches_state, state_integrity_valid
 from src.registry import agent_catalog, find_agent, agent_path
 from src.adapters import ai_chat, capsule_run
-from src.runtime import ensure_dir, create_mission, run_mission, pause_run, cancel_run, cleanup_run, resume_run, execute_tool_request, verify_packet_manifest, state_root, run_root
-from src.store import load_run_index, rebuild_run_index, persist_run_index, rebuild_and_persist_run_index_result, store_root_safe
+from src.runtime import ensure_dir, create_mission, run_mission, pause_run, cancel_run, cleanup_run, resume_run, execute_tool_request, verify_packet_manifest, retention_plan, prune_run_evidence, state_root, run_root
+from src.store import load_run_index, rebuild_run_index, persist_run_index, rebuild_and_persist_run_index_result, migrate_run_index_sqlite, store_backend, store_root_safe, run_store_posture
 from src.doctor import doctor
+from src.enterprise import negotiate_contract, machine_access_status, authorize_machine_request, failure_handoff, signed_export, signing_key, verify_signed_export, aggregate_metrics
 
 func has_flag(flags, name) { return has_key(flags, name) }
 
 func state_store_check() {
     if store_root_safe(state_root()) == false { return {"ok": false, "failure_class": "state_store_failure", "error": "Relay state store root is unsafe"} }
+    posture := run_store_posture(state_root())
+    if dict_get_or(posture, "ok", false) == false { return {"ok": false, "failure_class": "state_store_failure", "error": dict_get_or(posture, "error", "Relay run store posture is unsafe"), "run_store": posture} }
     return {"ok": true}
 }
 
@@ -18,10 +21,10 @@ func read_receipt_evidence(run_dir) {
     # A missing receipt file must not silently fall back to the copy embedded
     # in state.json. The file is the persisted evidence boundary; accepting the
     # state fallback would let an incomplete run appear fully receipted.
-    if path_is_symlink_safe(path) || path_exists(path) == false || path_is_file(path) == false || file_size(path) > 8388608 {
-        return {"ok": false, "receipts": [], "error": "run receipt evidence is missing, non-regular, symbolic-linked, or exceeds the 8 MiB inspection limit"}
+    if path_is_symlink_safe(path) || path_exists(path) == false || path_is_file(path) == false || file_size(path) > 1048576 {
+        return {"ok": false, "receipts": [], "error": "run receipt evidence is missing, non-regular, symbolic-linked, or exceeds the 1 MiB runtime JSON limit"}
     }
-    receipts := read_json_limited(path, null, 8388608)
+    receipts := read_json_limited(path, null, 1048576)
     if type(receipts) != "array" {
         return {"ok": false, "receipts": [], "error": "run receipt evidence is invalid JSON"}
     }
@@ -30,10 +33,10 @@ func read_receipt_evidence(run_dir) {
 
 func read_run_state_evidence(run_dir, run_id) {
     path := run_dir + "/state.json"
-    if path_is_symlink_safe(path) || path_exists(path) == false || path_is_file(path) == false || file_size(path) > 67108864 {
-        return {"ok": false, "state": {}, "error": "run state evidence is missing, non-regular, symbolic-linked, or exceeds the 64 MiB inspection limit"}
+    if path_is_symlink_safe(path) || path_exists(path) == false || path_is_file(path) == false || file_size(path) > 1048576 {
+        return {"ok": false, "state": {}, "error": "run state evidence is missing, non-regular, symbolic-linked, or exceeds the 1 MiB runtime JSON limit"}
     }
-    state := read_json_limited(path, null, 67108864)
+    state := read_json_limited(path, null, 1048576)
     if type(state) != "dict" {
         return {"ok": false, "state": {}, "error": "run state evidence is invalid JSON"}
     }
@@ -48,7 +51,8 @@ func read_run_state_evidence(run_dir, run_id) {
 
 func read_run_artifact_evidence(run_dir, name, expected_type, max_bytes) {
     path := run_dir + "/" + name
-    limit := int_or(max_bytes, 8388608)
+    limit := int_or(max_bytes, 1048576)
+    if limit > 1048576 { limit = 1048576 }
     if path_is_symlink_safe(path) || path_exists(path) == false || path_is_file(path) == false || file_size(path) > limit {
         return {"ok": false, "value": null, "error": "run artifact evidence is missing, non-regular, symbolic-linked, or exceeds its inspection limit: " + name}
     }
@@ -100,21 +104,55 @@ func positional(values, index, fallback) {
 func parse_tokens(tokens) {
     positionals := []
     flags := {}
+    mut parse_error := ""
+    value_flags := ["model", "provider", "output", "after", "limit", "timeout-ms", "poll-ms", "capability", "keep-last", "backend", "key-id"]
+    boolean_flags := ["json", "stream", "fixture", "offline", "help", "skip-agent-smoke", "pause-after-plan", "confirm", "hashes", "partial", "repair", "signed"]
     mut i := 0
     while i < len(tokens) {
         token := tokens[i]
-        if starts_with(token, "--") {
-            key := substring(token, 2, len(token))
-            if key == "json" || key == "stream" || key == "fixture" || key == "offline" || key == "help" || key == "skip-agent-smoke" || key == "confirm" || key == "hashes" {
-                flags[key] := true
-            } else if i + 1 < len(tokens) && starts_with(tokens[i + 1], "--") == false {
-                flags[key] := tokens[i + 1]
+        if token == "--" {
+            i = i + 1
+            while i < len(tokens) {
+                positionals = push(positionals, tokens[i])
                 i = i + 1
-            } else { flags[key] := "" }
+            }
+            break
+        } else if starts_with(token, "--") {
+            key := substring(token, 2, len(token))
+            if key == "" {
+                parse_error = "empty option name is not allowed"
+            } else if has_key(flags, key) {
+                parse_error = "duplicate option --" + key
+            } else if index_of(boolean_flags, key) >= 0 {
+                flags[key] := true
+            } else if index_of(value_flags, key) >= 0 {
+                if i + 1 < len(tokens) && starts_with(tokens[i + 1], "--") == false {
+                    flags[key] := tokens[i + 1]
+                    i = i + 1
+                } else {
+                    flags[key] := ""
+                    parse_error = "option --" + key + " requires a value"
+                }
+            } else {
+                flags[key] := true
+            }
         } else { positionals := push(positionals, token) }
         i = i + 1
     }
-    return {"positionals": positionals, "flags": flags}
+    return {"positionals": positionals, "flags": flags, "parse_error": parse_error}
+}
+
+func cli_shape(parsed, minimum_positionals, maximum_positionals, allowed_flags) {
+    parse_error := string_or(dict_get_or(parsed, "parse_error", ""), "")
+    if parse_error != "" { return {"ok": false, "error": parse_error} }
+    flags := dict_get_or(parsed, "flags", {})
+    for key in keys(flags) {
+        if index_of(allowed_flags, key) < 0 { return {"ok": false, "error": "unknown option --" + key} }
+    }
+    positionals := dict_get_or(parsed, "positionals", [])
+    if len(positionals) < minimum_positionals { return {"ok": false, "error": "command is missing required arguments"} }
+    if maximum_positionals >= 0 && len(positionals) > maximum_positionals { return {"ok": false, "error": "command received unexpected arguments"} }
+    return {"ok": true}
 }
 
 func output(payload, json_mode) {
@@ -136,7 +174,7 @@ func output(payload, json_mode) {
 
 func help_text() {
     return "Relay " + RELAY_VERSION + " — Kujo-native mission composition runtime\n\n" +
-        "Usage: relay <chat|models|agents|missions|runs|benchmark|doctor> ...\n\n" +
+        "Usage: relay <chat|models|agents|missions|runs|contracts|machine|benchmark|doctor> ...\n\n" +
         "  chat <prompt> [--model <id>] [--provider <id>] [--fixture] [--stream] [--json]\n" +
         "  models list|inspect <model>|probe <model> [--fixture]\n" +
         "  agents list|inspect <agent>|validate\n" +
@@ -144,7 +182,9 @@ func help_text() {
         "  missions create [spec.json] [--output path]\n" +
         "  missions run <spec.json> [--fixture] [--pause-after-plan] [--skip-agent-smoke] [--json]\n" +
         "  missions inspect <run-id>|pause <run-id>|resume <run-id>|repair <run-id>|cancel <run-id>|cleanup <run-id> --confirm|report <run-id>\n" +
-        "  runs list [--after run-id] [--limit n]|rebuild|inspect <run-id>|verify <run-id>|events <run-id> [--after event-id] [--limit n]|watch <run-id>|sizes <run-id>|changes <run-id>|evaluations <run-id>|export <run-id> [--partial] [--output path]\n" +
+        "  runs list [--after run-id] [--limit n]|metrics|rebuild|migrate-store --backend sqlite --confirm|retention [--keep-last n] [--confirm]|inspect <run-id>|verify <run-id>|events <run-id> [--after event-id] [--limit n]|watch <run-id>|sizes <run-id>|changes <run-id>|evaluations <run-id>|handoff <run-id> --output path --confirm|export <run-id> [--partial] [--signed --key-id id] [--output path]|verify-signature <file>\n" +
+        "  contracts negotiate <envelope.json>\n" +
+        "  machine status|authorize (disabled by default)\n" +
         "  tools execute --json (bounded Agents SDK worker callback)\n" +
         "  benchmark run <repo> [--json] (Capsule discovery slice)"
 }
@@ -152,6 +192,8 @@ func help_text() {
 func cmd_chat(tokens) {
     parsed := parse_tokens(tokens)
     if len(parsed["positionals"]) == 0 { return {"ok": false, "error": "chat requires a prompt"} }
+    shape := cli_shape(parsed, 1, -1, ["model", "provider", "fixture", "offline", "stream", "json"])
+    if shape["ok"] == false { return shape }
     prompt := join(parsed["positionals"], " ")
     model := string_or(dict_get_or(parsed["flags"], "model", "fixture-model"), "fixture-model")
     provider := string_or(dict_get_or(parsed["flags"], "provider", "fixture"), "fixture")
@@ -189,9 +231,15 @@ func cmd_models(tokens) {
         {"id": "fixture-model", "provider": "fixture", "capabilities": ["chat", "streaming", "structured_output"], "tool_planning": false, "tool_execution": "declared_mission_only", "offline": true, "source": "built_in_fixture"},
         {"id": env_or("RELAY_MODEL", "gpt-4.1-mini"), "provider": env_or("RELAY_PROVIDER", "openai-compatible"), "capabilities": ["chat", "streaming", "provider_tool_planning"], "tool_planning": "opt_in_provider_profile", "tool_execution": "policy_bound_agents_sdk", "offline": false, "source": "environment_profile"}
     ]
+    if sub != "list" && sub != "inspect" && sub != "probe" { return {"ok": false, "error": "unknown models command"} }
+    mut shape := cli_shape(parsed, 1, 1, ["json"])
+    if sub == "inspect" { shape = cli_shape(parsed, 2, 2, ["json"]) }
+    if sub == "probe" { shape = cli_shape(parsed, 2, 2, ["provider", "fixture", "offline", "json"]) }
+    if shape["ok"] == false { return shape }
     if sub == "inspect" { for model in models { if model["id"] == positional(parsed["positionals"], 1, "") { return {"ok": true, "model": model} } }; return {"ok": false, "error": "unknown model"} }
     if sub == "probe" {
-        model := string_or(positional(parsed["positionals"], 1, env_or("RELAY_MODEL", "fixture-model")), "fixture-model")
+        if len(parsed["positionals"]) < 2 { return {"ok": false, "error": "models probe requires a model"} }
+        model := string_or(positional(parsed["positionals"], 1, ""), "")
         provider := string_or(dict_get_or(parsed["flags"], "provider", env_or("RELAY_PROVIDER", "fixture")), "fixture")
         offline := has_flag(parsed["flags"], "fixture") || has_flag(parsed["flags"], "offline") || env_bool("RELAY_OFFLINE_FIXTURE", true)
         result := ai_chat([{"role": "user", "content": "Reply with exactly: relay-probe-ok"}], model, provider, offline, false)
@@ -203,6 +251,10 @@ func cmd_models(tokens) {
 func cmd_agents(tokens) {
     parsed := parse_tokens(tokens)
     sub := positional(parsed["positionals"], 0, "list")
+    if sub != "list" && sub != "inspect" && sub != "validate" { return {"ok": false, "error": "unknown agents command"} }
+    mut shape := cli_shape(parsed, 1, 1, ["json"])
+    if sub == "inspect" { shape = cli_shape(parsed, 2, 2, ["json"]) }
+    if shape["ok"] == false { return shape }
     if sub == "inspect" {
         agent := find_agent(positional(parsed["positionals"], 1, ""))
         if type(agent) == "null" { return {"ok": false, "error": "unknown agent"} }
@@ -222,10 +274,14 @@ func cmd_missions(tokens) {
     parsed := parse_tokens(tokens)
     sub := positional(parsed["positionals"], 0, "help")
     if sub == "create" {
+        shape := cli_shape(parsed, 1, 2, ["output", "json"])
+        if shape["ok"] == false { return shape }
         source := positional(parsed["positionals"], 1, "")
         return create_mission(source, string_or(dict_get_or(parsed["flags"], "output", ""), ""))
     }
     if sub == "run" {
+        shape := cli_shape(parsed, 2, 2, ["fixture", "offline", "stream", "pause-after-plan", "skip-agent-smoke", "json"])
+        if shape["ok"] == false { return shape }
         path := positional(parsed["positionals"], 1, "")
         if path == "" { return {"ok": false, "error": "missions run requires a spec path"} }
         offline := has_flag(parsed["flags"], "fixture")
@@ -233,6 +289,10 @@ func cmd_missions(tokens) {
         return run_mission(path, {"offline_fixture": offline, "stream": has_flag(parsed["flags"], "stream"), "pause_after_plan": has_flag(parsed["flags"], "pause-after-plan"), "agents_sdk_smoke": has_flag(parsed["flags"], "skip-agent-smoke") == false})
     }
     id := positional(parsed["positionals"], 1, "")
+    allowed := ["json"]
+    if sub == "cleanup" { allowed = ["confirm", "json"] }
+    shape := cli_shape(parsed, 2, 2, allowed)
+    if shape["ok"] == false { return shape }
     store_check := state_store_check()
     if store_check["ok"] == false { return store_check }
     index := load_run_index(state_root())
@@ -510,10 +570,29 @@ func run_window(index, flags) {
 func cmd_runs(tokens) {
     parsed := parse_tokens(tokens)
     sub := positional(parsed["positionals"], 0, "list")
+    if sub != "list" && sub != "metrics" && sub != "rebuild" && sub != "migrate-store" && sub != "retention" && sub != "inspect" && sub != "verify" && sub != "events" && sub != "watch" && sub != "sizes" && sub != "changes" && sub != "evaluations" && sub != "handoff" && sub != "export" && sub != "verify-signature" { return {"ok": false, "error": "unknown runs command"} }
+    mut shape := cli_shape(parsed, 1, 2, ["json"])
+    if sub == "list" { shape = cli_shape(parsed, 0, 1, ["after", "limit", "json"]) }
+    if sub == "rebuild" { shape = cli_shape(parsed, 1, 1, ["json"]) }
+    if sub == "migrate-store" { shape = cli_shape(parsed, 1, 1, ["backend", "confirm", "json"]) }
+    if sub == "retention" { shape = cli_shape(parsed, 1, 1, ["keep-last", "confirm", "json"]) }
+    if sub == "metrics" { shape = cli_shape(parsed, 1, 1, ["json"]) }
+    if sub == "events" { shape = cli_shape(parsed, 2, 2, ["after", "limit", "json"]) }
+    if sub == "watch" { shape = cli_shape(parsed, 2, 2, ["timeout-ms", "poll-ms", "json"]) }
+    if sub == "sizes" { shape = cli_shape(parsed, 2, 2, ["hashes", "json"]) }
+    if sub == "handoff" { shape = cli_shape(parsed, 2, 2, ["output", "confirm", "json"]) }
+    if sub == "export" { shape = cli_shape(parsed, 2, 2, ["partial", "output", "signed", "key-id", "json"]) }
+    if sub == "verify-signature" { shape = cli_shape(parsed, 2, 2, ["json"]) }
+    if shape["ok"] == false { return shape }
     store_check := state_store_check()
     if store_check["ok"] == false { return store_check }
     index := load_run_index(state_root())
     id := positional(parsed["positionals"], 1, "")
+    if sub == "metrics" { return aggregate_metrics(index) }
+    if sub == "verify-signature" {
+        signed_value := read_json_limited(id, {}, 1048576)
+        return verify_signed_export(id, signing_key(string_or(dict_get_or(signed_value, "key_id", ""), "")))
+    }
     if sub == "list" {
         response := {"ok": true, "runs": index, "index_source": "validated_cache_or_rebuild"}
         if has_key(parsed["flags"], "after") || has_key(parsed["flags"], "limit") {
@@ -532,8 +611,15 @@ func cmd_runs(tokens) {
         if dict_get_or(rebuilt_result, "ok", false) == false { return {"ok": false, "failure_class": "state_store_failure", "runs": dict_get_or(rebuilt_result, "index", {}), "index_source": "rebuild", "error": dict_get_or(rebuilt_result, "error", "Run index persistence failed")} }
         return {"ok": true, "runs": dict_get_or(rebuilt_result, "index", {}), "index_source": "rebuild", "persisted": true}
     }
+    if sub == "migrate-store" {
+        if string_or(dict_get_or(parsed["flags"], "backend", ""), "") != "sqlite" { return {"ok": false, "error": "migrate-store requires --backend sqlite"} }
+        if has_flag(parsed["flags"], "confirm") == false { return {"ok": false, "error": "store migration requires --confirm"} }
+        return migrate_run_index_sqlite(state_root())
+    }
+    if sub == "retention" { return prune_run_evidence(int_or(dict_get_or(parsed["flags"], "keep-last", 100), -1), has_flag(parsed["flags"], "confirm")) }
     record := dict_get_or(index, id, null)
     if type(record) != "dict" { return {"ok": false, "error": "unknown run: " + id} }
+    if sub == "handoff" { return failure_handoff(record["run_dir"], id, string_or(dict_get_or(parsed["flags"], "output", ""), ""), has_flag(parsed["flags"], "confirm")) }
     if sub == "verify" {
         state_evidence := read_run_state_evidence(record["run_dir"], id)
         if dict_get_or(state_evidence, "ok", false) == false {
@@ -636,6 +722,12 @@ func cmd_runs(tokens) {
             return event_bundle
         }
         bundle := {"format": "relay-run-export-v1", "run_id": id, "integrity_valid": true, "chain_integrity_valid": chain_valid, "state_consistent": state_consistent, "receipts_valid": receipts_valid, "receipts_consistent": receipts_consistent, "changes_valid": true, "evaluations_valid": true, "report_valid": true, "tool_results_required": dict_get_or(tool_results_evidence, "required", false), "tool_results_valid": true, "packet_manifest_required": dict_get_or(packet_manifest_evidence, "required", false), "packet_manifest_valid": true, "run": state, "events": events, "receipts": receipts, "changes": changes_evidence["value"], "evaluations": evaluations_evidence["value"], "report": report_evidence["value"], "tool_results": dict_get_or(tool_results_evidence, "value", null), "packet_manifest": dict_get_or(packet_manifest_evidence, "value", null)}
+        if has_flag(parsed["flags"], "signed") {
+            key_id := string_or(dict_get_or(parsed["flags"], "key-id", ""), "")
+            signed := signed_export(bundle, key_id, signing_key(key_id))
+            if dict_get_or(signed, "ok", false) == false { return signed }
+            bundle = signed
+        }
         output_path := string_or(dict_get_or(parsed["flags"], "output", ""), "")
         if output_path != "" {
             if write_json(output_path, bundle) == false { return {"ok": false, "error": "run export could not be written"} }
@@ -662,9 +754,35 @@ func cmd_runs(tokens) {
     return {"ok": false, "error": "unknown runs command"}
 }
 
+func cmd_contracts(tokens) {
+    parsed := parse_tokens(tokens)
+    shape := cli_shape(parsed, 2, 2, ["json"])
+    if shape["ok"] == false { return shape }
+    if positional(parsed["positionals"], 0, "") != "negotiate" { return {"ok": false, "error": "contracts requires negotiate"} }
+    return negotiate_contract(positional(parsed["positionals"], 1, ""))
+}
+
+func cmd_machine(tokens) {
+    parsed := parse_tokens(tokens)
+    shape := cli_shape(parsed, 1, 1, ["json"])
+    if shape["ok"] == false { return shape }
+    sub := positional(parsed["positionals"], 0, "")
+    if sub == "status" { return machine_access_status() }
+    if sub != "authorize" { return {"ok": false, "error": "machine requires status or authorize"} }
+    raw := env_or("RELAY_MACHINE_REQUEST", "")
+    if raw == "" || len(raw) > 65536 { return {"ok": false, "error": "RELAY_MACHINE_REQUEST is required and limited to 64 KiB"} }
+    request := null
+    try { request = parse_json(raw) } except err { return {"ok": false, "error": "RELAY_MACHINE_REQUEST is invalid JSON"} }
+    return authorize_machine_request(state_root(), request, env_or("RELAY_MACHINE_REQUEST_SECRET", ""))
+}
+
 func cmd_benchmark(tokens) {
     parsed := parse_tokens(tokens)
-    repo := positional(parsed["positionals"], 1, ".")
+    shape := cli_shape(parsed, 2, 2, ["json"])
+    if shape["ok"] == false { return shape }
+    if positional(parsed["positionals"], 0, "") != "run" { return {"ok": false, "error": "benchmark requires the run subcommand"} }
+    repo := positional(parsed["positionals"], 1, "")
+    if repo == "" { return {"ok": false, "error": "benchmark run requires a repository"} }
     result := capsule_run(repo, state_root() + "/capsule")
     result["benchmark"] := "capsule-discovery"
     return result
@@ -672,6 +790,8 @@ func cmd_benchmark(tokens) {
 
 func cmd_tools(tokens) {
     parsed := parse_tokens(tokens)
+    shape := cli_shape(parsed, 1, 1, ["capability", "json"])
+    if shape["ok"] == false { return shape }
     sub := positional(parsed["positionals"], 0, "")
     if sub != "execute" { return {"ok": false, "error": "unknown tools command"} }
     raw := env("RELAY_TOOL_REQUEST")
@@ -698,8 +818,13 @@ export func main(argv) {
     else if command == "missions" { result = cmd_missions(rest) }
     else if command == "runs" { result = cmd_runs(rest) }
     else if command == "tools" { result = cmd_tools(rest) }
+    else if command == "contracts" { result = cmd_contracts(rest) }
+    else if command == "machine" { result = cmd_machine(rest) }
     else if command == "benchmark" { result = cmd_benchmark(rest) }
-    else if command == "doctor" { result = doctor(has_flag(parsed["flags"], "repair")) }
+    else if command == "doctor" {
+        shape := cli_shape(parsed, 0, 0, ["repair", "json"])
+        if shape["ok"] == false { result = shape } else { result = doctor(has_flag(parsed["flags"], "repair")) }
+    }
     else { print(help_text()); return 2 }
     output(result, json_mode)
     if type(result) == "dict" && dict_get_or(result, "ok", true) == false { return 1 }

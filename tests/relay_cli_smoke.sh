@@ -18,6 +18,7 @@ case "$doctor" in
   *) echo "fixture doctor contract did not pass" >&2; exit 1 ;;
 esac
 grep -q 'Relay source tree' <<<"$doctor"
+printf '%s' "$doctor" | jq -e '(.checks | map(select(.name == "Relay run store posture"))[0]) | .ok == true and .limit == 4096 and .exceeded == false' >/dev/null
 printf '%s' "$doctor" | jq -e 'all(.checks[] | select(.name | endswith(" version")); .safe == true and (.version | length > 0))' >/dev/null
 printf '%s' "$doctor" | jq -e 'all(.checks[] | select(has("path") and .required == true); .safe == true)' >/dev/null
 capability_fixture="$(jq -cn --arg root "$ROOT" '{root:$root,run_id:"relay-doctor-stale",session_id:"relay-doctor-stale-session",workspace:"/tmp",nonce:"relay-doctor-stale-nonce",max_calls:1,ttl_ms:1000}')"
@@ -33,13 +34,17 @@ locked_fixture="$(jq -cn --arg root "$ROOT" '{root:$root,run_id:"relay-doctor-lo
 RELAY_CAPABILITY_FIXTURE="$locked_fixture" "$KUJO" run "$ROOT/tests/relay_capability_fixture.kujo" --interpreter >/dev/null
 locked_path="$RELAY_STATE_ROOT/capabilities/$(printf '%s' 'relay-doctor-locked|relay-doctor-locked-session' | shasum -a 256 | awk '{print $1}').json"
 mkdir "$locked_path.lock"
+now_ms="$(($(date +%s) * 1000))"
+jq -n --argjson now "$now_ms" '{contract_version:"relay-capability-lock-v1",owner_id:"cli-active-lock",purpose:"doctor-test",acquired_at_ms:$now,lease_expires_at_ms:($now + 60000)}' > "$locked_path.lock/owner.json"
 sleep 2
 locked_doctor="$(RELAY_ROOT="$ROOT" "$KUJO" run "$ROOT/main.kujo" -- doctor --repair --json)"
 printf '%s' "$locked_doctor" | jq -e '(.checks | map(select(.name == "Agents SDK capability registry"))[0].locked) >= 1 and (.checks | map(select(.name == "Agents SDK capability registry"))[0].cleaned == 0)' >/dev/null
 test -f "$locked_path"
-rmdir "$locked_path.lock"
+expired_ms="$((now_ms - 1000))"
+jq -n --argjson now "$now_ms" --argjson expired "$expired_ms" '{contract_version:"relay-capability-lock-v1",owner_id:"cli-expired-lock",purpose:"doctor-test",acquired_at_ms:($now - 60000),lease_expires_at_ms:$expired}' > "$locked_path.lock/owner.json"
 unlocked_doctor="$(RELAY_ROOT="$ROOT" "$KUJO" run "$ROOT/main.kujo" -- doctor --repair --json)"
 printf '%s' "$unlocked_doctor" | jq -e '(.checks | map(select(.name == "Agents SDK capability registry"))[0].cleaned) >= 1' >/dev/null
+jq -e 'select(.lock == "capability" and .previous_owner_id == "cli-expired-lock" and .reason == "expired_lease" and (.integrity_sha256 | length == 64))' "$RELAY_STATE_ROOT/lock-recovery.jsonl" >/dev/null
 normalized_doctor="$(RELAY_OFFLINE_FIXTURE=1 "$KUJO" run "$ROOT/main.kujo" -- doctor --json)"
 printf '%s' "$normalized_doctor" | jq -e '.ok == true and .mode == "fixture"' >/dev/null
 normalized_probe="$(RELAY_OFFLINE_FIXTURE=YES "$KUJO" run "$ROOT/main.kujo" -- models probe fixture-model --json)"
@@ -47,6 +52,18 @@ printf '%s' "$normalized_probe" | jq -e '.ok == true and .offline == true' >/dev
 models="$($KUJO run "$ROOT/main.kujo" -- models list --json)"
 printf '%s' "$models" | jq -e '.ok == true and .models[0].tool_planning == false and .models[0].tool_execution == "declared_mission_only" and .models[1].tool_planning == "opt_in_provider_profile" and .models[1].tool_execution == "policy_bound_agents_sdk" and (.models[1].capabilities | index("provider_tool_planning")) != null and (.routing.tool_planning == false)' >/dev/null
 printf '%s' "$normalized_probe" | jq -e '.routing.tool_planning == false and .routing.tool_execution == "declared_mission_only"' >/dev/null
+
+for invalid_command in "models unknown" "agents unknown" "models probe" "benchmark unknown $ROOT" "benchmark run"; do
+  set +e
+  invalid_command_output="$($KUJO run "$ROOT/main.kujo" -- $invalid_command --json 2>&1)"
+  invalid_command_status=$?
+  set -e
+  test "$invalid_command_status" -ne 0
+  grep -q 'error' <<<"$invalid_command_output"
+done
+
+profile_doctor="$(env -u OPENAI_API_KEY RELAY_OFFLINE_FIXTURE=false RELAY_WATCHDOG_URL='https://watchdog.example.invalid/proxy/v1' RELAY_WATCHDOG_UPSTREAM_PROFILE='shared-provider' "$KUJO" run "$ROOT/main.kujo" -- doctor --json 2>&1 || true)"
+printf '%s' "$profile_doctor" | jq -e '(.checks | map(select(.name == "live provider credential"))[0]) | .ok == true and .configured == false and .upstream_profile_configured == true' >/dev/null
 unsafe_bridge="/tmp/relay-external-ai-bridge-$$.kujo"
 printf '%s' 'print({"ok":true})' > "$unsafe_bridge"
 set +e

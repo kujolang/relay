@@ -133,6 +133,7 @@ jobs:
           RELAY_EVAL_ENTRY: ${{ github.workspace }}/eval/main.kujo
           KENNEL_ROOT: ${{ github.workspace }}/kennel
           SHIPCHECK_ROOT: ${{ github.workspace }}/shipcheck
+          RELAY_PERFORMANCE_EVIDENCE_OUTPUT: ${{ runner.temp }}/relay-performance.json
         run: bash scripts/release_gate.sh
 
       - name: Build candidate artifacts
@@ -154,10 +155,21 @@ jobs:
           RELAY_PLATFORM_MACOS_ARM64: ${{ matrix.platform == 'macos-arm64' && 'passed' || 'pending-other-matrix-job' }}
         run: bash scripts/build_release_artifacts.sh "${RUNNER_TEMP}/relay-release" "$GITHUB_SHA"
 
+      - name: Benchmark representative run-store profiles
+        working-directory: relay
+        shell: bash
+        env:
+          KUJO_BIN: ${{ github.workspace }}/kujo/target/release/kujo
+          RELAY_BENCHMARK_ITERATIONS: 1
+        run: bash scripts/benchmark_profiles.sh "${RUNNER_TEMP}/relay-representative-performance"
+
       - name: Upload platform evidence and candidate artifacts
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: relay-${{ github.sha }}-${{ matrix.platform }}
-          path: ${{ runner.temp }}/relay-release/
+          path: |
+            ${{ runner.temp }}/relay-release/
+            ${{ runner.temp }}/relay-performance.json
+            ${{ runner.temp }}/relay-representative-performance/*.json
           if-no-files-found: error
           retention-days: 30

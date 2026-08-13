@@ -11,6 +11,9 @@ Relay uses semantic versioning for the product and independent identifiers for m
 | Receipts | `relay-receipt-v1` | existing correlation and integrity fields remain stable; upstream tools remain canonical owners |
 | Complete export | `relay-run-export-v1` | complete verified evidence only; missing required evidence remains failure |
 | Partial export | `relay-run-export-partial-v1` | always explicit, incomplete, and `integrity_valid: false` |
+| Signed export wrapper | `relay-signed-export-v1` | explicit HMAC-SHA256 wrapper; unsigned v1 remains unchanged; key ID and payload digest retain meaning |
+| Aggregate metrics | `relay-aggregate-metrics-v1` | bounded to 4096 validated local runs; dimensions remain low-cardinality |
+| Failure handoff | `relay-failure-handoff-v1` | failed/cancelled, confirmed, redacted handoff only |
 | Verification response | `relay-run-verification-v1` | boolean verdict fields retain meaning; new checks may be added as optional fields |
 | Artifact sizes | `relay-run-sizes-v1` | existing bounds and exclusion meaning remain stable |
 | Provider tool results | `relay-tool-result-bundle-v1` | run identity, bounded result list, tool-call correlation, and state digest binding remain stable |

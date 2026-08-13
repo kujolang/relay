@@ -2,6 +2,15 @@
 
 All notable Relay changes are recorded here. Relay follows semantic versioning for the product; mission and evidence contract identifiers are versioned independently.
 
+## [Unreleased]
+
+- Added bounded, resumable `relay.list_files` pages with an independent 16 MiB discovery envelope, allowing cursor traversal beyond the agent-visible response budget.
+- Hardened CLI parsing to reject unknown and duplicate options, missing option values, and unexpected arguments; added the standard `--` option delimiter for prompt text.
+- Clarified the source-root layout and corrected the documented four-tool Agents SDK surface.
+- Added an optional transactional SQLite run index, authoritative crash rebuild, bounded store posture, retention preview/pruning, and receipted capability/index lease recovery.
+- Added version-negotiated Spec/Dispatch envelopes, a disabled-by-default authenticated machine authorization/audit boundary, redacted CaseFile-compatible failed-run handoff, and rotated HMAC-signed exports without changing unsigned v1.
+- Added bounded aggregate run metrics, committed performance budgets and benchmark harness, and a generated evidence-linked showcase gallery.
+
 ## [1.0.0] - 2026-08-08
 
 ### Stable local v1 scope

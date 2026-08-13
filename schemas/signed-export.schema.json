@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kujo.dev/relay/schemas/signed-export.schema.json",
+  "title": "Relay signed export",
+  "type": "object",
+  "required": ["ok", "format", "algorithm", "key_id", "payload_sha256", "signature", "payload"],
+  "properties": {
+    "ok": {"const": true},
+    "format": {"const": "relay-signed-export-v1"},
+    "algorithm": {"const": "hmac-sha256"},
+    "key_id": {"type": "string", "minLength": 1},
+    "payload_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "signature": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "payload": {"type": "object"}
+  },
+  "additionalProperties": true
+}

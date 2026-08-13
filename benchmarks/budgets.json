@@ -1,0 +1,16 @@
+{
+  "contract_version": "relay-performance-budgets-v1",
+  "iterations": 5,
+  "representative_profiles": [
+    {"name": "small", "runs": 10, "events_per_target_run": 25, "artifact_bytes_per_target_run": 65536},
+    {"name": "medium", "runs": 100, "events_per_target_run": 250, "artifact_bytes_per_target_run": 1048576},
+    {"name": "large", "runs": 500, "events_per_target_run": 750, "artifact_bytes_per_target_run": 7000000}
+  ],
+  "p95_ms": {
+    "small": {"runs_list": 2500, "runs_verify": 5000, "runs_watch_completed": 2500, "runs_export": 2500},
+    "medium": {"runs_list": 10000, "runs_verify": 25000, "runs_watch_completed": 18000, "runs_export": 18000},
+    "large": {"runs_list": 45000, "runs_verify": 90000, "runs_watch_completed": 65000, "runs_export": 65000}
+  },
+  "regression_percent": 20,
+  "platforms": ["macos-arm64", "macos-x86_64", "linux-x86_64"]
+}

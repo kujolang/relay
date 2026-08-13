@@ -255,6 +255,10 @@ func read_json_limited(path, fallback, max_bytes) {
     limit := int_or(max_bytes, 1048576)
     if limit <= 0 || path_is_symlink_safe(path) || path_exists(path) == false { return fallback }
     if path_is_file(path) == false || file_size(path) > limit { return fallback }
+    # Kujo's stable JSON parser rejects inputs above 1 MiB. Clamp the
+    # effective boundary so callers fail before reading instead of advertising
+    # a larger JSON limit that the runtime cannot parse.
+    if file_size(path) > 1048576 { return fallback }
     return read_json_or(path, fallback)
 }
 
@@ -293,6 +297,46 @@ func capability_registry_path(root, run_id, session_id) {
     return base + "/capabilities/" + sha256(to_string(run_id) + "|" + to_string(session_id)) + ".json"
 }
 
+func capability_lock_owner_path(lock) { return lock + "/owner.json" }
+
+func capability_lock_acquire(lock, purpose, lease_ms) {
+    if path_is_symlink_safe(lock) { return {"ok": false, "error": "capability_lock_unsafe"} }
+    if create_exclusive_dir(lock) == false { return {"ok": false, "error": "capability_busy"} }
+    acquired_at := current_timestamp()
+    lease := int_or(lease_ms, 660000)
+    if lease < 1000 { lease = 1000 }
+    if lease > 900000 { lease = 900000 }
+    owner := {"contract_version": "relay-capability-lock-v1", "owner_id": "cap-owner-" + to_string(acquired_at) + "-" + to_string(random_int(1000, 999999)), "purpose": string_or(purpose, "capability"), "acquired_at_ms": acquired_at, "lease_expires_at_ms": acquired_at + lease}
+    if write_json(capability_lock_owner_path(lock), owner) == false { os_rmdir(lock); return {"ok": false, "error": "capability_lock_owner_write_failed"} }
+    return {"ok": true, "owner": owner}
+}
+
+func capability_lock_release(lock) {
+    if path_is_dir(lock) == false || path_is_symlink_safe(lock) { return false }
+    owner_path := capability_lock_owner_path(lock)
+    if path_exists(owner_path) { delete_file(owner_path) }
+    os_rmdir(lock)
+    return path_exists(lock) == false
+}
+
+func capability_lock_recovery_input(receipt) {
+    return to_string(dict_get_or(receipt, "contract_version", "")) + "|" + to_string(dict_get_or(receipt, "lock", "")) + "|" + to_string(dict_get_or(receipt, "previous_owner_id", "")) + "|" + to_string(dict_get_or(receipt, "purpose", "")) + "|" + to_string(dict_get_or(receipt, "lease_expires_at_ms", 0)) + "|" + to_string(dict_get_or(receipt, "recovered_at_ms", 0)) + "|" + to_string(dict_get_or(receipt, "reason", ""))
+}
+
+func recover_expired_capability_lock(root, lock) {
+    if path_is_dir(lock) == false || path_is_symlink_safe(lock) { return {"ok": false, "recovered": false, "error": "capability lock is missing or unsafe"} }
+    owner := read_json_limited(capability_lock_owner_path(lock), null, 65536)
+    lease_expires := int_or(dict_get_or(owner, "lease_expires_at_ms", 0), 0)
+    if type(owner) != "dict" || string_or(dict_get_or(owner, "contract_version", ""), "") != "relay-capability-lock-v1" || string_or(dict_get_or(owner, "owner_id", ""), "") == "" || lease_expires <= 0 { return {"ok": false, "recovered": false, "error": "capability lock owner metadata is invalid"} }
+    if current_timestamp() <= lease_expires { return {"ok": true, "recovered": false, "active": true} }
+    receipt := {"contract_version": "relay-lock-recovery-v1", "lock": "capability", "previous_owner_id": owner["owner_id"], "purpose": string_or(dict_get_or(owner, "purpose", "capability"), "capability"), "lease_expires_at_ms": lease_expires, "recovered_at_ms": current_timestamp(), "reason": "expired_lease"}
+    receipt["integrity_sha256"] := sha256(capability_lock_recovery_input(receipt))
+    recovery_path := relay_state_root(root) + "/lock-recovery.jsonl"
+    if append_jsonl_bounded(recovery_path, receipt, 1048576) == false { return {"ok": false, "recovered": false, "error": "capability lock recovery receipt could not be persisted"} }
+    if capability_lock_release(lock) == false { return {"ok": false, "recovered": false, "error": "expired capability lock could not be released"} }
+    return {"ok": true, "recovered": true, "receipt": receipt}
+}
+
 func issue_agent_capability(root, run_id, session_id, workspace, nonce, max_calls, ttl_ms) {
     path := capability_registry_path(root, run_id, session_id)
     if path == "" { return {"ok": false, "error": {"code": "capability_registry_unsafe", "message": "Capability registry root is unsafe"}} }
@@ -305,12 +349,13 @@ func issue_agent_capability(root, run_id, session_id, workspace, nonce, max_call
         if path_is_file(path) { return {"ok": false, "error": {"code": "capability_already_registered", "message": "Tool capability is already registered"}} }
         return {"ok": false, "error": {"code": "capability_registry_unsafe", "message": "Capability registry record is not a regular file"}}
     }
-    if create_exclusive_dir(lock) == false {
+    lock_result := capability_lock_acquire(lock, "issue", 30000)
+    if dict_get_or(lock_result, "ok", false) == false {
         if path_exists(lock) && path_is_dir(lock) { return {"ok": false, "error": {"code": "capability_busy", "message": "Tool capability is already being issued or consumed"}} }
         return {"ok": false, "error": {"code": "capability_lock_unsafe", "message": "Tool capability lock could not be acquired"}}
     }
     if path_exists(path) {
-        if path_is_dir(lock) { os_rmdir(lock) }
+        capability_lock_release(lock)
         return {"ok": false, "error": {"code": "capability_already_registered", "message": "Tool capability is already registered"}}
     }
     calls := int_or(max_calls, 4)
@@ -322,10 +367,10 @@ func issue_agent_capability(root, run_id, session_id, workspace, nonce, max_call
     secret := sha256(to_string(run_id) + "|" + to_string(session_id) + "|" + to_string(nonce) + "|" + to_string(current_timestamp()) + "|" + to_string(random_int(1000, 999999)))
     record := {"contract_version": "relay-agent-capability-v1", "run_id": to_string(run_id), "session_id": to_string(session_id), "workspace": to_string(workspace), "nonce": to_string(nonce), "capability": sha256(to_string(run_id) + "|" + to_string(session_id) + "|" + to_string(workspace) + "|" + to_string(nonce) + "|relay-agent-tools"), "secret_digest": sha256(secret), "issued_at_ms": current_timestamp(), "expires_at_ms": current_timestamp() + lifetime, "max_calls": calls, "used_calls": 0}
     if write_json(path, record) == false {
-        if path_is_dir(lock) { os_rmdir(lock) }
+        capability_lock_release(lock)
         return {"ok": false, "error": {"code": "capability_registry_write_failed", "message": "Capability registry record could not be persisted"}}
     }
-    if path_is_dir(lock) { os_rmdir(lock) }
+    capability_lock_release(lock)
     return {"ok": true, "secret": secret, "path": path, "expires_at_ms": record["expires_at_ms"], "max_calls": calls}
 }
 
@@ -341,7 +386,8 @@ func consume_agent_capability(root, request, supplied_secret) {
         if path_is_dir(lock) { return {"ok": false, "error": {"code": "capability_busy", "message": "Tool capability is already being consumed"}} }
         return {"ok": false, "error": {"code": "capability_lock_unsafe", "message": "Tool capability lock is not a directory"}}
     }
-    if create_exclusive_dir(lock) == false {
+    lock_result := capability_lock_acquire(lock, "consume", 660000)
+    if dict_get_or(lock_result, "ok", false) == false {
         if path_exists(lock) && path_is_dir(lock) { return {"ok": false, "error": {"code": "capability_busy", "message": "Tool capability is already being consumed"}} }
         return {"ok": false, "error": {"code": "capability_lock_unsafe", "message": "Tool capability lock could not be acquired"}}
     }
@@ -364,7 +410,7 @@ func consume_agent_capability(root, request, supplied_secret) {
             }
         }
     } except err { result = {"ok": false, "error": {"code": "capability_invalid", "message": "Tool capability could not be verified"}} }
-    if path_is_dir(lock) { os_rmdir(lock) }
+    capability_lock_release(lock)
     return result
 }
 
@@ -383,7 +429,7 @@ func revoke_agent_capability(root, run_id, session_id) {
             }
             return false
         }
-        if create_exclusive_dir(lock) { acquired = true; break }
+        if dict_get_or(capability_lock_acquire(lock, "revoke", 30000), "ok", false) { acquired = true; break }
         if path_exists(lock) && path_is_dir(lock) {
             if attempt < 4 { sleep(20 * attempt); attempt = attempt + 1; continue }
             return false
@@ -398,7 +444,7 @@ func revoke_agent_capability(root, run_id, session_id) {
             else { delete_file(path) }
         }
     } except err { removed = false }
-    if path_is_dir(lock) { os_rmdir(lock) }
+    capability_lock_release(lock)
     return removed
 }
 
@@ -435,8 +481,13 @@ func capability_registry_posture(root, repair) {
             }
             acquired := false
             if path_exists(lock) {
-                if path_is_dir(lock) { locked = locked + 1 } else { invalid = invalid + 1 }
-            } else if create_exclusive_dir(lock) { acquired = true } else if path_exists(lock) && path_is_dir(lock) { locked = locked + 1 } else { invalid = invalid + 1 }
+                if path_is_dir(lock) {
+                    recovery := recover_expired_capability_lock(root, lock)
+                    if dict_get_or(recovery, "recovered", false) { acquired = dict_get_or(capability_lock_acquire(lock, "doctor-repair", 30000), "ok", false) }
+                    else if dict_get_or(recovery, "ok", false) { locked = locked + 1 }
+                    else { invalid = invalid + 1 }
+                } else { invalid = invalid + 1 }
+            } else if dict_get_or(capability_lock_acquire(lock, "doctor-repair", 30000), "ok", false) { acquired = true } else if path_exists(lock) && path_is_dir(lock) { locked = locked + 1 } else { invalid = invalid + 1 }
             if acquired {
                 current := read_json_limited(path, null, 65536)
                 if type(current) != "dict" || to_string(dict_get_or(current, "contract_version", "")) != "relay-agent-capability-v1" {
@@ -449,7 +500,7 @@ func capability_registry_posture(root, repair) {
                         try { delete_file(path); cleaned = cleaned + 1 } except err {}
                     }
                 }
-                if path_is_dir(lock) { os_rmdir(lock) }
+                capability_lock_release(lock)
             } else if expired || exhausted { stale = stale + 1 }
         } else if expired || exhausted {
             stale = stale + 1
@@ -518,6 +569,11 @@ export write_json := write_json
 export append_jsonl_bounded := append_jsonl_bounded
 export append_jsonl := append_jsonl
 export capability_registry_path := capability_registry_path
+export capability_lock_owner_path := capability_lock_owner_path
+export capability_lock_acquire := capability_lock_acquire
+export capability_lock_release := capability_lock_release
+export capability_lock_recovery_input := capability_lock_recovery_input
+export recover_expired_capability_lock := recover_expired_capability_lock
 export issue_agent_capability := issue_agent_capability
 export consume_agent_capability := consume_agent_capability
 export revoke_agent_capability := revoke_agent_capability

@@ -1,9 +1,9 @@
 from src.contracts import event, event_integrity_valid, event_chain_integrity_valid, event_sequence_matches_state, receipt, receipt_integrity_valid, receipt_sequence_valid, receipt_sequence_matches_state, state_integrity_input, state_integrity_valid, run_state, agent_profile, RELAY_VERSION, MISSION_SPEC_VERSION, LEGACY_MISSION_SPEC_VERSION, mission_spec_version_supported, EVENT_CONTRACT, RECEIPT_CONTRACT
 from src.policy import classify_failure, repair_allowed, path_is_safe, path_is_within_workspace, command_is_allowed, tool_decision
-from src.runtime import load_spec, resume_state_safe, cleanup_state_safe, control_state_safe, save_state, mark_evidence_failure, cancellation_request, cancellation_integrity_input, persist_required_json, report, provider_failure_message, provider_followup_token_ceiling, provider_synthesis_messages, provider_synthesis_tool, provider_synthesis_answer, preflight_failure_message
+from src.runtime import load_spec, resume_state_safe, cleanup_state_safe, control_state_safe, save_state, mark_evidence_failure, cancellation_request, cancellation_integrity_input, persist_required_json, report, provider_failure_message, provider_followup_token_ceiling, provider_synthesis_messages, provider_synthesis_tool, provider_synthesis_answer, preflight_failure_message, list_files_page
 from src.common import safe_id, redact_text, shell_quote_single, command_args, process_options, process_options_with_cancel, safe_process_path, safe_env_name, path_is_symlink_safe, path_has_symlink_component, path_has_parent_component, read_json_limited, append_jsonl, append_jsonl_bounded, write_json, write_text_atomic, create_exclusive_dir, dict_get_or, bool_or, string_or, safe_json, issue_agent_capability, revoke_agent_capability
 from src.adapters import fallback_allowed, fallback_decision, watchdog_route_allowed, tool_definitions, normalize_provider_tool_calls, provider_payload_size, provider_payload_allowed, safe_watchdog_upstream_profile, bounded_max_tokens
-from src.store import safe_run_key, store_root_safe, acquire_index_lock, acquire_index_lock_retry, release_index_lock, rebuild_and_persist_run_index, rebuild_and_persist_run_index_result
+from src.store import safe_run_key, store_root_safe, run_store_posture, index_lock_owner_path, index_lock_recovery_path, index_lock_recovery_input, acquire_index_lock, acquire_index_lock_retry, release_index_lock, rebuild_and_persist_run_index, rebuild_and_persist_run_index_result
 from src.watchdog import safe_base, safe_correlation_id, route_policy, usage_reconciliation, usage_reconciliation_for_rows
 
 func check(label, condition) {
@@ -64,9 +64,13 @@ failed = failed + check("safe relative path", path_is_safe(".", "src/file.txt"))
 failed = failed + check("parent component identified", path_has_parent_component("../outside"))
 failed = failed + check("safe sibling path inspected", path_has_symlink_component("./../ai-sdk") == false)
 failed = failed + check("state store parent component denied", store_root_safe("../relay-contract-store") == false)
+failed = failed + check("missing run store has safe bounded posture", run_store_posture("/tmp/relay-contract-missing-store")["ok"] && run_store_posture("/tmp/relay-contract-missing-store")["limit"] == 4096)
 failed = failed + check("unsafe traversal", path_is_safe(".", "../secret") == false)
 failed = failed + check("nested traversal", path_is_safe(".", "src/../secret") == false)
 failed = failed + check("secret file denied", path_is_safe(".", ".env") == false)
+failed = failed + check("case-insensitive authority paths denied", path_is_safe(".", ".GIT/config") == false && path_is_safe(".", ".ENV.local") == false)
+failed = failed + check("Relay evidence path denied", path_is_safe(".", ".relay/runs/forged/state.json") == false)
+failed = failed + check("control characters in paths denied", path_is_safe(".", "src/forged\nname.txt") == false && path_is_safe(".", "src/forged\tname.txt") == false)
 failed = failed + check("workspace containment", path_is_within_workspace(".", "src/common.kujo"))
 failed = failed + check("safe command", command_is_allowed("git status", {"allowed_commands": ["git"]}))
 failed = failed + check("safe Git status option", command_is_allowed("git status --porcelain", {"allowed_commands": ["git"]}))
@@ -175,6 +179,17 @@ write_file(bounded_json_path, "{\"ok\":true}")
 failed = failed + check("bounded JSON read accepts small file", dict_get_or(read_json_limited(bounded_json_path, {}, 64), "ok", false) == true)
 failed = failed + check("bounded JSON read rejects oversized file", len(keys(read_json_limited(bounded_json_path, {"fallback": true}, 4))) == 1 && dict_get_or(read_json_limited(bounded_json_path, {"fallback": true}, 4), "fallback", false) == true)
 delete_file(bounded_json_path)
+runtime_json_path := "/tmp/relay-contract-runtime-json-" + to_string(current_timestamp())
+write_file(runtime_json_path, "{\"payload\":\"" + repeat("x", 1048576) + "\"}")
+failed = failed + check("runtime JSON ceiling rejects caller-widened read", dict_get_or(read_json_limited(runtime_json_path, {"fallback": true}, 8388608), "fallback", false) == true)
+delete_file(runtime_json_path)
+oversized_state := {"status": "completed", "payload": repeat("x", 1048576)}
+oversized_state_root := "/tmp/relay-contract-oversized-state-" + to_string(current_timestamp())
+create_dir(oversized_state_root)
+oversized_state_result := save_state(oversized_state, oversized_state_root)
+failed = failed + check("oversized run state persists bounded failure tombstone", dict_get_or(dict_get_or(oversized_state_result, "evidence_failure", {}), "class", "") == "evidence_failure" && file_size(oversized_state_root + "/state.json") <= 1048576 && state_integrity_valid(read_json_limited(oversized_state_root + "/state.json", {}, 1048576)))
+delete_file(oversized_state_root + "/state.json")
+os_rmdir(oversized_state_root)
 bounded_jsonl_path := "/tmp/relay-contract-bounded-jsonl-" + to_string(current_timestamp())
 write_file(bounded_jsonl_path, "123456789\n")
 failed = failed + check("bounded JSONL append rejects oversized evidence", append_jsonl_bounded(bounded_jsonl_path, {"more": true}, 12) == false)
@@ -192,7 +207,12 @@ failed = failed + check("fallback decision skips policy failure", dict_get_or(fa
 failed = failed + check("fallback decision records success", dict_get_or(fallback_decision({"ok": true}, "primary", "backup"), "reason", "") == "primary_succeeded")
 provider_tools := tool_definitions(["relay.list_files", "relay.read_file", "relay.write_file", "relay.run_command"])
 failed = failed + check("provider tool definitions are bounded", len(provider_tools) == 4 && provider_tools[0]["function"]["name"] == "relay.list_files" && provider_tools[1]["function"]["name"] == "relay.read_file" && provider_tools[2]["function"]["name"] == "relay.write_file" && provider_tools[3]["function"]["name"] == "relay.run_command")
+failed = failed + check("provider file listing supports bounded continuation", has_key(provider_tools[0]["function"]["parameters"]["properties"], "offset"))
 failed = failed + check("provider read tool supports bounded continuation", has_key(provider_tools[1]["function"]["parameters"]["properties"], "offset"))
+file_page := list_files_page("a.txt\nb.txt\nc.txt\n", 1, 1, 16384)
+failed = failed + check("tracked file pages are bounded and resumable", file_page["ok"] && len(file_page["files"]) == 1 && file_page["files"][0] == "b.txt" && file_page["next_offset"] == 2 && file_page["total_files"] == 3 && file_page["has_more"])
+failed = failed + check("empty tracked file pages stay empty", len(list_files_page("", 0, 256, 16384)["files"]) == 0)
+failed = failed + check("invalid tracked file offsets reject", list_files_page("a.txt", 2, 256, 16384)["ok"] == false)
 normalized_provider_tools := normalize_provider_tool_calls([{"id": "call-1", "function": {"name": "relay.write_file", "arguments": "{\"path\":\"out.txt\",\"content\":\"ok\"}"}}])
 failed = failed + check("provider tool calls normalize", normalized_provider_tools["ok"] && normalized_provider_tools["calls"][0]["name"] == "relay.write_file" && normalized_provider_tools["calls"][0]["input"]["path"] == "out.txt")
 provider_tool_aliases := normalize_provider_tool_calls([{"id": "call-short", "function": {"name": "write_file", "arguments": "{\"path\":\"short.txt\",\"content\":\"ok\"}"}}, {"id": "call-underscore", "function": {"name": "relay_run_command", "arguments": "{\"command\":\"git diff --check\"}"}}])
@@ -232,6 +252,7 @@ failed = failed + check("unsafe Watchdog upstream profile rejected", safe_watchd
 failed = failed + check("HTTPS external Watchdog route", watchdog_route_allowed("https://watchdog.example.com/proxy/v1"))
 failed = failed + check("HTTP external Watchdog route denied", watchdog_route_allowed("http://watchdog.example.com/proxy/v1") == false)
 failed = failed + check("HTTP IPv6 loopback Watchdog route", watchdog_route_allowed("http://[::1]:7700/proxy/v1"))
+failed = failed + check("malformed IPv6 loopback suffix denied", watchdog_route_allowed("http://[::1]example.com/proxy/v1") == false)
 failed = failed + check("Watchdog route rejects credentials", watchdog_route_allowed("http://user:secret@127.0.0.1:7700") == false)
 failed = failed + check("Watchdog route rejects unsupported scheme", watchdog_route_allowed("file:///tmp/watchdog") == false)
 failed = failed + check("Watchdog route rejects missing host", safe_base("https://") == false)
@@ -261,6 +282,15 @@ failed = failed + check("index lock released", released_lock["ok"] == true)
 retried_lock := acquire_index_lock_retry(lock_root, 2, 1)
 failed = failed + check("bounded lock retry acquires after release", retried_lock["ok"] == true && retried_lock["attempts"] == 1)
 release_index_lock(lock_root, retried_lock["token"])
+create_dir(lock_root + "/.index.lock")
+stale_owner := {"contract_version": "relay-index-lock-v1", "owner_id": "stale-owner", "token": "stale-token", "acquired_at_ms": current_timestamp() - 120000, "lease_expires_at_ms": current_timestamp() - 60000}
+write_json(index_lock_owner_path(lock_root), stale_owner)
+recovered_lock := acquire_index_lock(lock_root)
+recovery_lines := split(trim(read_file(index_lock_recovery_path(lock_root))), "\n")
+recovery_receipt := parse_json(recovery_lines[0])
+failed = failed + check("expired index lease recovery is receipted", recovered_lock["ok"] && recovery_receipt["contract_version"] == "relay-lock-recovery-v1" && recovery_receipt["previous_owner_id"] == "stale-owner" && recovery_receipt["integrity_sha256"] == sha256(index_lock_recovery_input(recovery_receipt)))
+release_index_lock(lock_root, recovered_lock["token"])
+delete_file(index_lock_recovery_path(lock_root))
 if path_is_dir(lock_root) { os_rmdir(lock_root) }
 refresh_root := tmp_base + "/relay-contract-index-refresh-" + to_string(current_timestamp())
 create_dir(refresh_root)
