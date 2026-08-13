@@ -142,6 +142,7 @@ Run state, events, receipts, reports, packet manifests, tool results, and export
 - Deferred: network service transport, durable multi-host storage, hosted orchestration, public-key signing/custody, and enterprise certification.
 
 Exact immutable revisions and evidence classifications are in the [integration matrix](docs/integration-matrix.md) and [`release/dependencies.json`](release/dependencies.json).
+The next bounded improvement set is tracked in the [v87 enhancement backlog](docs/next-session-enhancement-backlog-2026-08-13-v87.md).
 
 ## Compatibility
 
