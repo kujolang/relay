@@ -1,0 +1,12 @@
+{
+  "contract_version": "relay-performance-budgets-v1",
+  "iterations": 5,
+  "representative_profiles": [
+    {"name": "small", "runs": 10, "events_per_run": 25, "artifact_bytes_per_run": 65536},
+    {"name": "medium", "runs": 500, "events_per_run": 250, "artifact_bytes_per_run": 1048576},
+    {"name": "local-maximum", "runs": 4096, "events_per_run": 2000, "artifact_bytes_per_run": 8388608}
+  ],
+  "p95_ms": {"runs_list": 750, "runs_verify": 2500, "runs_watch_completed": 1000, "runs_export": 3000},
+  "regression_percent": 20,
+  "platforms": ["macos-arm64", "macos-x86_64", "linux-x86_64"]
+}
