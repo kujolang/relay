@@ -1,0 +1,141 @@
+from src.common import dict_get_or, env_or, env_bool, string_or, bool_or, int_or, safe_json, read_json_limited, write_json, append_jsonl_bounded, redact_text, now_iso, path_is_symlink_safe, ensure_safe_directory
+from src.contracts import state_integrity_valid
+
+export SPEC_IMPORT_CONTRACT := "relay-spec-import-v1"
+export DISPATCH_IMPORT_CONTRACT := "relay-dispatch-import-v1"
+export MACHINE_ACCESS_CONTRACT := "relay-machine-access-v1"
+export FAILURE_HANDOFF_CONTRACT := "relay-failure-handoff-v1"
+export SIGNED_EXPORT_CONTRACT := "relay-signed-export-v1"
+
+func negotiate_contract(path) {
+    if path == "" || path_is_symlink_safe(path) || path_exists(path) == false || path_is_file(path) == false || file_size(path) > 1048576 { return {"ok": false, "error": "contract import must be a regular file no larger than 1 MiB"} }
+    value := read_json_limited(path, null, 1048576)
+    if type(value) != "dict" { return {"ok": false, "error": "contract import must be a JSON object"} }
+    kind := string_or(dict_get_or(value, "kind", ""), "")
+    version := string_or(dict_get_or(value, "version", ""), "")
+    supported := []
+    import_contract := ""
+    if kind == "spec" { supported = ["1.0.0"]; import_contract = SPEC_IMPORT_CONTRACT }
+    else if kind == "dispatch" { supported = ["1.0.0"]; import_contract = DISPATCH_IMPORT_CONTRACT }
+    else { return {"ok": false, "error": "contract kind must be spec or dispatch"} }
+    if index_of(supported, version) < 0 { return {"ok": false, "compatible": false, "kind": kind, "requested_version": version, "supported_versions": supported, "error": "contract version is not supported"} }
+    payload := dict_get_or(value, "payload", null)
+    if type(payload) != "dict" { return {"ok": false, "compatible": false, "error": "contract payload must be an object"} }
+    return {"ok": true, "compatible": true, "contract_version": import_contract, "kind": kind, "negotiated_version": version, "payload": payload}
+}
+
+func machine_access_status() {
+    enabled := env_bool("RELAY_MACHINE_ACCESS_ENABLED", false)
+    secret_configured := env_or("RELAY_MACHINE_ACCESS_SECRET", "") != ""
+    return {"ok": true, "contract_version": MACHINE_ACCESS_CONTRACT, "enabled": enabled, "default": "disabled", "secret_configured": secret_configured, "roles": ["reader", "operator", "approver"], "audit": "bounded sealed JSONL"}
+}
+
+func machine_audit_input(item) {
+    return to_string(dict_get_or(item, "contract_version", "")) + "|" + to_string(dict_get_or(item, "identity", "")) + "|" + to_string(dict_get_or(item, "role", "")) + "|" + to_string(dict_get_or(item, "tenant", "")) + "|" + to_string(dict_get_or(item, "action", "")) + "|" + to_string(dict_get_or(item, "approval", false)) + "|" + to_string(dict_get_or(item, "allowed", false)) + "|" + to_string(dict_get_or(item, "created_at", ""))
+}
+
+func authorize_machine_request(state_root, request, supplied_secret) {
+    if env_bool("RELAY_MACHINE_ACCESS_ENABLED", false) == false { return {"ok": false, "error": "machine access is disabled"} }
+    configured := env_or("RELAY_MACHINE_ACCESS_SECRET", "")
+    if configured == "" || sha256(to_string(supplied_secret)) != sha256(configured) { return {"ok": false, "error": "machine authentication failed"} }
+    if type(request) != "dict" { return {"ok": false, "error": "machine request must be an object"} }
+    identity := string_or(dict_get_or(request, "identity", ""), "")
+    role := string_or(dict_get_or(request, "role", ""), "")
+    tenant := string_or(dict_get_or(request, "tenant", ""), "")
+    action := string_or(dict_get_or(request, "action", ""), "")
+    approval := bool_or(dict_get_or(request, "approval", false), false)
+    if identity == "" || tenant == "" || action == "" || index_of(["reader", "operator", "approver"], role) < 0 { return {"ok": false, "error": "identity, recognized role, tenant, and action are required"} }
+    mut allowed := false
+    if starts_with(action, "runs.read") { allowed = true }
+    else if role == "operator" && approval { allowed = true }
+    else if role == "approver" && approval { allowed = true }
+    item := {"contract_version": MACHINE_ACCESS_CONTRACT, "identity": identity, "role": role, "tenant": tenant, "action": action, "approval": approval, "allowed": allowed, "created_at": now_iso()}
+    item["integrity_sha256"] := sha256(machine_audit_input(item))
+    audit_path := state_root + "/machine-audit.jsonl"
+    if ensure_safe_directory(state_root) == false { return {"ok": false, "error": "machine audit root could not be created safely"} }
+    if append_jsonl_bounded(audit_path, item, 4194304) == false { return {"ok": false, "error": "machine audit evidence could not be persisted"} }
+    if allowed == false { return {"ok": false, "authorized": false, "audit": item, "error": "role or approval does not authorize action"} }
+    return {"ok": true, "authorized": true, "identity": identity, "role": role, "tenant": tenant, "action": action, "audit": item}
+}
+
+func failure_handoff(run_dir, run_id, output_path, confirmed) {
+    if confirmed == false { return {"ok": false, "error": "failed-run handoff requires --confirm"} }
+    if output_path == "" || path_is_symlink_safe(output_path) { return {"ok": false, "error": "failed-run handoff requires a safe --output path"} }
+    state_path := run_dir + "/state.json"
+    if path_is_symlink_safe(state_path) || path_exists(state_path) == false || file_size(state_path) > 67108864 { return {"ok": false, "error": "run state is unavailable"} }
+    state := read_json_limited(state_path, null, 67108864)
+    if type(state) != "dict" || state_integrity_valid(state) == false || string_or(dict_get_or(state, "run_id", ""), "") != run_id { return {"ok": false, "error": "run state integrity or identity is invalid"} }
+    status := string_or(dict_get_or(state, "status", ""), "")
+    if status != "failed" && status != "cancelled" { return {"ok": false, "error": "handoff is limited to failed or cancelled runs"} }
+    handoff := {"contract_version": FAILURE_HANDOFF_CONTRACT, "casefile_compatible": true, "redaction_policy": "relay-redact-v1", "run_id": run_id, "status": status, "failure": redact_text(safe_json(dict_get_or(state, "failure", {}))), "report": "report.md", "evidence_root": run_dir, "created_at": now_iso()}
+    handoff["integrity_sha256"] := sha256(safe_json(handoff))
+    if write_json(output_path, handoff) == false { return {"ok": false, "error": "failed-run handoff could not be written"} }
+    return {"ok": true, "output": output_path, "handoff": handoff}
+}
+
+func signed_export(bundle, key_id, secret) {
+    if type(bundle) != "dict" { return {"ok": false, "error": "signed export payload must be an object"} }
+    if key_id == "" || secret == "" { return {"ok": false, "error": "signed export requires --key-id and RELAY_SIGNING_KEY"} }
+    payload_sha := sha256(safe_json(bundle))
+    signature := hmac_sha256(secret, SIGNED_EXPORT_CONTRACT + "|" + key_id + "|" + payload_sha)
+    return {"ok": true, "format": SIGNED_EXPORT_CONTRACT, "algorithm": "hmac-sha256", "key_id": key_id, "created_at": now_iso(), "payload_sha256": payload_sha, "signature": signature, "payload": bundle}
+}
+
+func signing_key(key_id) {
+    raw := env_or("RELAY_SIGNING_KEYS", "")
+    if raw != "" && len(raw) <= 65536 {
+        keys_value := null
+        try { keys_value = parse_json(raw) } except err { return "" }
+        if type(keys_value) == "dict" { return string_or(dict_get_or(keys_value, key_id, ""), "") }
+    }
+    return env_or("RELAY_SIGNING_KEY", "")
+}
+
+func verify_signed_export(path, secret) {
+    if secret == "" { return {"ok": false, "error": "RELAY_SIGNING_KEY is required"} }
+    if path == "" || path_is_symlink_safe(path) || path_exists(path) == false || path_is_file(path) == false || file_size(path) > 67108864 { return {"ok": false, "error": "signed export is unavailable or exceeds 64 MiB"} }
+    value := read_json_limited(path, null, 67108864)
+    if type(value) != "dict" || string_or(dict_get_or(value, "format", ""), "") != SIGNED_EXPORT_CONTRACT || type(dict_get_or(value, "payload", null)) != "dict" { return {"ok": false, "error": "signed export contract is invalid"} }
+    payload_sha := sha256(safe_json(value["payload"]))
+    expected := hmac_sha256(secret, SIGNED_EXPORT_CONTRACT + "|" + string_or(dict_get_or(value, "key_id", ""), "") + "|" + payload_sha)
+    valid := payload_sha == string_or(dict_get_or(value, "payload_sha256", ""), "") && expected == string_or(dict_get_or(value, "signature", ""), "")
+    return {"ok": valid, "signature_valid": valid, "key_id": dict_get_or(value, "key_id", ""), "payload_sha256": payload_sha}
+}
+
+func aggregate_metrics(index) {
+    if type(index) != "dict" { return {"ok": false, "error": "run index is invalid"} }
+    mut runs := 0
+    mut duration_ms := 0
+    mut tokens := 0
+    mut retries := 0
+    mut artifacts := 0
+    mut tool_duration_ms := 0
+    statuses := {}
+    for id in keys(index) {
+        if runs >= 4096 { break }
+        record := index[id]
+        run_dir := string_or(dict_get_or(record, "run_dir", ""), "")
+        state := read_json_limited(run_dir + "/state.json", null, 67108864)
+        if type(state) != "dict" || state_integrity_valid(state) == false { continue }
+        runs = runs + 1
+        status := string_or(dict_get_or(state, "status", "unknown"), "unknown")
+        statuses[status] := int_or(dict_get_or(statuses, status, 0), 0) + 1
+        telemetry := dict_get_or(state, "telemetry", {})
+        duration_ms = duration_ms + int_or(dict_get_or(telemetry, "duration_ms", 0), 0)
+        tokens = tokens + int_or(dict_get_or(dict_get_or(state, "budgets", {}), "used_tokens", 0), 0)
+        retries = retries + int_or(dict_get_or(state, "attempt", 0), 0)
+        artifacts = artifacts + len(dict_get_or(state, "artifacts", []))
+        for result in dict_get_or(state, "results", []) { tool_duration_ms = tool_duration_ms + int_or(dict_get_or(result, "duration_ms", 0), 0) }
+    }
+    return {"ok": true, "format": "relay-aggregate-metrics-v1", "run_count": runs, "status_counts": statuses, "latency_ms_total": duration_ms, "token_total": tokens, "tool_duration_ms_total": tool_duration_ms, "retry_or_step_total": retries, "artifact_count": artifacts, "cardinality_limit": 4096}
+}
+
+export negotiate_contract := negotiate_contract
+export machine_access_status := machine_access_status
+export machine_audit_input := machine_audit_input
+export authorize_machine_request := authorize_machine_request
+export failure_handoff := failure_handoff
+export signed_export := signed_export
+export signing_key := signing_key
+export verify_signed_export := verify_signed_export
+export aggregate_metrics := aggregate_metrics
