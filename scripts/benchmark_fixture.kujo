@@ -1,0 +1,53 @@
+from src.common import dict_get_or, env_or, int_or, safe_json, write_json, write_text_atomic, ensure_safe_directory
+from src.contracts import event, state_integrity_input
+
+config_raw := env_or("RELAY_BENCHMARK_FIXTURE", "")
+config := null
+try { config = parse_json(config_raw) } except err { print(safe_json({"ok": false, "error": "RELAY_BENCHMARK_FIXTURE is invalid JSON"})); exit(1) }
+if type(config) != "dict" { print(safe_json({"ok": false, "error": "benchmark fixture config must be an object"})); exit(1) }
+
+state_root := to_string(dict_get_or(config, "state_root", ""))
+profile := to_string(dict_get_or(config, "profile", ""))
+run_count := int_or(dict_get_or(config, "run_count", 0), 0)
+event_count := int_or(dict_get_or(config, "event_count", 0), 0)
+artifact_bytes := int_or(dict_get_or(config, "artifact_bytes", 0), 0)
+if state_root == "" || profile == "" || run_count < 1 || run_count > 500 || event_count < 0 || event_count > 2000 || artifact_bytes < 0 || artifact_bytes > 7000000 {
+    print(safe_json({"ok": false, "error": "benchmark fixture exceeds the bounded profile limits"}))
+    exit(1)
+}
+if ensure_safe_directory(state_root) == false || ensure_safe_directory(state_root + "/runs") == false { print(safe_json({"ok": false, "error": "benchmark fixture root is unsafe"})); exit(1) }
+
+mut target_run_id := ""
+mut run_number := 1
+while run_number <= run_count {
+    run_id := "benchmark-" + profile + "-" + to_string(run_number)
+    run_dir := state_root + "/runs/" + run_id
+    if ensure_safe_directory(run_dir) == false { print(safe_json({"ok": false, "error": "benchmark run directory is unsafe"})); exit(1) }
+    events := []
+    parent := ""
+    mut event_number := 0
+    desired_events := 0
+    desired_artifact_bytes := 0
+    if run_number == run_count { desired_events = event_count; desired_artifact_bytes = artifact_bytes; target_run_id = run_id }
+    while event_number < desired_events {
+        item := event("benchmark_sample", "relay-benchmark-" + profile, run_id, "sample", "benchmark", {"sequence": event_number}, parent)
+        events = push(events, item)
+        parent = item["event_id"]
+        event_number = event_number + 1
+    }
+    state := {"type": "RelayRun", "relay_version": "1.0.0", "contract_version": "relay-run-v1", "mission_id": "relay-benchmark-" + profile, "run_id": run_id, "workflow": "benchmark", "status": "completed", "repository": ".", "started_at": "2026-08-12T00:00:00Z", "updated_at": "2026-08-12T00:00:00Z", "current_step": "complete", "attempt": 0, "budgets": {"used_tokens": 0}, "events": events, "receipts": [], "artifacts": [], "evaluations": [], "changes": {}, "failure": null, "telemetry": {"duration_ms": 0}}
+    state["integrity_sha256"] := sha256(state_integrity_input(state))
+    event_lines := []
+    for item in events { event_lines = push(event_lines, safe_json(item)) }
+    event_text := ""
+    if len(event_lines) > 0 { event_text = join(event_lines, "\n") + "\n" }
+    changes := {"profile": profile, "artifact_bytes": desired_artifact_bytes}
+    report_markdown := "# Relay benchmark fixture\n" + repeat("x", desired_artifact_bytes)
+    if write_json(run_dir + "/state.json", state) == false || write_text_atomic(run_dir + "/events.jsonl", event_text) == false || write_json(run_dir + "/receipts.json", []) == false || write_json(run_dir + "/changes.json", changes) == false || write_json(run_dir + "/evaluations.json", []) == false || write_json(run_dir + "/report.json", state) == false || write_text_atomic(run_dir + "/report.md", report_markdown) == false {
+        print(safe_json({"ok": false, "error": "benchmark fixture evidence could not be persisted", "run_id": run_id}))
+        exit(1)
+    }
+    run_number = run_number + 1
+}
+
+print(safe_json({"ok": true, "contract_version": "relay-benchmark-fixture-v1", "profile": profile, "run_count": run_count, "event_count": event_count, "artifact_bytes": artifact_bytes, "target_run_id": target_run_id, "state_root": state_root}))

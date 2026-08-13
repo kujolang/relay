@@ -22,11 +22,18 @@ export RELAY_BENCHMARK_RUN_ID="$(jq -r '.run.run_id' <<<"$run")"
 export RELAY_BENCHMARK_ITERATIONS=3
 bash "$ROOT/scripts/benchmark_run_store.sh" "$TMP_ROOT/result.json" >/dev/null
 jq -e '.contract_version == "relay-run-store-benchmark-v1" and .iterations == 3 and (.commands | keys | length) == 4 and all(.commands[]; .p95_ms >= 0)' "$TMP_ROOT/result.json" >/dev/null
+jq -e '
+  .contract_version == "relay-performance-budgets-v1" and
+  .regression_percent >= 0 and
+  (.representative_profiles | map(.name) == ["small", "medium", "large"]) and
+  all(.representative_profiles[]; .runs > 0 and .events_per_target_run >= 0 and .artifact_bytes_per_target_run >= 0) and
+  all(.p95_ms[]; all(.[]; type == "number" and . > 0))
+' "$ROOT/benchmarks/budgets.json" >/dev/null
 jq -e --slurpfile budget "$ROOT/benchmarks/budgets.json" '
-  .commands.runs_list.p95_ms <= ($budget[0].p95_ms.runs_list * (1 + $budget[0].regression_percent / 100)) and
-  .commands.runs_verify.p95_ms <= ($budget[0].p95_ms.runs_verify * (1 + $budget[0].regression_percent / 100)) and
-  .commands.runs_watch_completed.p95_ms <= ($budget[0].p95_ms.runs_watch_completed * (1 + $budget[0].regression_percent / 100)) and
-  .commands.runs_export.p95_ms <= ($budget[0].p95_ms.runs_export * (1 + $budget[0].regression_percent / 100))
+  .commands.runs_list.p95_ms <= ($budget[0].p95_ms.small.runs_list * (1 + $budget[0].regression_percent / 100)) and
+  .commands.runs_verify.p95_ms <= ($budget[0].p95_ms.small.runs_verify * (1 + $budget[0].regression_percent / 100)) and
+  .commands.runs_watch_completed.p95_ms <= ($budget[0].p95_ms.small.runs_watch_completed * (1 + $budget[0].regression_percent / 100)) and
+  .commands.runs_export.p95_ms <= ($budget[0].p95_ms.small.runs_export * (1 + $budget[0].regression_percent / 100))
 ' "$ROOT/benchmarks/macos-x86_64-small.json" >/dev/null
 if [[ -n "${RELAY_PERFORMANCE_EVIDENCE_OUTPUT:-}" ]]; then
   test ! -e "$RELAY_PERFORMANCE_EVIDENCE_OUTPUT"
