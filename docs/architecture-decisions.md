@@ -1596,3 +1596,41 @@ documented successful contract.
 
 Rejected: warning while continuing, silently selecting the last duplicate
 value, or maintaining a permissive unknown-option namespace.
+
+## ADR-117: Add an optional transactional single-host index
+
+Decision: retain per-run evidence as authority and unsigned JSON as the default
+cache, while allowing a confirmation-gated migration to SQLite with WAL,
+`synchronous=FULL`, schema migration metadata, and transactional replacement.
+Startup validates the cache against bounded authoritative directories and
+rebuilds it after absence or corruption. This proves crash-rebuildable local
+indexing, not multi-host evidence durability.
+
+## ADR-118: Recover only explicitly expired owned locks
+
+Decision: capability and index locks carry versioned owner identity and bounded
+lease expiry. Recovery validates the owner, refuses active or malformed locks,
+and persists a sealed recovery receipt before removal. Elapsed directory age
+alone never grants cleanup authority.
+
+## ADR-119: Keep enterprise composition boundaries local and opt-in
+
+Decision: negotiate versioned Spec/Dispatch envelopes, expose a disabled-by-
+default authenticated machine authorization/audit primitive, and require policy
+selection plus confirmation for redacted failed-run handoff. These primitives
+are transport-neutral and do not claim hosted tenancy or network isolation.
+
+## ADR-120: Separate signed exports from unsigned v1
+
+Decision: preserve `relay-run-export-v1`; an explicit `--signed` operation
+wraps its canonical digest in `relay-signed-export-v1` using operator-owned
+HMAC-SHA256 keys selected by key ID. A key map supports rotation and old-key
+verification. HMAC is shared-key authentication, not asymmetric identity,
+notarization, or non-repudiation.
+
+## ADR-121: Bound discovery independently from agent-visible output
+
+Decision: collect Git's tracked-file index inside the runtime's fixed 16 MiB
+process ceiling, then return only 256 paths/16 KiB per cursor page. This lets a
+small mission response budget traverse a materially larger repository while
+still failing closed above the independent collection ceiling.
