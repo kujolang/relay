@@ -20,38 +20,38 @@ shapes and bounded, resumable repository discovery.
 
 ## P1 — Local durability, recovery, and lifecycle
 
-- [ ] Design a versioned migration from the rebuildable JSON index to a
+- [x] Design a versioned migration from the rebuildable JSON index to a
   transactional local store with crash recovery; do not claim multi-host
   durability until concurrency and recovery are independently proven.
-- [ ] Add an explicit retention policy and dry-run inventory for completed run
+- [x] Add an explicit retention policy and dry-run inventory for completed run
   evidence, followed by confirmation-gated pruning with ownership and integrity
   checks.
-- [ ] Add bounded run-index directory limits and a machine-readable doctor
+- [x] Add bounded run-index directory limits and a machine-readable doctor
   posture before large local stores can amplify every list or control command.
-- [ ] Define stale capability/index lock ownership and recovery receipts rather
+- [x] Define stale capability/index lock ownership and recovery receipts rather
   than relying only on elapsed wall time.
 
 ## P1 — Composition and security
 
-- [ ] Import canonical Spec and Dispatch contracts behind explicit version
+- [x] Import canonical Spec and Dispatch contracts behind explicit version
   negotiation and compatibility fixtures.
-- [ ] Add authenticated MCP or equivalent machine access with identity, role,
+- [x] Add authenticated MCP or equivalent machine access with identity, role,
   approval, tenant, and audit mappings; keep it disabled by default.
-- [ ] Integrate Redact and CaseFile for policy-selected failed-run handoff while
+- [x] Integrate Redact and CaseFile for policy-selected failed-run handoff while
   preserving Relay's bounded evidence contracts.
-- [ ] Add signed export as a separate contract with key ownership, rotation,
+- [x] Add signed export as a separate contract with key ownership, rotation,
   verification, and unsigned-v1 migration guidance.
 
 ## P2 — Performance and product proof
 
-- [ ] Benchmark `runs list`, `runs verify`, `runs watch`, and export across
+- [x] Benchmark `runs list`, `runs verify`, `runs watch`, and export across
   representative run/event/artifact sizes on macOS and Linux; commit budgets
   and regression thresholds before optimizing.
-- [ ] Prototype streaming or cursor-backed tracked-file discovery for
+- [x] Prototype streaming or cursor-backed tracked-file discovery for
   repositories whose `git ls-files` output exceeds `max_output_bytes`.
-- [ ] Add aggregate latency, token, tool-duration, retry, and artifact-size
+- [x] Add aggregate latency, token, tool-duration, retry, and artifact-size
   summaries without introducing unbounded metric cardinality.
-- [ ] Add a generated showcase gallery that links every claim to a committed
+- [x] Add a generated showcase gallery that links every claim to a committed
   fixture, schema, command transcript, or exact-candidate proof artifact.
 
 ## Definition of done for the next session
