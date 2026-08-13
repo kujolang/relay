@@ -17,3 +17,7 @@ The harness measures `runs list`, `runs verify`, completed-run `runs watch`,
 and `runs export`, and records run artifact sizes. CI may compare its p95
 values to `benchmarks/budgets.json`; optimization is warranted only after a
 repeatable budget breach.
+
+The committed [macOS x86_64 small-profile result](../benchmarks/macos-x86_64-small.json)
+passes all four budgets. Linux and macOS arm64 results remain platform-specific
+CI evidence and must not be inferred from that local sample.

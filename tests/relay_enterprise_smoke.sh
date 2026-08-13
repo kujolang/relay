@@ -46,7 +46,7 @@ jq --arg repo "$WORK" '.repository=$repo' "$ROOT/examples/fixture-mission.json" 
 run="$($KUJO run "$ROOT/main.kujo" -- missions run "$MISSION" --fixture --skip-agent-smoke --json)"
 run_id="$(jq -r '.run.run_id' <<<"$run")"
 metrics="$($KUJO run "$ROOT/main.kujo" -- runs metrics --json)"
-jq -e '.ok and .format == "relay-aggregate-metrics-v1" and .run_count == 1 and .cardinality_limit == 4096' <<<"$metrics" >/dev/null
+jq -e '.ok and .format == "relay-aggregate-metrics-v1" and .run_count == 1 and .cardinality_limit == 4096 and .artifact_bytes_total > 0 and (.tool_duration_ms_total | type == "number") and (.token_total | type == "number")' <<<"$metrics" >/dev/null
 signed_path="$TMP_ROOT/signed.json"
 signing_keys='{"fixture-2025":"retained-old-secret","fixture-2026":"fixture-signing-secret"}'
 RELAY_SIGNING_KEYS="$signing_keys" "$KUJO" run "$ROOT/main.kujo" -- runs export "$run_id" --signed --key-id fixture-2026 --output "$signed_path" --json >/dev/null
