@@ -243,8 +243,9 @@ request-size failures are not retried because the same context would exceed
 the fixed boundary again.
 Provider tool arguments are capped at 64 KiB per call and duplicate provider
 call IDs fail closed so follow-up `role: tool` results cannot be ambiguously
-correlated. Persisted `events.jsonl` and `receipts.json` evidence are each
-capped at 8 MiB; exceeding a cap fails the run's evidence boundary rather than
+correlated. Persisted `events.jsonl` is capped at 8 MiB; the JSON receipt index
+and every other parsed JSON evidence document are capped at the pinned Kujo
+runtime's 1 MiB parser ceiling. Exceeding a cap fails the run boundary rather than
 creating an apparently complete but unreadable run.
 
 `max_steps` and `max_repairs` are non-negative integers; `max_tokens`,
@@ -354,9 +355,8 @@ a repository root, or another supported working directory; Relay does not fall
 back to ambient `PATH` lookup for those tools.
 
 Relay bounds JSON parsing at the store boundary as well as at the mission
-boundary: the run index is rejected before parsing when it exceeds 8 MiB, lock
-owner files are capped at 64 KiB, and authoritative run-state reads are capped
-at 64 MiB. Oversized cache/evidence documents fail closed and trigger the
+boundary: parsed JSON is rejected above the runtime's 1 MiB ceiling, while lock
+owner files retain a narrower 64 KiB cap. Oversized cache/evidence documents fail closed and trigger the
 authoritative rebuild or an explicit missing-state error.
 
 Each AgentEvent-compatible JSONL record includes a deterministic `integrity_sha256` field covering its identity, parent, payload, and metadata. The hash detects accidental or unauthorized record mutation. Retention is explicit and confirmation-gated; a separate HMAC-signed export contract is available when an operator supplies a key.
@@ -402,6 +402,9 @@ PackWrite packet manifest, and provider tool results when present; it refuses to
 export tampered, inconsistent, malformed, symbolic-linked, or non-regular
 event/receipt evidence. Run JSON reads and event appends also reject symbolic
 links rather than following them into another filesystem location.
+Separately signed exports reserve envelope headroom and reject canonical
+payloads above 900 KiB so the resulting wrapper remains verifiable below the
+same 1 MiB parser ceiling.
 
 `runs watch <run-id> --poll-ms <n> --timeout-ms <n>` emits each complete event
 as a JSONL record while the run is active. Polling is bounded to 1–1000 ms and

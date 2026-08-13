@@ -139,8 +139,10 @@ Context: Relay bounded action count, budgets, and tool calls but accepted any ca
 Context: mission inputs and event logs had size checks, but the run index,
 lock-owner metadata, and state/evidence readers could still parse a large
 attacker-controlled JSON document before a later validation noticed its size.
-Decision: use a bounded JSON reader at persisted-store boundaries: index files
-are capped at 8 MiB, lock owners at 64 KiB, and run state at 64 MiB before
+Decision: use a bounded JSON reader at persisted-store boundaries. This
+historical decision initially assigned index files 8 MiB and run state 64 MiB;
+ADR-122 corrects those values to the pinned runtime's actual 1 MiB JSON parser
+ceiling. Lock owners retain a narrower 64 KiB cap before
 parsing. Oversized inputs fail closed and let the authoritative rebuild or
 caller-facing error path decide the outcome. Rationale: make the memory bound
 apply before parsing, not merely after parsing. Consequence: corrupted or
@@ -1634,3 +1636,19 @@ Decision: collect Git's tracked-file index inside the runtime's fixed 16 MiB
 process ceiling, then return only 256 paths/16 KiB per cursor page. This lets a
 small mission response budget traverse a materially larger repository while
 still failing closed above the independent collection ceiling.
+
+## ADR-122: Align parsed JSON evidence with Kujo's runtime ceiling
+
+Context: Relay checked several parsed JSON artifacts at 8 or 64 MiB, but pinned
+Kujo 1.0.0 rejects `parse_json` input above 1 MiB. Those larger checks could
+therefore admit a file that every reader would later treat as malformed.
+
+Decision: cap every parsed JSON evidence document at 1 MiB, bound state event
+projection and receipt persistence before writes, and reserve a 900 KiB payload
+envelope for signed exports. Keep independently streamed JSONL event logs and
+unparsed Markdown artifacts at their existing 8 MiB boundaries.
+
+Consequences: documented and executable limits now agree and oversized state
+fails before creating unreadable success evidence. Larger future JSON evidence
+requires a versioned streaming/chunked contract rather than a misleading size
+constant.
