@@ -166,7 +166,7 @@ func rebuild_run_index(state_root) {
         if safe_run_key(name) == false { continue }
         run_dir := expected_run_dir(state_root, name)
         if path_is_dir(run_dir) == false || path_is_symlink_safe(run_dir) { continue }
-        state := read_json_limited(run_state_path(state_root, name), null, 67108864)
+        state := read_json_limited(run_state_path(state_root, name), null, 1048576)
         if type(state) != "dict" || string_or(dict_get_or(state, "run_id", ""), "") != name { continue }
         index[name] := index_record(state_root, name, state)
     }
@@ -199,7 +199,7 @@ func run_directories_match_index(state_root, index) {
         if safe_run_key(name) && path_is_dir(run_dir) && path_is_symlink_safe(run_dir) == false {
             count = count + 1
             if has_key(index, name) == 0 { return false }
-            state := read_json_limited(run_state_path(state_root, name), null, 67108864)
+            state := read_json_limited(run_state_path(state_root, name), null, 1048576)
             if type(state) != "dict" || string_or(dict_get_or(state, "run_id", ""), "") != name { return false }
             expected := index_record(state_root, name, state)
             record := index[name]

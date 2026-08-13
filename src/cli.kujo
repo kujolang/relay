@@ -21,10 +21,10 @@ func read_receipt_evidence(run_dir) {
     # A missing receipt file must not silently fall back to the copy embedded
     # in state.json. The file is the persisted evidence boundary; accepting the
     # state fallback would let an incomplete run appear fully receipted.
-    if path_is_symlink_safe(path) || path_exists(path) == false || path_is_file(path) == false || file_size(path) > 8388608 {
-        return {"ok": false, "receipts": [], "error": "run receipt evidence is missing, non-regular, symbolic-linked, or exceeds the 8 MiB inspection limit"}
+    if path_is_symlink_safe(path) || path_exists(path) == false || path_is_file(path) == false || file_size(path) > 1048576 {
+        return {"ok": false, "receipts": [], "error": "run receipt evidence is missing, non-regular, symbolic-linked, or exceeds the 1 MiB runtime JSON limit"}
     }
-    receipts := read_json_limited(path, null, 8388608)
+    receipts := read_json_limited(path, null, 1048576)
     if type(receipts) != "array" {
         return {"ok": false, "receipts": [], "error": "run receipt evidence is invalid JSON"}
     }
@@ -33,10 +33,10 @@ func read_receipt_evidence(run_dir) {
 
 func read_run_state_evidence(run_dir, run_id) {
     path := run_dir + "/state.json"
-    if path_is_symlink_safe(path) || path_exists(path) == false || path_is_file(path) == false || file_size(path) > 67108864 {
-        return {"ok": false, "state": {}, "error": "run state evidence is missing, non-regular, symbolic-linked, or exceeds the 64 MiB inspection limit"}
+    if path_is_symlink_safe(path) || path_exists(path) == false || path_is_file(path) == false || file_size(path) > 1048576 {
+        return {"ok": false, "state": {}, "error": "run state evidence is missing, non-regular, symbolic-linked, or exceeds the 1 MiB runtime JSON limit"}
     }
-    state := read_json_limited(path, null, 67108864)
+    state := read_json_limited(path, null, 1048576)
     if type(state) != "dict" {
         return {"ok": false, "state": {}, "error": "run state evidence is invalid JSON"}
     }
@@ -51,7 +51,8 @@ func read_run_state_evidence(run_dir, run_id) {
 
 func read_run_artifact_evidence(run_dir, name, expected_type, max_bytes) {
     path := run_dir + "/" + name
-    limit := int_or(max_bytes, 8388608)
+    limit := int_or(max_bytes, 1048576)
+    if limit > 1048576 { limit = 1048576 }
     if path_is_symlink_safe(path) || path_exists(path) == false || path_is_file(path) == false || file_size(path) > limit {
         return {"ok": false, "value": null, "error": "run artifact evidence is missing, non-regular, symbolic-linked, or exceeds its inspection limit: " + name}
     }
@@ -589,7 +590,7 @@ func cmd_runs(tokens) {
     id := positional(parsed["positionals"], 1, "")
     if sub == "metrics" { return aggregate_metrics(index) }
     if sub == "verify-signature" {
-        signed_value := read_json_limited(id, {}, 67108864)
+        signed_value := read_json_limited(id, {}, 1048576)
         return verify_signed_export(id, signing_key(string_or(dict_get_or(signed_value, "key_id", ""), "")))
     }
     if sub == "list" {

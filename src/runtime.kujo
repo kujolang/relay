@@ -8,6 +8,7 @@ from src.store import rebuild_run_index, rebuild_and_persist_run_index_result, l
 export MISSION_SPEC_MAX_BYTES := 1048576
 export MISSION_COMMAND_MAX_BYTES := 16384
 export TRACKED_FILE_DISCOVERY_MAX_BYTES := 16777216
+export JSON_EVIDENCE_MAX_BYTES := 1048576
 
 func ensure_dir(path) {
     return ensure_safe_directory(path)
@@ -39,6 +40,15 @@ func save_state(state, run_dir) {
     }
     state["updated_at"] := now_iso()
     state["integrity_sha256"] := sha256(state_integrity_input(state))
+    if len(safe_json(state)) > JSON_EVIDENCE_MAX_BYTES {
+        failure := {"class": "evidence_failure", "message": "run state exceeds the 1 MiB runtime JSON limit"}
+        mission_spec := dict_get_or(state, "mission_spec", {})
+        compact_spec := {"repository": string_or(dict_get_or(mission_spec, "repository", dict_get_or(state, "repository", ".")), "."), "workspace_mode": string_or(dict_get_or(mission_spec, "workspace_mode", "provided"), "provided")}
+        compact := {"type": string_or(dict_get_or(state, "type", "RelayRun"), "RelayRun"), "relay_version": string_or(dict_get_or(state, "relay_version", "1.0.0"), "1.0.0"), "contract_version": string_or(dict_get_or(state, "contract_version", "relay-run-v1"), "relay-run-v1"), "mission_id": string_or(dict_get_or(state, "mission_id", "unknown"), "unknown"), "run_id": string_or(dict_get_or(state, "run_id", "unknown"), "unknown"), "workflow": string_or(dict_get_or(state, "workflow", "verified-feature"), "verified-feature"), "status": "failed", "repository": string_or(dict_get_or(state, "repository", "."), "."), "mission_spec": compact_spec, "workspace": dict_get_or(state, "workspace", {}), "budgets": dict_get_or(state, "budgets", {}), "events": dict_get_or(state, "events", []), "receipts": dict_get_or(state, "receipts", []), "artifacts": [], "evaluations": [], "changes": {}, "failure": failure, "evidence_failure": failure, "updated_at": now_iso()}
+        compact["integrity_sha256"] := sha256(state_integrity_input(compact))
+        if len(safe_json(compact)) > JSON_EVIDENCE_MAX_BYTES || write_json(run_dir + "/state.json", compact) == false { return mark_evidence_failure(state, "run state overflow tombstone could not be persisted") }
+        return compact
+    }
     if write_json(run_dir + "/state.json", state) == false { state = mark_evidence_failure(state, "run state could not be persisted") }
     return state
 }
@@ -63,8 +73,9 @@ func record_receipt(state, run_dir, kind, step_id, agent_id, artifact_ref, statu
         "correlation_id": string_or(dict_get_or(dict_get_or(state, "telemetry", {}), "correlation_id", ""), "")
     }
     item["integrity_sha256"] := sha256(receipt_integrity_input(item))
-    receipts := push(dict_get_or(state, "receipts", []), item)
-    if len(safe_json(receipts)) > 8388608 { return {"receipt": item, "receipts": receipts, "evidence_failure": {"class": "evidence_failure", "message": "run receipt index exceeds the 8 MiB evidence limit"}} }
+    existing_receipts := dict_get_or(state, "receipts", [])
+    receipts := push(existing_receipts, item)
+    if len(safe_json(state)) + len(safe_json(item)) + 2 > JSON_EVIDENCE_MAX_BYTES || len(safe_json(receipts)) > JSON_EVIDENCE_MAX_BYTES { return {"receipt": item, "receipts": existing_receipts, "evidence_failure": {"class": "evidence_failure", "message": "run receipt projection exceeds the 1 MiB runtime JSON limit"}} }
     if write_json(run_dir + "/receipts.json", receipts) == false { return {"receipt": item, "receipts": receipts, "evidence_failure": {"class": "evidence_failure", "message": "run receipt index could not be persisted"}} }
     return {"receipt": item, "receipts": receipts}
 }
@@ -102,6 +113,7 @@ func add_event(state, run_dir, kind, step_id, agent_id, payload) {
     metadata["runledger_id"] := string_or(dict_get_or(dict_get_or(state, "runledger", {}), "run_id", ""), "")
     item["metadata"] := metadata
     item["integrity_sha256"] := sha256(event_integrity_input(item))
+    if len(safe_json(state)) + len(safe_json(item)) + 2 > JSON_EVIDENCE_MAX_BYTES { return mark_evidence_failure(state, "run state event projection exceeds the 1 MiB runtime JSON limit") }
     state["events"] := push(state["events"], item)
     if append_jsonl_bounded(run_dir + "/events.jsonl", item, 8388608) == false { state = mark_evidence_failure(state, "run event log could not be persisted or exceeded the 8 MiB evidence limit") }
     return state
@@ -112,10 +124,10 @@ func persist_required_json(path, value, expected_type, label) {
     if write_json(path, value) == false {
         return {"ok": false, "error": name + " artifact could not be persisted"}
     }
-    if path_is_symlink_safe(path) || path_exists(path) == false || path_is_file(path) == false || file_size(path) > 8388608 {
+    if path_is_symlink_safe(path) || path_exists(path) == false || path_is_file(path) == false || file_size(path) > JSON_EVIDENCE_MAX_BYTES {
         return {"ok": false, "error": name + " artifact persistence could not be verified"}
     }
-    persisted := read_json_limited(path, null, 8388608)
+    persisted := read_json_limited(path, null, JSON_EVIDENCE_MAX_BYTES)
     if type(persisted) != expected_type {
         return {"ok": false, "error": name + " artifact persistence has an invalid JSON shape"}
     }
@@ -177,11 +189,11 @@ func verify_packet_manifest(run_dir, state) {
     required := bool_or(dict_get_or(state, "packet_manifest_required", false), false)
     if required == false { return {"required": false, "ok": true, "error": ""} }
     path := run_dir + "/packet-manifest.json"
-    if path_is_symlink_safe(path) || path_exists(path) == false || path_is_file(path) == false || file_size(path) > 8388608 { return {"required": true, "ok": false, "error": "PackWrite packet manifest is missing or unsafe"} }
+    if path_is_symlink_safe(path) || path_exists(path) == false || path_is_file(path) == false || file_size(path) > JSON_EVIDENCE_MAX_BYTES { return {"required": true, "ok": false, "error": "PackWrite packet manifest is missing, unsafe, or exceeds 1 MiB"} }
     expected_hash := string_or(dict_get_or(dict_get_or(state, "packet_manifest", {}), "integrity_sha256", ""), "")
     actual_hash := sha256_file(path)
     if expected_hash == "" || actual_hash == "" || expected_hash != actual_hash { return {"required": true, "ok": false, "error": "PackWrite packet manifest integrity does not match authoritative state"} }
-    manifest := read_json_limited(path, null, 8388608)
+    manifest := read_json_limited(path, null, JSON_EVIDENCE_MAX_BYTES)
     if type(manifest) != "dict" || string_or(dict_get_or(manifest, "contract_version", ""), "") != "relay-packwrite-manifest-v1" || string_or(dict_get_or(manifest, "run_id", ""), "") != string_or(dict_get_or(state, "run_id", ""), "") { return {"required": true, "ok": false, "error": "PackWrite packet manifest identity is invalid"} }
     walked := packet_manifest_walk(run_dir + "/agent", "", 0)
     if dict_get_or(walked, "ok", false) == false || safe_json(dict_get_or(walked, "entries", [])) != safe_json(dict_get_or(manifest, "entries", [])) { return {"required": true, "ok": false, "error": "PackWrite packet contents do not match the manifest"} }
@@ -1172,7 +1184,7 @@ func pause_run(run_id) {
     index := load_run_index(state_root())
     record := dict_get_or(index, run_id, null)
     if type(record) != "dict" { return {"ok": false, "error": "unknown run: " + run_id} }
-    state := read_json_limited(record["run_dir"] + "/state.json", null, 67108864)
+    state := read_json_limited(record["run_dir"] + "/state.json", null, JSON_EVIDENCE_MAX_BYTES)
     if type(state) != "dict" { return {"ok": false, "error": "run state missing"} }
     if state["status"] != "running" { return {"ok": false, "error": "only running runs can be paused; use --pause-after-plan for a resumable checkpoint"} }
     integrity := control_state_safe(state, run_id, record["run_dir"])
@@ -1192,7 +1204,7 @@ func cancel_run(run_id) {
     if type(record) != "dict" { return {"ok": false, "error": "unknown run: " + run_id} }
     run_dir := string_or(dict_get_or(record, "run_dir", ""), "")
     if run_dir == "" || path_is_dir(run_dir) == false || path_is_symlink_safe(run_dir) { return {"ok": false, "error": "run directory is missing or unsafe"} }
-    state := read_json_limited(run_dir + "/state.json", null, 67108864)
+    state := read_json_limited(run_dir + "/state.json", null, JSON_EVIDENCE_MAX_BYTES)
     if type(state) != "dict" { return {"ok": false, "error": "run state missing"} }
     status := string_or(dict_get_or(state, "status", ""), "")
     if status == "completed" || status == "failed" || status == "cancelled" { return {"ok": false, "error": "run is already terminal", "run": state} }
@@ -1217,7 +1229,7 @@ func cancel_run(run_id) {
     request := {"run_id": run_id, "requested_at": now_iso(), "requested_by": "operator", "reason": "operator_cancel"}
     request["integrity_sha256"] := sha256(cancellation_integrity_input(request))
     if write_json(request_path, request) == false { return {"ok": false, "error": "cancellation request could not be recorded"} }
-    latest := read_json_limited(run_dir + "/state.json", state, 67108864)
+    latest := read_json_limited(run_dir + "/state.json", state, JSON_EVIDENCE_MAX_BYTES)
     latest_status := string_or(dict_get_or(latest, "status", status), status)
     if latest_status == "completed" || latest_status == "failed" || latest_status == "cancelled" {
         if path_exists(request_path) && path_is_symlink_safe(request_path) == false { delete_file(request_path) }
@@ -1233,7 +1245,7 @@ func cleanup_run(run_id, confirmed) {
     index := load_run_index(state_root())
     record := dict_get_or(index, run_id, null)
     if type(record) != "dict" { return {"ok": false, "error": "unknown run: " + run_id} }
-    state := read_json_limited(record["run_dir"] + "/state.json", null, 67108864)
+    state := read_json_limited(record["run_dir"] + "/state.json", null, JSON_EVIDENCE_MAX_BYTES)
     if type(state) != "dict" { return {"ok": false, "error": "run state missing"} }
     integrity := cleanup_state_safe(state, run_id, record["run_dir"])
     if integrity["ok"] == false { return {"ok": false, "failure_class": "state_integrity_failure", "error": integrity["error"]} }
@@ -1294,7 +1306,7 @@ func prune_run_evidence(keep_last, confirmed) {
         run_dir := string_or(dict_get_or(candidate, "run_dir", ""), "")
         expected := run_root() + "/" + run_id
         if run_id == "" || run_dir != expected || path_is_symlink_safe(run_dir) || path_has_symlink_component(run_dir) || path_is_dir(run_dir) == false { return {"ok": false, "error": "retention candidate path is unsafe", "run_id": run_id, "removed": removed} }
-        state := read_json_limited(run_dir + "/state.json", null, 67108864)
+        state := read_json_limited(run_dir + "/state.json", null, JSON_EVIDENCE_MAX_BYTES)
         if type(state) != "dict" || string_or(dict_get_or(state, "run_id", ""), "") != run_id || string_or(dict_get_or(state, "status", ""), "") != "completed" || state_integrity_valid(state) == false || event_chain_integrity_valid(dict_get_or(state, "events", [])) == false || receipt_sequence_valid(dict_get_or(state, "receipts", [])) == false { return {"ok": false, "error": "retention candidate integrity verification failed", "run_id": run_id, "removed": removed} }
         workspace := dict_get_or(state, "workspace", {})
         if type(workspace) == "dict" && string_or(dict_get_or(workspace, "mode", ""), "") == "worktree" && bool_or(dict_get_or(workspace, "cleaned", false), false) == false { return {"ok": false, "error": "retention requires worktree cleanup before pruning run evidence", "run_id": run_id, "removed": removed} }
@@ -1316,7 +1328,7 @@ func resume_run(run_id, repair_requested) {
     index := load_run_index(state_root())
     record := dict_get_or(index, run_id, null)
     if type(record) != "dict" { return {"ok": false, "error": "unknown run: " + run_id} }
-    state := read_json_limited(record["run_dir"] + "/state.json", null, 67108864)
+    state := read_json_limited(record["run_dir"] + "/state.json", null, JSON_EVIDENCE_MAX_BYTES)
     if type(state) != "dict" { return {"ok": false, "error": "run state missing"} }
     repairing := bool_or(repair_requested, false)
     checkpoint := dict_get_or(state, "checkpoint", null)
