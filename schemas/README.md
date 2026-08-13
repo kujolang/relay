@@ -33,6 +33,10 @@ See [`docs/compatibility.md`](../docs/compatibility.md).
 | `run.schema.json` | persisted `state.json` and report JSON |
 | `run-export.schema.json` | complete verified `runs export` response |
 | `run-export-partial.schema.json` | explicit incomplete `runs export --partial` response |
+| `signed-export.schema.json` | separate HMAC-authenticated `runs export --signed` wrapper |
+| `aggregate-metrics.schema.json` | bounded `runs metrics` summary |
+| `failure-handoff.schema.json` | redacted, confirmed failed-run handoff |
+| `machine-access.schema.json` | authenticated machine authorization result |
 | `event.schema.json` | AgentEvent-compatible `events.jsonl` records |
 | `event-bundle.schema.json` | verified `runs events` response, including paged windows |
 | `run-bundle.schema.json` | validated `runs list` response, including paged windows |
