@@ -133,6 +133,7 @@ jobs:
           RELAY_EVAL_ENTRY: ${{ github.workspace }}/eval/main.kujo
           KENNEL_ROOT: ${{ github.workspace }}/kennel
           SHIPCHECK_ROOT: ${{ github.workspace }}/shipcheck
+          RELAY_PERFORMANCE_EVIDENCE_OUTPUT: ${{ runner.temp }}/relay-performance.json
         run: bash scripts/release_gate.sh
 
       - name: Build candidate artifacts
@@ -158,6 +159,8 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: relay-${{ github.sha }}-${{ matrix.platform }}
-          path: ${{ runner.temp }}/relay-release/
+          path: |
+            ${{ runner.temp }}/relay-release/
+            ${{ runner.temp }}/relay-performance.json
           if-no-files-found: error
           retention-days: 30
