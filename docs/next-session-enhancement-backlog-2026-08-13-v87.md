@@ -9,10 +9,6 @@ be marketed as hosted, multi-host durable, or universally enterprise certified.
 
 ## P0 — Close externally controlled release evidence
 
-- [ ] Start Docker and rerun Workcell success plus intentional-failure proof
-  against the final candidate; retain both verified receipts and the proof JSON.
-- [ ] Open or update the candidate PR and retain green Linux x86_64, macOS
-  x86_64, macOS arm64, and artifact-guard checks for the exact final commit.
 - [ ] Obtain release-owner approval for credentials/provider/model, then run
   the bounded external chat and provider-generated tool proof through Watchdog.
 - [ ] Rerun the clean exact-candidate release gate and two-build reproducibility
@@ -29,12 +25,14 @@ be marketed as hosted, multi-host durable, or universally enterprise certified.
   tests prove field mappings, downgrade rejection, cancellation, and budgets.
 - [ ] Define a backup/restore drill for authoritative run evidence and the
   SQLite cache; continue to reject multi-host durability claims.
+- [ ] Design a versioned chunked or streaming JSON evidence contract for
+  payloads above Kujo 1.0.0's 1 MiB parser ceiling; keep v1 reads fail-closed.
 
 ## P2 — Scale and demonstrate
 
 - [ ] Replace the 16 MiB tracked-index collection ceiling with a true streaming
   Git reader or persistent opaque cursor while preserving deterministic pages.
-- [ ] Commit medium and local-maximum benchmark evidence on Linux and both
+- [ ] Commit five-sample medium and large benchmark evidence on Linux and both
   macOS architectures; tune only repeatable budget breaches.
 - [ ] Add bounded percentile/histogram metric exports with fixed dimension
   dictionaries and explicit overflow buckets.
