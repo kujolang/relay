@@ -14,6 +14,12 @@ This document defines the stable Relay 1.x CLI. Relay commands return process ex
 | `RELAY_PACKWRITE_ROOT` / `RELAY_RUNLEDGER_ROOT` / `RELAY_CHANGEBUCKET_ROOT` | Trusted sibling roots used for entrypoints and module context | ecosystem sibling directories |
 | `RELAY_EVAL_ENTRY` / `RELAY_CAPSULE_BIN` | Optional Eval entrypoint or Capsule binary | ecosystem paths |
 | `RELAY_STATE_ROOT` | Local state/evidence root | `<RELAY_ROOT>/.relay` |
+| `RELAY_STORE_BACKEND` | Validated run-index cache backend: `json` or migrated transactional `sqlite` | `json` |
+| `RELAY_MACHINE_ACCESS_ENABLED` | Enable the authenticated machine authorization boundary | `false` |
+| `RELAY_MACHINE_ACCESS_SECRET` / `RELAY_MACHINE_REQUEST_SECRET` | Operator secret and per-invocation supplied secret | unset |
+| `RELAY_MACHINE_REQUEST` | Bounded identity/role/tenant/action/approval JSON request | unset |
+| `RELAY_SIGNING_KEYS` | JSON key-id to HMAC secret map for rotation and verification | unset |
+| `RELAY_SIGNING_KEY` | Single-key compatibility fallback | unset |
 | `KUJO_AGENTS_PATH` | Trusted Kujo agent catalog root | `../kujo-agents` |
 | `RELAY_AI_SDK_PATH` / `RELAY_AGENTS_SDK_PATH` | Trusted AI SDK and Agents SDK source roots | ecosystem sibling directories |
 | `RELAY_OFFLINE_FIXTURE` | Select deterministic fixture mode | `true` |
@@ -121,8 +127,12 @@ relay agents list|inspect <agent>|validate [--json]
 relay missions create [spec.json] [--output <path>] [--json]
 relay missions run <spec.json> [--fixture] [--pause-after-plan] [--skip-agent-smoke] [--json]
 relay missions inspect|pause|resume|repair|cancel|cleanup|report <run-id> [--json]
-relay runs list [--after <run-id>] [--limit <n>]|rebuild|inspect|verify|events|watch|sizes [--hashes]|changes|evaluations <run-id> [--json]
-relay runs export <run-id> [--partial] [--output <path>] [--json]
+relay runs list [--after <run-id>] [--limit <n>]|metrics|rebuild|migrate-store --backend sqlite --confirm|retention [--keep-last <n>] [--confirm]|inspect|verify|events|watch|sizes [--hashes]|changes|evaluations <run-id> [--json]
+relay runs handoff <run-id> --output <path> --confirm [--json]
+relay runs export <run-id> [--partial] [--signed --key-id <id>] [--output <path>] [--json]
+relay runs verify-signature <file> [--json]
+relay contracts negotiate <envelope.json> [--json]
+relay machine status|authorize [--json]
 relay tools execute --json (internal capability-bound worker callback)
 relay benchmark run <repository> [--json]
 ```
@@ -190,7 +200,12 @@ child environment; each worker call consumes one allowance, replayed or delayed
 calls fail closed, and the record is revoked when the worker exits. This closes
 local replay within the capability lifetime but is not an authenticated remote
 authorization system.
-Interactive approvals and authenticated remote invocation are not yet enabled.
+Interactive approvals are not enabled. The machine authorization boundary is
+disabled by default and currently exposes authorization/audit mapping rather
+than a network listener: the caller supplies bounded request JSON and a secret,
+and Relay maps identity, role, tenant, action, and explicit approval to a
+sealed audit record. It is suitable for a trusted wrapper or MCP transport,
+not a claim of hosted multi-tenant service operation.
 Worker model output, tool output, and worker error text are redacted before the
 summary crosses the bridge; this is a local fail-closed filter, not a
 substitute for provider-native classification or the deferred Redact
@@ -214,8 +229,9 @@ fail closed. Provider-generated planning is not enabled by default.
 `relay.list_files` returns at most 256 tracked paths and 16 KiB of path text per
 call. Its optional non-negative `offset` selects the first file in the page;
 `next_offset`, `total_files`, and `has_more` support deterministic
-continuation. The underlying Git listing must fit the mission's
-`max_output_bytes` budget, so Relay never presents a process-truncated list as
+continuation. The underlying Git listing uses an independent 16 MiB discovery
+envelope, so repositories larger than the agent-visible response budget remain
+pageable; a listing that exceeds that fixed envelope fails rather than appearing
 complete. An empty repository returns an empty `files` array. `relay.read_file`
 uses a separate character offset and returns at most 16 KiB per call.
 
@@ -343,7 +359,7 @@ owner files are capped at 64 KiB, and authoritative run-state reads are capped
 at 64 MiB. Oversized cache/evidence documents fail closed and trigger the
 authoritative rebuild or an explicit missing-state error.
 
-Each AgentEvent-compatible JSONL record includes a deterministic `integrity_sha256` field covering its identity, parent, payload, and metadata. The hash detects accidental or unauthorized record mutation; signed export and durable retention remain future work.
+Each AgentEvent-compatible JSONL record includes a deterministic `integrity_sha256` field covering its identity, parent, payload, and metadata. The hash detects accidental or unauthorized record mutation. Retention is explicit and confirmation-gated; a separate HMAC-signed export contract is available when an operator supplies a key.
 
 `runs export` refuses to claim a valid bundle unless `changes.json`,
 `evaluations.json`, and both reports are present, bounded, regular, and have
@@ -473,8 +489,9 @@ verify that seal before trusting status, workspace, budget, or completion data.
 If the seal is invalid, the rebuildable run index keeps the run discoverable but
 marks its status as `integrity_invalid` rather than presenting the tampered
 status as authoritative.
-This is tamper evidence, not a signed multi-user authorization mechanism;
-signed export and authenticated ownership remain deferred.
+This is tamper evidence, not multi-user authorization. HMAC-signed export and
+the disabled-by-default machine authorization boundary are separate opt-in
+contracts with the limitations in [enterprise boundaries](enterprise-boundaries.md).
 
 Machine callers can use the committed JSON Schemas under `schemas/` for
 mission, run, report, AgentEvent, receipt, doctor, model probe, and tool-result

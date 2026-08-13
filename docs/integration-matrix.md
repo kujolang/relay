@@ -17,10 +17,10 @@ This matrix separates required local v1 dependencies, optional proven integratio
 | Kennel | `1.0.0` / `6df043c3ba0bde4445cc8f8f7d4c01c60c9c6d7e` | required release gate | manifest validation and public export declaration | package publication during preparation |
 | ShipCheck | `1.0.0` / `2768e3040e766b0befd354db4427afc4c7a81899` | required release gate | 16-check repository readiness gate | test, provider, platform, or security certification |
 | Concord | `1.0.0` / `d388c951b7ff0e1e03da1cd252ad5b65e25765b9` | experimental | optional artifact-drift review | v1 runtime dependency |
-| CaseFile | `1.0.0` / `6e8a6ded379a9882b2e48b0a8f0bad57e284c3bf` | experimental | optional failure-bundle handoff | automatic canonical run evidence ownership |
-| Redact | unreleased / `ba317c74ab3e234e33b2a8ca7a2f6d4d94aeaf69` | experimental | future structured redaction adapter; Relay uses its own tested local filter today | stable v1 dependency or complete data classification |
-| Spec | `1.0.0` / `11180d8f6af1ed3eea84abb3434dd736fa51293b` | deferred | referenced as a future workflow input owner | imported Spec execution contract in Relay v1 |
-| Dispatch | `1.0.0` / `35b73aca3ce0c51ef480f84b4150ea566d8a26fe` | deferred | referenced as a future workflow owner | Dispatch graph loading or negotiation in Relay v1 |
+| CaseFile | `1.0.0` / `6e8a6ded379a9882b2e48b0a8f0bad57e284c3bf` | experimental | confirmed, integrity-valid failed-run handoff marked CaseFile-compatible | automatic canonical run evidence ownership |
+| Redact | unreleased / `ba317c74ab3e234e33b2a8ca7a2f6d4d94aeaf69` | experimental | policy-selected handoff uses Relay's bounded tested redaction filter | stable upstream dependency or complete data classification |
+| Spec | `1.0.0` / `11180d8f6af1ed3eea84abb3434dd736fa51293b` | experimental | explicit `1.0.0` envelope version negotiation and compatibility fixtures | complete upstream Spec execution semantics |
+| Dispatch | `1.0.0` / `35b73aca3ce0c51ef480f84b4150ea566d8a26fe` | experimental | explicit `1.0.0` envelope version negotiation and compatibility fixtures | Dispatch graph execution or hosted orchestration |
 
 ## Required evidence boundaries
 
@@ -30,4 +30,4 @@ The aggregate acceptance suite proves fixture, local Watchdog/stub, policy, work
 
 ## Deferred post-v1 capabilities
 
-Authenticated tenancy, durable transactional multi-host storage, hosted orchestration, full Spec/Dispatch import, automatic CaseFile/Redact integration, universal provider certification, cryptographic signing authority, unrestricted shell, and autonomous production access are outside the local v1 contract.
+Hosted authenticated tenancy, durable transactional multi-host storage, hosted orchestration, full upstream Spec/Dispatch execution, automatic CaseFile export, universal provider certification, asymmetric signing/custody, unrestricted shell, and autonomous production access are outside the local v1 contract.
