@@ -15,6 +15,10 @@ schemas=(
   report
   run-export
   run-export-partial
+  signed-export
+  aggregate-metrics
+  failure-handoff
+  machine-access
   event
   event-bundle
   run-bundle

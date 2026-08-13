@@ -18,6 +18,7 @@ case "$doctor" in
   *) echo "fixture doctor contract did not pass" >&2; exit 1 ;;
 esac
 grep -q 'Relay source tree' <<<"$doctor"
+printf '%s' "$doctor" | jq -e '(.checks | map(select(.name == "Relay run store posture"))[0]) | .ok == true and .limit == 4096 and .exceeded == false' >/dev/null
 printf '%s' "$doctor" | jq -e 'all(.checks[] | select(.name | endswith(" version")); .safe == true and (.version | length > 0))' >/dev/null
 printf '%s' "$doctor" | jq -e 'all(.checks[] | select(has("path") and .required == true); .safe == true)' >/dev/null
 capability_fixture="$(jq -cn --arg root "$ROOT" '{root:$root,run_id:"relay-doctor-stale",session_id:"relay-doctor-stale-session",workspace:"/tmp",nonce:"relay-doctor-stale-nonce",max_calls:1,ttl_ms:1000}')"
@@ -33,13 +34,17 @@ locked_fixture="$(jq -cn --arg root "$ROOT" '{root:$root,run_id:"relay-doctor-lo
 RELAY_CAPABILITY_FIXTURE="$locked_fixture" "$KUJO" run "$ROOT/tests/relay_capability_fixture.kujo" --interpreter >/dev/null
 locked_path="$RELAY_STATE_ROOT/capabilities/$(printf '%s' 'relay-doctor-locked|relay-doctor-locked-session' | shasum -a 256 | awk '{print $1}').json"
 mkdir "$locked_path.lock"
+now_ms="$(($(date +%s) * 1000))"
+jq -n --argjson now "$now_ms" '{contract_version:"relay-capability-lock-v1",owner_id:"cli-active-lock",purpose:"doctor-test",acquired_at_ms:$now,lease_expires_at_ms:($now + 60000)}' > "$locked_path.lock/owner.json"
 sleep 2
 locked_doctor="$(RELAY_ROOT="$ROOT" "$KUJO" run "$ROOT/main.kujo" -- doctor --repair --json)"
 printf '%s' "$locked_doctor" | jq -e '(.checks | map(select(.name == "Agents SDK capability registry"))[0].locked) >= 1 and (.checks | map(select(.name == "Agents SDK capability registry"))[0].cleaned == 0)' >/dev/null
 test -f "$locked_path"
-rmdir "$locked_path.lock"
+expired_ms="$((now_ms - 1000))"
+jq -n --argjson now "$now_ms" --argjson expired "$expired_ms" '{contract_version:"relay-capability-lock-v1",owner_id:"cli-expired-lock",purpose:"doctor-test",acquired_at_ms:($now - 60000),lease_expires_at_ms:$expired}' > "$locked_path.lock/owner.json"
 unlocked_doctor="$(RELAY_ROOT="$ROOT" "$KUJO" run "$ROOT/main.kujo" -- doctor --repair --json)"
 printf '%s' "$unlocked_doctor" | jq -e '(.checks | map(select(.name == "Agents SDK capability registry"))[0].cleaned) >= 1' >/dev/null
+jq -e 'select(.lock == "capability" and .previous_owner_id == "cli-expired-lock" and .reason == "expired_lease" and (.integrity_sha256 | length == 64))' "$RELAY_STATE_ROOT/lock-recovery.jsonl" >/dev/null
 normalized_doctor="$(RELAY_OFFLINE_FIXTURE=1 "$KUJO" run "$ROOT/main.kujo" -- doctor --json)"
 printf '%s' "$normalized_doctor" | jq -e '.ok == true and .mode == "fixture"' >/dev/null
 normalized_probe="$(RELAY_OFFLINE_FIXTURE=YES "$KUJO" run "$ROOT/main.kujo" -- models probe fixture-model --json)"

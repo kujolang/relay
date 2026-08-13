@@ -3,7 +3,7 @@ from src.policy import classify_failure, repair_allowed, path_is_safe, path_is_w
 from src.runtime import load_spec, resume_state_safe, cleanup_state_safe, control_state_safe, save_state, mark_evidence_failure, cancellation_request, cancellation_integrity_input, persist_required_json, report, provider_failure_message, provider_followup_token_ceiling, provider_synthesis_messages, provider_synthesis_tool, provider_synthesis_answer, preflight_failure_message, list_files_page
 from src.common import safe_id, redact_text, shell_quote_single, command_args, process_options, process_options_with_cancel, safe_process_path, safe_env_name, path_is_symlink_safe, path_has_symlink_component, path_has_parent_component, read_json_limited, append_jsonl, append_jsonl_bounded, write_json, write_text_atomic, create_exclusive_dir, dict_get_or, bool_or, string_or, safe_json, issue_agent_capability, revoke_agent_capability
 from src.adapters import fallback_allowed, fallback_decision, watchdog_route_allowed, tool_definitions, normalize_provider_tool_calls, provider_payload_size, provider_payload_allowed, safe_watchdog_upstream_profile, bounded_max_tokens
-from src.store import safe_run_key, store_root_safe, acquire_index_lock, acquire_index_lock_retry, release_index_lock, rebuild_and_persist_run_index, rebuild_and_persist_run_index_result
+from src.store import safe_run_key, store_root_safe, run_store_posture, index_lock_owner_path, index_lock_recovery_path, index_lock_recovery_input, acquire_index_lock, acquire_index_lock_retry, release_index_lock, rebuild_and_persist_run_index, rebuild_and_persist_run_index_result
 from src.watchdog import safe_base, safe_correlation_id, route_policy, usage_reconciliation, usage_reconciliation_for_rows
 
 func check(label, condition) {
@@ -64,6 +64,7 @@ failed = failed + check("safe relative path", path_is_safe(".", "src/file.txt"))
 failed = failed + check("parent component identified", path_has_parent_component("../outside"))
 failed = failed + check("safe sibling path inspected", path_has_symlink_component("./../ai-sdk") == false)
 failed = failed + check("state store parent component denied", store_root_safe("../relay-contract-store") == false)
+failed = failed + check("missing run store has safe bounded posture", run_store_posture("/tmp/relay-contract-missing-store")["ok"] && run_store_posture("/tmp/relay-contract-missing-store")["limit"] == 4096)
 failed = failed + check("unsafe traversal", path_is_safe(".", "../secret") == false)
 failed = failed + check("nested traversal", path_is_safe(".", "src/../secret") == false)
 failed = failed + check("secret file denied", path_is_safe(".", ".env") == false)
@@ -270,6 +271,15 @@ failed = failed + check("index lock released", released_lock["ok"] == true)
 retried_lock := acquire_index_lock_retry(lock_root, 2, 1)
 failed = failed + check("bounded lock retry acquires after release", retried_lock["ok"] == true && retried_lock["attempts"] == 1)
 release_index_lock(lock_root, retried_lock["token"])
+create_dir(lock_root + "/.index.lock")
+stale_owner := {"contract_version": "relay-index-lock-v1", "owner_id": "stale-owner", "token": "stale-token", "acquired_at_ms": current_timestamp() - 120000, "lease_expires_at_ms": current_timestamp() - 60000}
+write_json(index_lock_owner_path(lock_root), stale_owner)
+recovered_lock := acquire_index_lock(lock_root)
+recovery_lines := split(trim(read_file(index_lock_recovery_path(lock_root))), "\n")
+recovery_receipt := parse_json(recovery_lines[0])
+failed = failed + check("expired index lease recovery is receipted", recovered_lock["ok"] && recovery_receipt["contract_version"] == "relay-lock-recovery-v1" && recovery_receipt["previous_owner_id"] == "stale-owner" && recovery_receipt["integrity_sha256"] == sha256(index_lock_recovery_input(recovery_receipt)))
+release_index_lock(lock_root, recovered_lock["token"])
+delete_file(index_lock_recovery_path(lock_root))
 if path_is_dir(lock_root) { os_rmdir(lock_root) }
 refresh_root := tmp_base + "/relay-contract-index-refresh-" + to_string(current_timestamp())
 create_dir(refresh_root)
