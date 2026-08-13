@@ -1,5 +1,14 @@
-from src.common import dict_get_or, int_or, bool_or, read_json_limited, write_json, string_or, path_is_symlink_safe, path_has_symlink_component, path_has_parent_component, create_exclusive_dir
+from src.common import dict_get_or, env_or, int_or, bool_or, read_json_limited, write_json, append_jsonl_bounded, safe_json, string_or, path_is_symlink_safe, path_has_symlink_component, path_has_parent_component, create_exclusive_dir
 from src.contracts import state_integrity_valid
+from src.store_sqlite import sqlite_write_index, sqlite_read_index, sqlite_store_posture
+
+export RUN_DIRECTORY_LIMIT := 4096
+
+func store_backend() {
+    backend := to_lower(env_or("RELAY_STORE_BACKEND", "json"))
+    if backend == "sqlite" { return "sqlite" }
+    return "json"
+}
 
 # The index is a rebuildable cache. Per-run state.json remains authoritative;
 # this keeps inspection correct after a torn write, copied workspace, or a
@@ -34,6 +43,25 @@ func store_root_safe(state_root) {
     return true
 }
 
+func run_store_posture(state_root) {
+    safe := store_root_safe(state_root)
+    if safe == false { return {"ok": false, "safe": false, "present": false, "entries": 0, "valid": 0, "invalid": 0, "limit": RUN_DIRECTORY_LIMIT, "exceeded": false, "error": "Run store root is unsafe"} }
+    runs_root := state_root + "/runs"
+    if path_exists(runs_root) == false { return {"ok": true, "safe": true, "present": false, "entries": 0, "valid": 0, "invalid": 0, "limit": RUN_DIRECTORY_LIMIT, "exceeded": false} }
+    if path_is_dir(runs_root) == false || path_is_symlink_safe(runs_root) { return {"ok": false, "safe": false, "present": true, "entries": 0, "valid": 0, "invalid": 1, "limit": RUN_DIRECTORY_LIMIT, "exceeded": false, "error": "Run store path is not a safe directory"} }
+    names := list_dir(runs_root)
+    exceeded := len(names) > RUN_DIRECTORY_LIMIT
+    if exceeded { return {"ok": false, "safe": true, "present": true, "entries": len(names), "valid": 0, "invalid": 0, "limit": RUN_DIRECTORY_LIMIT, "exceeded": true, "error": "Run store exceeds the 4096-entry safety limit"} }
+    mut valid := 0
+    mut invalid := 0
+    for name in names {
+        run_dir := expected_run_dir(state_root, name)
+        if safe_run_key(name) && path_is_dir(run_dir) && path_is_symlink_safe(run_dir) == false { valid = valid + 1 }
+        else { invalid = invalid + 1 }
+    }
+    return {"ok": invalid == 0, "safe": invalid == 0, "present": true, "entries": len(names), "valid": valid, "invalid": invalid, "limit": RUN_DIRECTORY_LIMIT, "exceeded": false, "error": ""}
+}
+
 func index_record(state_root, run_id, state) {
     integrity_valid := state_integrity_valid(state)
     status := string_or(dict_get_or(state, "status", "unknown"), "unknown")
@@ -49,6 +77,18 @@ func index_record(state_root, run_id, state) {
 
 func index_lock_path(state_root) { return state_root + "/.index.lock" }
 func index_lock_owner_path(state_root) { return index_lock_path(state_root) + "/owner.json" }
+func index_lock_recovery_path(state_root) { return state_root + "/lock-recovery.jsonl" }
+
+func index_lock_recovery_input(receipt) {
+    return to_string(dict_get_or(receipt, "contract_version", "")) + "|" + to_string(dict_get_or(receipt, "lock", "")) + "|" + to_string(dict_get_or(receipt, "previous_owner_id", "")) + "|" + to_string(dict_get_or(receipt, "previous_token_digest", "")) + "|" + to_string(dict_get_or(receipt, "lease_expires_at_ms", 0)) + "|" + to_string(dict_get_or(receipt, "recovered_at_ms", 0)) + "|" + to_string(dict_get_or(receipt, "reason", ""))
+}
+
+func record_index_lock_recovery(state_root, owner) {
+    receipt := {"contract_version": "relay-lock-recovery-v1", "lock": "run-index", "previous_owner_id": string_or(dict_get_or(owner, "owner_id", ""), ""), "previous_token_digest": sha256(string_or(dict_get_or(owner, "token", ""), "")), "lease_expires_at_ms": int_or(dict_get_or(owner, "lease_expires_at_ms", 0), 0), "recovered_at_ms": current_timestamp(), "reason": "expired_lease"}
+    receipt["integrity_sha256"] := sha256(index_lock_recovery_input(receipt))
+    if append_jsonl_bounded(index_lock_recovery_path(state_root), receipt, 1048576) == false { return {"ok": false, "error": "Run index lock recovery receipt could not be persisted"} }
+    return {"ok": true, "receipt": receipt}
+}
 
 func acquire_index_lock(state_root) {
     lock_path := index_lock_path(state_root)
@@ -57,22 +97,29 @@ func acquire_index_lock(state_root) {
     }
     if path_is_dir(lock_path) {
         owner := read_json_limited(index_lock_owner_path(state_root), {}, 65536)
-        acquired_at := dict_get_or(owner, "acquired_at_ms", 0)
-        if type(acquired_at) == "int" && acquired_at > 0 && current_timestamp() - acquired_at > 60000 {
+        lease_expires := int_or(dict_get_or(owner, "lease_expires_at_ms", 0), 0)
+        contract_valid := string_or(dict_get_or(owner, "contract_version", ""), "") == "relay-index-lock-v1" && string_or(dict_get_or(owner, "owner_id", ""), "") != "" && string_or(dict_get_or(owner, "token", ""), "") != "" && lease_expires > 0
+        if contract_valid && current_timestamp() > lease_expires {
+            recovery := record_index_lock_recovery(state_root, owner)
+            if dict_get_or(recovery, "ok", false) == false { return recovery }
             if file_exists(index_lock_owner_path(state_root)) { delete_file(index_lock_owner_path(state_root)) }
             os_rmdir(lock_path)
+        } else if contract_valid == false {
+            return {"ok": false, "error": "Run index lock owner metadata is invalid"}
         } else {
             return {"ok": false, "error": "Run index is busy"}
         }
     }
     token := sha256(state_root + ":" + to_string(current_timestamp()) + ":" + to_string(random_int(1000, 999999)))
+    owner_id := "index-owner-" + to_string(current_timestamp()) + "-" + to_string(random_int(1000, 999999))
     if create_exclusive_dir(lock_path) == false { return {"ok": false, "error": "Unable to acquire run index lock"} }
-    owner := {"token": token, "acquired_at_ms": current_timestamp()}
+    acquired_at := current_timestamp()
+    owner := {"contract_version": "relay-index-lock-v1", "owner_id": owner_id, "token": token, "acquired_at_ms": acquired_at, "lease_expires_at_ms": acquired_at + 60000}
     if write_json(index_lock_owner_path(state_root), owner) == false {
         os_rmdir(lock_path)
         return {"ok": false, "error": "Unable to persist run index lock owner"}
     }
-    return {"ok": true, "token": token}
+    return {"ok": true, "token": token, "owner_id": owner_id, "lease_expires_at_ms": owner["lease_expires_at_ms"]}
 }
 
 func acquire_index_lock_retry(state_root, max_attempts, delay_ms) {
@@ -101,7 +148,7 @@ func release_index_lock(state_root, token) {
     lock_path := index_lock_path(state_root)
     if path_is_dir(lock_path) == false { return {"ok": true, "released": false} }
     owner := read_json_limited(index_lock_owner_path(state_root), {}, 65536)
-    if string_or(dict_get_or(owner, "token", ""), "") != string_or(token, "") {
+    if string_or(dict_get_or(owner, "contract_version", ""), "") != "relay-index-lock-v1" || string_or(dict_get_or(owner, "token", ""), "") != string_or(token, "") {
         return {"ok": false, "error": "Run index lock token mismatch"}
     }
     if file_exists(index_lock_owner_path(state_root)) { delete_file(index_lock_owner_path(state_root)) }
@@ -113,7 +160,9 @@ func rebuild_run_index(state_root) {
     index := {}
     runs_root := state_root + "/runs"
     if path_is_dir(runs_root) == false || path_is_symlink_safe(runs_root) { return index }
-    for name in list_dir(runs_root) {
+    names := list_dir(runs_root)
+    if len(names) > RUN_DIRECTORY_LIMIT { return index }
+    for name in names {
         if safe_run_key(name) == false { continue }
         run_dir := expected_run_dir(state_root, name)
         if path_is_dir(run_dir) == false || path_is_symlink_safe(run_dir) { continue }
@@ -142,8 +191,10 @@ func run_directories_match_index(state_root, index) {
     if type(index) != "dict" { return false }
     runs_root := state_root + "/runs"
     if path_is_dir(runs_root) == false || path_is_symlink_safe(runs_root) { return len(index) == 0 }
+    names := list_dir(runs_root)
+    if len(names) > RUN_DIRECTORY_LIMIT { return false }
     mut count := 0
-    for name in list_dir(runs_root) {
+    for name in names {
         run_dir := expected_run_dir(state_root, name)
         if safe_run_key(name) && path_is_dir(run_dir) && path_is_symlink_safe(run_dir) == false {
             count = count + 1
@@ -168,20 +219,44 @@ func rebuild_and_persist_run_index_result(state_root) {
         release_index_lock(state_root, lock["token"])
         return {"ok": false, "index": authoritative, "error": "Run index could not be persisted", "attempts": lock["attempts"]}
     }
+    sqlite_result := {"ok": true, "configured": false}
+    if store_backend() == "sqlite" {
+        sqlite_result = sqlite_write_index(state_root, authoritative)
+        if dict_get_or(sqlite_result, "ok", false) == false {
+            release_index_lock(state_root, lock["token"])
+            return {"ok": false, "index": authoritative, "error": "Transactional SQLite run index could not be persisted", "attempts": lock["attempts"]}
+        }
+    }
     persisted := read_json_limited(index_path, null, 8388608)
     verified := type(persisted) == "dict" && cached_index_is_safe(state_root, persisted) && run_directories_match_index(state_root, persisted)
     release_index_lock(state_root, lock["token"])
     if verified == false { return {"ok": false, "index": authoritative, "error": "Persisted run index failed verification", "attempts": lock["attempts"]} }
-    return {"ok": true, "index": authoritative, "persisted": true, "attempts": lock["attempts"]}
+    return {"ok": true, "index": authoritative, "persisted": true, "backend": store_backend(), "sqlite": sqlite_result, "attempts": lock["attempts"]}
 }
 
 func load_run_index(state_root) {
     if store_root_safe(state_root) == false { return {} }
+    if store_backend() == "sqlite" {
+        sqlite := sqlite_read_index(state_root)
+        sqlite_index := dict_get_or(sqlite, "index", null)
+        if dict_get_or(sqlite, "ok", false) && cached_index_is_safe(state_root, sqlite_index) && run_directories_match_index(state_root, sqlite_index) { return sqlite_index }
+        return rebuild_and_persist_run_index(state_root)
+    }
     cached := read_json_limited(state_root + "/index.json", null, 8388608)
     if cached_index_is_safe(state_root, cached) && run_directories_match_index(state_root, cached) {
         return cached
     }
     return rebuild_and_persist_run_index(state_root)
+}
+
+func migrate_run_index_sqlite(state_root) {
+    if store_root_safe(state_root) == false { return {"ok": false, "error": "Run index store root is unsafe"} }
+    authoritative := rebuild_run_index(state_root)
+    result := sqlite_write_index(state_root, authoritative)
+    if dict_get_or(result, "ok", false) == false { return result }
+    verified := sqlite_read_index(state_root)
+    if dict_get_or(verified, "ok", false) == false || cached_index_is_safe(state_root, dict_get_or(verified, "index", null)) == false || run_directories_match_index(state_root, dict_get_or(verified, "index", null)) == false { return {"ok": false, "error": "Migrated SQLite run index failed authoritative verification"} }
+    return {"ok": true, "format": "relay-store-migration-v1", "from": "json-cache", "to": "sqlite", "contract_version": dict_get_or(verified, "contract_version", ""), "records": dict_get_or(verified, "records", 0), "path": dict_get_or(verified, "path", "")}
 }
 
 func rebuild_and_persist_run_index(state_root) {
@@ -196,8 +271,15 @@ func persist_run_index(state_root, index) {
 }
 
 export safe_run_key := safe_run_key
+export store_backend := store_backend
 export store_root_safe := store_root_safe
+export run_store_posture := run_store_posture
+export sqlite_store_posture := sqlite_store_posture
+export migrate_run_index_sqlite := migrate_run_index_sqlite
 export index_lock_path := index_lock_path
+export index_lock_owner_path := index_lock_owner_path
+export index_lock_recovery_path := index_lock_recovery_path
+export index_lock_recovery_input := index_lock_recovery_input
 export acquire_index_lock := acquire_index_lock
 export acquire_index_lock_retry := acquire_index_lock_retry
 export release_index_lock := release_index_lock

@@ -3,10 +3,11 @@ from src.contracts import run_state, event, event_integrity_input, receipt, rece
 from src.registry import find_agent
 from src.policy import tool_decision, classify_failure, repair_allowed, path_is_safe, path_is_within_workspace, command_is_allowed, script_hash_policy_valid
 from src.adapters import ai_chat_correlated, ai_chat_correlated_with_tools, normalize_provider_tool_calls, tool_definitions, agents_sdk_smoke, agents_sdk_tool_run, packwrite_generate, runledger_start, runledger_finish, changebucket, eval_run
-from src.store import rebuild_run_index, load_run_index, persist_run_index, store_root_safe
+from src.store import rebuild_run_index, rebuild_and_persist_run_index_result, load_run_index, persist_run_index, store_root_safe
 
 export MISSION_SPEC_MAX_BYTES := 1048576
 export MISSION_COMMAND_MAX_BYTES := 16384
+export TRACKED_FILE_DISCOVERY_MAX_BYTES := 16777216
 
 func ensure_dir(path) {
     return ensure_safe_directory(path)
@@ -419,6 +420,15 @@ export func load_spec(path) {
             if relative == "" || type(content) != "string" { return {"ok": false, "error": "write_file requires path and string content"} }
             if len(relative) > 4096 { return {"ok": false, "error": "write_file path exceeds the 4 KiB safety limit"} }
             if len(content) > max_write_bytes { return {"ok": false, "error": "write_file content exceeds max_write_bytes"} }
+        } else if kind == "list_files" {
+            if len(keys(action)) > 2 || (len(keys(action)) == 2 && has_key(action, "offset") == 0) { return {"ok": false, "error": "list_files accepts only type and offset"} }
+            list_offset := int_or(dict_get_or(action, "offset", 0), -1)
+            if list_offset < 0 { return {"ok": false, "error": "list_files offset must be a non-negative integer"} }
+        } else if kind == "read_file" {
+            relative := string_or(dict_get_or(action, "path", ""), "")
+            if relative == "" || len(relative) > 4096 { return {"ok": false, "error": "read_file requires a bounded path"} }
+            read_offset := int_or(dict_get_or(action, "offset", 0), -1)
+            if read_offset < 0 { return {"ok": false, "error": "read_file offset must be a non-negative integer"} }
         } else if kind == "run_command" {
             command := string_or(dict_get_or(action, "command", ""), "")
             if command == "" { return {"ok": false, "error": "run_command requires command"} }
@@ -542,9 +552,11 @@ func execute_action(action, spec, state, run_dir) {
         "allowed_script_hashes": dict_get_or(spec, "allowed_script_hashes", {})
     }
     if kind == "list_files" {
-        result := spawn_process(["git", "-C", repo, "ls-files"], process_options({}, 30000, state["budgets"]["max_output_bytes"]))
+        # Discovery is independently bounded and returns a small cursor page,
+        # so a response budget does not prevent traversal of larger indexes.
+        result := spawn_process(["git", "-C", repo, "ls-files"], process_options({}, 30000, TRACKED_FILE_DISCOVERY_MAX_BYTES))
         if result.success == false { return {"ok": false, "failure_class": "repository_failure", "error": "tracked file listing failed", "stderr": redact_text(result.stderr)} }
-        if result.stdout_truncated { return {"ok": false, "failure_class": "budget_exceeded", "error": "tracked file listing exceeds max_output_bytes"} }
+        if result.stdout_truncated { return {"ok": false, "failure_class": "budget_exceeded", "error": "tracked file discovery exceeds the independent 16 MiB safety envelope"} }
         page := list_files_page(result.stdout, dict_get_or(action, "offset", 0), 256, 16384)
         if dict_get_or(page, "ok", false) == false { return {"ok": false, "failure_class": "policy_violation", "error": dict_get_or(page, "error", "tracked file page is invalid")} }
         page["tool"] := "list_files"
@@ -1248,6 +1260,56 @@ func cleanup_run(run_id, confirmed) {
     return {"ok": true, "cleaned": true, "run": state}
 }
 
+func retention_plan(keep_last) {
+    keep := int_or(keep_last, 100)
+    if keep < 0 || keep > 4096 { return {"ok": false, "error": "retention keep-last must be between 0 and 4096"} }
+    index := load_run_index(state_root())
+    if type(index) != "dict" { return {"ok": false, "error": "run index is unavailable"} }
+    completed := []
+    for run_id in sort(keys(index)) {
+        record := index[run_id]
+        if type(record) == "dict" && string_or(dict_get_or(record, "status", ""), "") == "completed" { completed = push(completed, run_id) }
+    }
+    prune_count := len(completed) - keep
+    if prune_count < 0 { prune_count = 0 }
+    if prune_count > 256 { prune_count = 256 }
+    candidates := []
+    mut i := 0
+    while i < prune_count {
+        run_id := completed[i]
+        record := index[run_id]
+        candidates = push(candidates, {"run_id": run_id, "run_dir": dict_get_or(record, "run_dir", ""), "status": "completed", "updated_at": dict_get_or(record, "updated_at", "")})
+        i = i + 1
+    }
+    return {"ok": true, "format": "relay-retention-plan-v1", "policy": {"terminal_status": "completed", "keep_last": keep, "max_prune_per_invocation": 256, "order": "run_id_ascending"}, "completed_runs": len(completed), "candidate_count": len(candidates), "candidates": candidates, "has_more": len(completed) - keep > len(candidates), "dry_run": true}
+}
+
+func prune_run_evidence(keep_last, confirmed) {
+    plan := retention_plan(keep_last)
+    if dict_get_or(plan, "ok", false) == false { return plan }
+    if bool_or(confirmed, false) == false { return plan }
+    removed := []
+    for candidate in dict_get_or(plan, "candidates", []) {
+        run_id := string_or(dict_get_or(candidate, "run_id", ""), "")
+        run_dir := string_or(dict_get_or(candidate, "run_dir", ""), "")
+        expected := run_root() + "/" + run_id
+        if run_id == "" || run_dir != expected || path_is_symlink_safe(run_dir) || path_has_symlink_component(run_dir) || path_is_dir(run_dir) == false { return {"ok": false, "error": "retention candidate path is unsafe", "run_id": run_id, "removed": removed} }
+        state := read_json_limited(run_dir + "/state.json", null, 67108864)
+        if type(state) != "dict" || string_or(dict_get_or(state, "run_id", ""), "") != run_id || string_or(dict_get_or(state, "status", ""), "") != "completed" || state_integrity_valid(state) == false || event_chain_integrity_valid(dict_get_or(state, "events", [])) == false || receipt_sequence_valid(dict_get_or(state, "receipts", [])) == false { return {"ok": false, "error": "retention candidate integrity verification failed", "run_id": run_id, "removed": removed} }
+        workspace := dict_get_or(state, "workspace", {})
+        if type(workspace) == "dict" && string_or(dict_get_or(workspace, "mode", ""), "") == "worktree" && bool_or(dict_get_or(workspace, "cleaned", false), false) == false { return {"ok": false, "error": "retention requires worktree cleanup before pruning run evidence", "run_id": run_id, "removed": removed} }
+        deletion := spawn_process(["/bin/rm", "-rf", "--", run_dir], process_options({}, 30000, 65536))
+        if deletion.success == false || path_exists(run_dir) { return {"ok": false, "error": "retention could not remove verified run evidence", "run_id": run_id, "removed": removed} }
+        removed = push(removed, run_id)
+    }
+    rebuilt := rebuild_and_persist_run_index_result(state_root())
+    if dict_get_or(rebuilt, "ok", false) == false { return {"ok": false, "error": "retention removed evidence but index rebuild failed", "removed": removed} }
+    plan["dry_run"] := false
+    plan["removed"] := removed
+    plan["removed_count"] := len(removed)
+    return plan
+}
+
 func resume_run(run_id, repair_requested) {
     store_check := state_store_ready()
     if store_check["ok"] == false { return {"ok": false, "failure_class": "state_store_failure", "error": store_check["error"]} }
@@ -1413,6 +1475,8 @@ export run_mission := run_mission
 export pause_run := pause_run
 export cancel_run := cancel_run
 export cleanup_run := cleanup_run
+export retention_plan := retention_plan
+export prune_run_evidence := prune_run_evidence
 export resume_run := resume_run
 export execute_tool_request := execute_tool_request
 export cancellation_request := cancellation_request
