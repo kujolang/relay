@@ -1,4 +1,4 @@
-from src.common import dict_get_or, env_or, int_or, bool_or, read_json_limited, write_json, append_jsonl_bounded, safe_json, string_or, path_is_symlink_safe, path_has_symlink_component, path_has_parent_component, create_exclusive_dir
+from src.common import CONTROL_RECORD_MAX_BYTES, JSON_DOCUMENT_MAX_BYTES, dict_get_or, env_or, int_or, bool_or, read_json_limited, write_json, append_jsonl_bounded, safe_json, string_or, path_is_symlink_safe, path_has_symlink_component, path_has_parent_component, create_exclusive_dir
 from src.contracts import state_integrity_valid
 from src.store_sqlite import sqlite_write_index, sqlite_read_index, sqlite_store_posture
 
@@ -86,7 +86,7 @@ func index_lock_recovery_input(receipt) {
 func record_index_lock_recovery(state_root, owner) {
     receipt := {"contract_version": "relay-lock-recovery-v1", "lock": "run-index", "previous_owner_id": string_or(dict_get_or(owner, "owner_id", ""), ""), "previous_token_digest": sha256(string_or(dict_get_or(owner, "token", ""), "")), "lease_expires_at_ms": int_or(dict_get_or(owner, "lease_expires_at_ms", 0), 0), "recovered_at_ms": current_timestamp(), "reason": "expired_lease"}
     receipt["integrity_sha256"] := sha256(index_lock_recovery_input(receipt))
-    if append_jsonl_bounded(index_lock_recovery_path(state_root), receipt, 1048576) == false { return {"ok": false, "error": "Run index lock recovery receipt could not be persisted"} }
+    if append_jsonl_bounded(index_lock_recovery_path(state_root), receipt, JSON_DOCUMENT_MAX_BYTES) == false { return {"ok": false, "error": "Run index lock recovery receipt could not be persisted"} }
     return {"ok": true, "receipt": receipt}
 }
 
@@ -96,7 +96,7 @@ func acquire_index_lock(state_root) {
         return {"ok": false, "error": "Run index lock path must not be a symbolic link"}
     }
     if path_is_dir(lock_path) {
-        owner := read_json_limited(index_lock_owner_path(state_root), {}, 65536)
+        owner := read_json_limited(index_lock_owner_path(state_root), {}, CONTROL_RECORD_MAX_BYTES)
         lease_expires := int_or(dict_get_or(owner, "lease_expires_at_ms", 0), 0)
         contract_valid := string_or(dict_get_or(owner, "contract_version", ""), "") == "relay-index-lock-v1" && string_or(dict_get_or(owner, "owner_id", ""), "") != "" && string_or(dict_get_or(owner, "token", ""), "") != "" && lease_expires > 0
         if contract_valid && current_timestamp() > lease_expires {
@@ -147,7 +147,7 @@ func acquire_index_lock_retry(state_root, max_attempts, delay_ms) {
 func release_index_lock(state_root, token) {
     lock_path := index_lock_path(state_root)
     if path_is_dir(lock_path) == false { return {"ok": true, "released": false} }
-    owner := read_json_limited(index_lock_owner_path(state_root), {}, 65536)
+    owner := read_json_limited(index_lock_owner_path(state_root), {}, CONTROL_RECORD_MAX_BYTES)
     if string_or(dict_get_or(owner, "contract_version", ""), "") != "relay-index-lock-v1" || string_or(dict_get_or(owner, "token", ""), "") != string_or(token, "") {
         return {"ok": false, "error": "Run index lock token mismatch"}
     }
@@ -166,7 +166,7 @@ func rebuild_run_index(state_root) {
         if safe_run_key(name) == false { continue }
         run_dir := expected_run_dir(state_root, name)
         if path_is_dir(run_dir) == false || path_is_symlink_safe(run_dir) { continue }
-        state := read_json_limited(run_state_path(state_root, name), null, 1048576)
+        state := read_json_limited(run_state_path(state_root, name), null, JSON_DOCUMENT_MAX_BYTES)
         if type(state) != "dict" || string_or(dict_get_or(state, "run_id", ""), "") != name { continue }
         index[name] := index_record(state_root, name, state)
     }
@@ -176,7 +176,7 @@ func rebuild_run_index(state_root) {
 func cached_index_is_safe(state_root, index) {
     if type(index) != "dict" { return false }
     index_path := state_root + "/index.json"
-    if path_is_symlink_safe(index_path) || (path_exists(index_path) && file_size(index_path) > 8388608) { return false }
+    if path_is_symlink_safe(index_path) || (path_exists(index_path) && file_size(index_path) > JSON_DOCUMENT_MAX_BYTES) { return false }
     for run_id in keys(index) {
         if safe_run_key(run_id) == false { return false }
         record := index[run_id]
@@ -199,7 +199,7 @@ func run_directories_match_index(state_root, index) {
         if safe_run_key(name) && path_is_dir(run_dir) && path_is_symlink_safe(run_dir) == false {
             count = count + 1
             if has_key(index, name) == 0 { return false }
-            state := read_json_limited(run_state_path(state_root, name), null, 1048576)
+            state := read_json_limited(run_state_path(state_root, name), null, JSON_DOCUMENT_MAX_BYTES)
             if type(state) != "dict" || string_or(dict_get_or(state, "run_id", ""), "") != name { return false }
             expected := index_record(state_root, name, state)
             record := index[name]
@@ -227,7 +227,7 @@ func rebuild_and_persist_run_index_result(state_root) {
             return {"ok": false, "index": authoritative, "error": "Transactional SQLite run index could not be persisted", "attempts": lock["attempts"]}
         }
     }
-    persisted := read_json_limited(index_path, null, 8388608)
+    persisted := read_json_limited(index_path, null, JSON_DOCUMENT_MAX_BYTES)
     verified := type(persisted) == "dict" && cached_index_is_safe(state_root, persisted) && run_directories_match_index(state_root, persisted)
     release_index_lock(state_root, lock["token"])
     if verified == false { return {"ok": false, "index": authoritative, "error": "Persisted run index failed verification", "attempts": lock["attempts"]} }
@@ -244,7 +244,7 @@ func load_run_index_result(state_root) {
         if dict_get_or(rebuilt, "ok", false) == false { return {"ok": false, "index": dict_get_or(rebuilt, "index", {}), "source": "rebuild", "error": dict_get_or(rebuilt, "error", "Transactional SQLite run index could not be rebuilt")} }
         return {"ok": true, "index": dict_get_or(rebuilt, "index", {}), "source": "rebuild", "persisted": true}
     }
-    cached := read_json_limited(state_root + "/index.json", null, 8388608)
+    cached := read_json_limited(state_root + "/index.json", null, JSON_DOCUMENT_MAX_BYTES)
     if cached_index_is_safe(state_root, cached) && run_directories_match_index(state_root, cached) {
         return {"ok": true, "index": cached, "source": "json"}
     }

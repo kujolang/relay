@@ -1,4 +1,4 @@
-from src.common import dict_get_or, env_or, env_bool, string_or, bool_or, int_or, read_json_limited, safe_json, write_json, now_iso, path_is_symlink_safe
+from src.common import JSON_DOCUMENT_MAX_BYTES, JSONL_EVIDENCE_MAX_BYTES, dict_get_or, env_or, env_bool, string_or, bool_or, int_or, read_json_limited, safe_json, write_json, now_iso, path_is_symlink_safe
 from src.contracts import RELAY_VERSION, event_chain_integrity_valid, event_sequence_matches_state, receipt_sequence_valid, receipt_sequence_matches_state, state_integrity_valid
 from src.registry import agent_catalog, find_agent, agent_path
 from src.adapters import ai_chat, capsule_run
@@ -21,10 +21,10 @@ func read_receipt_evidence(run_dir) {
     # A missing receipt file must not silently fall back to the copy embedded
     # in state.json. The file is the persisted evidence boundary; accepting the
     # state fallback would let an incomplete run appear fully receipted.
-    if path_is_symlink_safe(path) || path_exists(path) == false || path_is_file(path) == false || file_size(path) > 1048576 {
+    if path_is_symlink_safe(path) || path_exists(path) == false || path_is_file(path) == false || file_size(path) > JSON_DOCUMENT_MAX_BYTES {
         return {"ok": false, "receipts": [], "error": "run receipt evidence is missing, non-regular, symbolic-linked, or exceeds the 1 MiB runtime JSON limit"}
     }
-    receipts := read_json_limited(path, null, 1048576)
+    receipts := read_json_limited(path, null, JSON_DOCUMENT_MAX_BYTES)
     if type(receipts) != "array" {
         return {"ok": false, "receipts": [], "error": "run receipt evidence is invalid JSON"}
     }
@@ -33,10 +33,10 @@ func read_receipt_evidence(run_dir) {
 
 func read_run_state_evidence(run_dir, run_id) {
     path := run_dir + "/state.json"
-    if path_is_symlink_safe(path) || path_exists(path) == false || path_is_file(path) == false || file_size(path) > 1048576 {
+    if path_is_symlink_safe(path) || path_exists(path) == false || path_is_file(path) == false || file_size(path) > JSON_DOCUMENT_MAX_BYTES {
         return {"ok": false, "state": {}, "error": "run state evidence is missing, non-regular, symbolic-linked, or exceeds the 1 MiB runtime JSON limit"}
     }
-    state := read_json_limited(path, null, 1048576)
+    state := read_json_limited(path, null, JSON_DOCUMENT_MAX_BYTES)
     if type(state) != "dict" {
         return {"ok": false, "state": {}, "error": "run state evidence is invalid JSON"}
     }
@@ -49,14 +49,12 @@ func read_run_state_evidence(run_dir, run_id) {
     return {"ok": true, "state": state}
 }
 
-func read_run_artifact_evidence(run_dir, name, expected_type, max_bytes) {
+func read_run_artifact_evidence(run_dir, name, expected_type) {
     path := run_dir + "/" + name
-    limit := int_or(max_bytes, 1048576)
-    if limit > 1048576 { limit = 1048576 }
-    if path_is_symlink_safe(path) || path_exists(path) == false || path_is_file(path) == false || file_size(path) > limit {
+    if path_is_symlink_safe(path) || path_exists(path) == false || path_is_file(path) == false || file_size(path) > JSON_DOCUMENT_MAX_BYTES {
         return {"ok": false, "value": null, "error": "run artifact evidence is missing, non-regular, symbolic-linked, or exceeds its inspection limit: " + name}
     }
-    value := read_json_limited(path, null, limit)
+    value := read_json_limited(path, null, JSON_DOCUMENT_MAX_BYTES)
     if type(value) != expected_type {
         return {"ok": false, "value": null, "error": "run artifact evidence has an invalid JSON shape: " + name}
     }
@@ -68,7 +66,7 @@ func provider_tool_result_evidence(run_dir, state, run_id) {
     if bool_or(dict_get_or(agent_sdk_tools, "provider_generated", false), false) == false {
         return {"required": false, "ok": true, "value": null, "error": ""}
     }
-    artifact := read_run_artifact_evidence(run_dir, "tool-results.json", "dict", 8388608)
+    artifact := read_run_artifact_evidence(run_dir, "tool-results.json", "dict")
     if dict_get_or(artifact, "ok", false) == false {
         return {"required": true, "ok": false, "value": null, "error": dict_get_or(artifact, "error", "provider tool-result evidence is invalid")}
     }
@@ -93,7 +91,7 @@ func report_matches_state(report, state, run_id) {
 
 func report_markdown_valid(run_dir) {
     path := run_dir + "/report.md"
-    return path_is_symlink_safe(path) == false && path_exists(path) && path_is_file(path) && file_size(path) <= 8388608
+    return path_is_symlink_safe(path) == false && path_exists(path) && path_is_file(path) && file_size(path) <= JSONL_EVIDENCE_MAX_BYTES
 }
 
 func positional(values, index, fallback) {
@@ -310,7 +308,7 @@ func cmd_missions(tokens) {
         if dict_get_or(state_evidence, "ok", false) == false { return {"ok": false, "failure_class": "evidence_failure", "error": dict_get_or(state_evidence, "error", "run state evidence is invalid")} }
         state := state_evidence["state"]
         if sub == "report" {
-            report_evidence := read_run_artifact_evidence(record["run_dir"], "report.json", "dict", 8388608)
+            report_evidence := read_run_artifact_evidence(record["run_dir"], "report.json", "dict")
             report_ok := dict_get_or(report_evidence, "ok", false) && report_matches_state(dict_get_or(report_evidence, "value", {}), state, id) && report_markdown_valid(record["run_dir"])
             if report_ok == false { return {"ok": false, "failure_class": "evidence_failure", "error": "report evidence is missing, malformed, or does not match authoritative state"} }
             return {"ok": true, "report_json": record["run_dir"] + "/report.json", "report_markdown": record["run_dir"] + "/report.md", "status": dict_get_or(state, "status", "unknown")}
@@ -348,7 +346,7 @@ func watch_run_events(record, run_id, flags) {
                 return {"ok": false, "_streamed": true}
             }
         }
-        if event_exists && file_size(events_path) > 8388608 {
+        if event_exists && file_size(events_path) > JSONL_EVIDENCE_MAX_BYTES {
             print(safe_json({"type": "relay_watch_error", "error": "run event log exceeds the 8 MiB inspection limit"}))
             return {"ok": false, "_streamed": true}
         }
@@ -479,7 +477,7 @@ func run_artifact_sizes(record, run_id, flags) {
         if name == "workspace" {
             continue
         }
-        child := artifact_inventory(run_dir + "/" + name, name, 4096, 8388608, 0, has_flag(flags, "hashes"))
+        child := artifact_inventory(run_dir + "/" + name, name, 4096, JSONL_EVIDENCE_MAX_BYTES, 0, has_flag(flags, "hashes"))
         if dict_get_or(child, "ok", false) == false { return child }
         child_entries := dict_get_or(child, "entries", [])
         if type(child_entries) == "array" {
@@ -489,7 +487,7 @@ func run_artifact_sizes(record, run_id, flags) {
         files := files + int_or(dict_get_or(child, "files", 0), 0)
         directories := directories + int_or(dict_get_or(child, "directories", 0), 0)
         if len(entries) > 4096 { return {"ok": false, "error": "run artifact inventory exceeds the entry limit"} }
-        if total_bytes > 8388608 { return {"ok": false, "error": "run artifact inventory exceeds the total byte limit"} }
+        if total_bytes > JSONL_EVIDENCE_MAX_BYTES { return {"ok": false, "error": "run artifact inventory exceeds the total byte limit"} }
     }
     return {"ok": true, "format": "relay-run-sizes-v1", "run_id": run_id, "run_dir": run_dir, "generated_at": now_iso(), "hashes_included": bool_or(has_flag(flags, "hashes"), false), "summary": {"bytes": total_bytes, "files": files, "directories": directories}, "entries": entries, "excluded": excluded}
 }
@@ -569,6 +567,64 @@ func run_window(index, flags) {
     return {"ok": true, "runs": window, "run_count": len(run_ids), "offset": start, "has_more": end < len(run_ids), "next_after": next_after}
 }
 
+func load_run_event_evidence(record, run_id) {
+    run_dir := record["run_dir"]
+    events_path := run_dir + "/events.jsonl"
+    if path_is_symlink_safe(events_path) || path_exists(events_path) == false || path_is_file(events_path) == false || file_size(events_path) > JSONL_EVIDENCE_MAX_BYTES {
+        return {"ok": false, "bundle": {"ok": false, "error": "run event log is missing, non-regular, symbolic-linked, or exceeds the 8 MiB inspection limit", "integrity_valid": false, "state_consistent": false}}
+    }
+    raw_events := read_file(events_path)
+    events := []
+    for line in split(raw_events, "\n") {
+        if trim(line) == "" { continue }
+        try { events = push(events, parse_json(line)) } except err {
+            return {"ok": false, "bundle": {"ok": false, "error": "run event log contains invalid JSON", "integrity_valid": false}}
+        }
+    }
+    state_evidence := read_run_state_evidence(run_dir, run_id)
+    if dict_get_or(state_evidence, "ok", false) == false {
+        return {"ok": false, "bundle": {"ok": false, "error": dict_get_or(state_evidence, "error", "run state evidence is invalid"), "integrity_valid": false, "state_consistent": false, "receipts_valid": false, "receipts_consistent": false}}
+    }
+    state := state_evidence["state"]
+    chain_valid := event_chain_integrity_valid(events)
+    state_consistent := event_sequence_matches_state(dict_get_or(state, "events", []), events)
+    receipt_evidence := read_receipt_evidence(run_dir)
+    receipts := dict_get_or(receipt_evidence, "receipts", [])
+    receipts_valid := dict_get_or(receipt_evidence, "ok", false) && receipt_sequence_valid(receipts)
+    receipts_consistent := receipts_valid && receipt_sequence_matches_state(dict_get_or(state, "receipts", []), receipts)
+    valid := chain_valid && state_consistent && receipts_valid && receipts_consistent
+    bundle := {"ok": valid, "integrity_valid": valid, "chain_integrity_valid": chain_valid, "state_consistent": state_consistent, "receipts_valid": receipts_valid, "receipts_consistent": receipts_consistent, "receipt_error": dict_get_or(receipt_evidence, "error", ""), "events": events, "events_jsonl": raw_events, "event_count": len(events), "offset": 0, "has_more": false, "next_after": ""}
+    return {"ok": valid, "bundle": bundle, "state": state, "receipts": receipts}
+}
+
+func load_required_run_artifacts(run_dir, state, run_id) {
+    changes := read_run_artifact_evidence(run_dir, "changes.json", "dict")
+    evaluations := read_run_artifact_evidence(run_dir, "evaluations.json", "array")
+    report := read_run_artifact_evidence(run_dir, "report.json", "dict")
+    tool_results := provider_tool_result_evidence(run_dir, state, run_id)
+    packet_manifest := verify_packet_manifest(run_dir, state)
+    changes_valid := dict_get_or(changes, "ok", false)
+    evaluations_valid := dict_get_or(evaluations, "ok", false)
+    report_valid := dict_get_or(report, "ok", false) && report_matches_state(dict_get_or(report, "value", {}), state, run_id) && report_markdown_valid(run_dir)
+    tool_results_valid := dict_get_or(tool_results, "ok", false)
+    packet_manifest_valid := dict_get_or(packet_manifest, "ok", false)
+    valid := changes_valid && evaluations_valid && report_valid && tool_results_valid && packet_manifest_valid
+    return {
+        "ok": valid,
+        "changes": changes,
+        "evaluations": evaluations,
+        "report": report,
+        "tool_results": tool_results,
+        "packet_manifest": packet_manifest,
+        "changes_valid": changes_valid,
+        "evaluations_valid": evaluations_valid,
+        "report_valid": report_valid,
+        "tool_results_valid": tool_results_valid,
+        "packet_manifest_valid": packet_manifest_valid,
+        "errors": [dict_get_or(changes, "error", ""), dict_get_or(evaluations, "error", ""), dict_get_or(report, "error", ""), dict_get_or(tool_results, "error", ""), dict_get_or(packet_manifest, "error", "")]
+    }
+}
+
 func cmd_runs(tokens) {
     parsed := parse_tokens(tokens)
     sub := positional(parsed["positionals"], 0, "list")
@@ -590,7 +646,7 @@ func cmd_runs(tokens) {
     if store_check["ok"] == false { return store_check }
     id := positional(parsed["positionals"], 1, "")
     if sub == "verify-signature" {
-        signed_value := read_json_limited(id, {}, 1048576)
+        signed_value := read_json_limited(id, {}, JSON_DOCUMENT_MAX_BYTES)
         return verify_signed_export(id, signing_key(string_or(dict_get_or(signed_value, "key_id", ""), "")))
     }
     if sub == "rebuild" {
@@ -629,22 +685,14 @@ func cmd_runs(tokens) {
         if dict_get_or(state_evidence, "ok", false) == false {
             return {"ok": false, "format": "relay-run-verification-v1", "run_id": id, "integrity_valid": false, "state_valid": false, "error": dict_get_or(state_evidence, "error", "run state evidence is invalid")}
         }
-        events_result := cmd_runs(["events", id])
-        if dict_get_or(events_result, "ok", false) == false {
+        event_evidence := load_run_event_evidence(record, id)
+        events_result := event_evidence["bundle"]
+        if dict_get_or(event_evidence, "ok", false) == false {
             return {"ok": false, "format": "relay-run-verification-v1", "run_id": id, "integrity_valid": false, "state_valid": true, "events_valid": dict_get_or(events_result, "integrity_valid", false), "receipts_valid": dict_get_or(events_result, "receipts_valid", false), "receipts_consistent": dict_get_or(events_result, "receipts_consistent", false), "error": dict_get_or(events_result, "error", "run event evidence is invalid")}
         }
-        changes := read_run_artifact_evidence(record["run_dir"], "changes.json", "dict", 8388608)
-        evaluations := read_run_artifact_evidence(record["run_dir"], "evaluations.json", "array", 8388608)
-        report := read_run_artifact_evidence(record["run_dir"], "report.json", "dict", 8388608)
-        tool_results := provider_tool_result_evidence(record["run_dir"], state_evidence["state"], id)
-        packet_manifest := verify_packet_manifest(record["run_dir"], state_evidence["state"])
-        changes_valid := dict_get_or(changes, "ok", false)
-        evaluations_valid := dict_get_or(evaluations, "ok", false)
-        report_valid := dict_get_or(report, "ok", false) && report_matches_state(dict_get_or(report, "value", {}), state_evidence["state"], id) && report_markdown_valid(record["run_dir"])
-        tool_results_valid := dict_get_or(tool_results, "ok", false)
-        packet_manifest_valid := dict_get_or(packet_manifest, "ok", false)
-        valid := changes_valid && evaluations_valid && report_valid && tool_results_valid && packet_manifest_valid
-        return {"ok": valid, "format": "relay-run-verification-v1", "run_id": id, "status": dict_get_or(state_evidence["state"], "status", "unknown"), "integrity_valid": valid, "state_valid": true, "events_valid": true, "receipts_valid": dict_get_or(events_result, "receipts_valid", false), "receipts_consistent": dict_get_or(events_result, "receipts_consistent", false), "changes_valid": changes_valid, "evaluations_valid": evaluations_valid, "report_valid": report_valid, "tool_results_required": dict_get_or(tool_results, "required", false), "tool_results_valid": tool_results_valid, "packet_manifest_required": dict_get_or(packet_manifest, "required", false), "packet_manifest_valid": packet_manifest_valid, "errors": [dict_get_or(changes, "error", ""), dict_get_or(evaluations, "error", ""), dict_get_or(report, "error", ""), dict_get_or(tool_results, "error", ""), dict_get_or(packet_manifest, "error", "")]}
+        artifacts := load_required_run_artifacts(record["run_dir"], state_evidence["state"], id)
+        valid := artifacts["ok"]
+        return {"ok": valid, "format": "relay-run-verification-v1", "run_id": id, "status": dict_get_or(state_evidence["state"], "status", "unknown"), "integrity_valid": valid, "state_valid": true, "events_valid": true, "receipts_valid": dict_get_or(events_result, "receipts_valid", false), "receipts_consistent": dict_get_or(events_result, "receipts_consistent", false), "changes_valid": artifacts["changes_valid"], "evaluations_valid": artifacts["evaluations_valid"], "report_valid": artifacts["report_valid"], "tool_results_required": dict_get_or(artifacts["tool_results"], "required", false), "tool_results_valid": artifacts["tool_results_valid"], "packet_manifest_required": dict_get_or(artifacts["packet_manifest"], "required", false), "packet_manifest_valid": artifacts["packet_manifest_valid"], "errors": artifacts["errors"]}
     }
     if sub == "watch" { return watch_run_events(record, id, parsed["flags"]) }
     if sub == "sizes" { return run_artifact_sizes(record, id, parsed["flags"]) }
@@ -656,31 +704,12 @@ func cmd_runs(tokens) {
         return {"ok": true, "run": state_evidence["state"], "run_dir": record["run_dir"]}
     }
     if sub == "events" || sub == "export" {
-        events_path := record["run_dir"] + "/events.jsonl"
-        if path_is_symlink_safe(events_path) || path_exists(events_path) == false || path_is_file(events_path) == false || file_size(events_path) > 8388608 { return {"ok": false, "error": "run event log is missing, non-regular, symbolic-linked, or exceeds the 8 MiB inspection limit", "integrity_valid": false, "state_consistent": false} }
-        raw_events := read_file(events_path)
-        events := []
-        for line in split(raw_events, "\n") {
-            if trim(line) == "" { continue }
-            try { events = push(events, parse_json(line)) } except err { return {"ok": false, "error": "run event log contains invalid JSON", "integrity_valid": false} }
-        }
-        state_evidence := read_run_state_evidence(record["run_dir"], id)
-        if dict_get_or(state_evidence, "ok", false) == false {
-            return {"ok": false, "error": dict_get_or(state_evidence, "error", "run state evidence is invalid"), "integrity_valid": false, "state_consistent": false, "receipts_valid": false, "receipts_consistent": false}
-        }
-        state := state_evidence["state"]
-        chain_valid := event_chain_integrity_valid(events)
-        state_consistent := event_sequence_matches_state(dict_get_or(state, "events", []), events)
-        receipt_evidence := read_receipt_evidence(record["run_dir"])
-        receipts := dict_get_or(receipt_evidence, "receipts", [])
-        receipts_valid := dict_get_or(receipt_evidence, "ok", false) && receipt_sequence_valid(receipts)
-        receipts_consistent := receipts_valid && receipt_sequence_matches_state(dict_get_or(state, "receipts", []), receipts)
-        valid := chain_valid && state_consistent && receipts_valid && receipts_consistent
-        event_bundle := {"integrity_valid": valid, "chain_integrity_valid": chain_valid, "state_consistent": state_consistent, "receipts_valid": receipts_valid, "receipts_consistent": receipts_consistent, "receipt_error": dict_get_or(receipt_evidence, "error", ""), "events": events, "events_jsonl": raw_events, "event_count": len(events), "offset": 0, "has_more": false, "next_after": ""}
+        event_evidence := load_run_event_evidence(record, id)
+        event_bundle := event_evidence["bundle"]
         if sub == "events" {
-            if valid == false { event_bundle["ok"] := false; return event_bundle }
-            window := event_window(events, parsed["flags"])
-            if dict_get_or(window, "ok", false) == false { return {"ok": false, "integrity_valid": true, "chain_integrity_valid": chain_valid, "state_consistent": state_consistent, "receipts_valid": receipts_valid, "receipts_consistent": receipts_consistent, "error": dict_get_or(window, "error", "event window is invalid")} }
+            if dict_get_or(event_evidence, "ok", false) == false { return event_bundle }
+            window := event_window(event_bundle["events"], parsed["flags"])
+            if dict_get_or(window, "ok", false) == false { return {"ok": false, "integrity_valid": true, "chain_integrity_valid": event_bundle["chain_integrity_valid"], "state_consistent": event_bundle["state_consistent"], "receipts_valid": event_bundle["receipts_valid"], "receipts_consistent": event_bundle["receipts_consistent"], "error": dict_get_or(window, "error", "event window is invalid")} }
             event_bundle["events"] := window["events"]
             event_bundle["events_jsonl"] := ""
             event_bundle["event_count"] := window["event_count"]
@@ -690,22 +719,29 @@ func cmd_runs(tokens) {
             event_bundle["ok"] := true
             return event_bundle
         }
-        if valid == false { event_bundle["ok"] := false; event_bundle["error"] := "run event integrity verification failed"; return event_bundle }
-        changes_evidence := read_run_artifact_evidence(record["run_dir"], "changes.json", "dict", 8388608)
-        evaluations_evidence := read_run_artifact_evidence(record["run_dir"], "evaluations.json", "array", 8388608)
-        report_evidence := read_run_artifact_evidence(record["run_dir"], "report.json", "dict", 8388608)
-        tool_results_evidence := provider_tool_result_evidence(record["run_dir"], state, id)
-        packet_manifest_evidence := verify_packet_manifest(record["run_dir"], state)
-        changes_valid := dict_get_or(changes_evidence, "ok", false)
-        evaluations_valid := dict_get_or(evaluations_evidence, "ok", false)
-        report_valid := dict_get_or(report_evidence, "ok", false) && report_matches_state(dict_get_or(report_evidence, "value", {}), state, id) && report_markdown_valid(record["run_dir"])
-        tool_results_valid := dict_get_or(tool_results_evidence, "ok", false)
-        packet_manifest_valid := dict_get_or(packet_manifest_evidence, "ok", false)
-        if changes_valid == false || evaluations_valid == false || report_valid == false || tool_results_valid == false || packet_manifest_valid == false {
+        if dict_get_or(event_evidence, "ok", false) == false {
+            if has_key(event_bundle, "error") == false { event_bundle["error"] := "run event integrity verification failed" }
+            return event_bundle
+        }
+        state := event_evidence["state"]
+        events := event_bundle["events"]
+        receipts := event_evidence["receipts"]
+        artifacts := load_required_run_artifacts(record["run_dir"], state, id)
+        changes_evidence := artifacts["changes"]
+        evaluations_evidence := artifacts["evaluations"]
+        report_evidence := artifacts["report"]
+        tool_results_evidence := artifacts["tool_results"]
+        packet_manifest_evidence := artifacts["packet_manifest"]
+        changes_valid := artifacts["changes_valid"]
+        evaluations_valid := artifacts["evaluations_valid"]
+        report_valid := artifacts["report_valid"]
+        tool_results_valid := artifacts["tool_results_valid"]
+        packet_manifest_valid := artifacts["packet_manifest_valid"]
+        if artifacts["ok"] == false {
             partial_requested := has_flag(parsed["flags"], "partial")
             run_status := string_or(dict_get_or(state, "status", "unknown"), "unknown")
             if partial_requested && run_status != "completed" {
-                partial_bundle := {"format": "relay-run-export-partial-v1", "run_id": id, "integrity_valid": false, "completeness": "partial", "partial": true, "status": run_status, "state_valid": true, "events_valid": true, "receipts_valid": receipts_valid, "receipts_consistent": receipts_consistent, "artifact_presence": {"changes": changes_valid, "evaluations": evaluations_valid, "report": report_valid, "tool_results": tool_results_valid, "packet_manifest": packet_manifest_valid}, "artifact_errors": [dict_get_or(changes_evidence, "error", ""), dict_get_or(evaluations_evidence, "error", ""), dict_get_or(report_evidence, "error", ""), dict_get_or(tool_results_evidence, "error", ""), dict_get_or(packet_manifest_evidence, "error", "")], "run": state, "events": events, "receipts": receipts, "changes": dict_get_or(changes_evidence, "value", null), "evaluations": dict_get_or(evaluations_evidence, "value", null), "report": dict_get_or(report_evidence, "value", null), "tool_results": dict_get_or(tool_results_evidence, "value", null), "packet_manifest": dict_get_or(packet_manifest_evidence, "value", null)}
+                partial_bundle := {"format": "relay-run-export-partial-v1", "run_id": id, "integrity_valid": false, "completeness": "partial", "partial": true, "status": run_status, "state_valid": true, "events_valid": true, "receipts_valid": event_bundle["receipts_valid"], "receipts_consistent": event_bundle["receipts_consistent"], "artifact_presence": {"changes": changes_valid, "evaluations": evaluations_valid, "report": report_valid, "tool_results": tool_results_valid, "packet_manifest": packet_manifest_valid}, "artifact_errors": artifacts["errors"], "run": state, "events": events, "receipts": receipts, "changes": dict_get_or(changes_evidence, "value", null), "evaluations": dict_get_or(evaluations_evidence, "value", null), "report": dict_get_or(report_evidence, "value", null), "tool_results": dict_get_or(tool_results_evidence, "value", null), "packet_manifest": dict_get_or(packet_manifest_evidence, "value", null)}
                 output_path := string_or(dict_get_or(parsed["flags"], "output", ""), "")
                 if output_path != "" {
                     if write_json(output_path, partial_bundle) == false { return {"ok": false, "error": "partial run export could not be written"} }
@@ -720,12 +756,12 @@ func cmd_runs(tokens) {
             event_bundle["changes_valid"] := changes_valid
             event_bundle["evaluations_valid"] := evaluations_valid
             event_bundle["report_valid"] := report_valid
-            event_bundle["artifact_errors"] := [dict_get_or(changes_evidence, "error", ""), dict_get_or(evaluations_evidence, "error", ""), dict_get_or(report_evidence, "error", ""), dict_get_or(tool_results_evidence, "error", ""), dict_get_or(packet_manifest_evidence, "error", "")]
+            event_bundle["artifact_errors"] := artifacts["errors"]
             event_bundle["tool_results_valid"] := tool_results_valid
             event_bundle["packet_manifest_valid"] := packet_manifest_valid
             return event_bundle
         }
-        bundle := {"format": "relay-run-export-v1", "run_id": id, "integrity_valid": true, "chain_integrity_valid": chain_valid, "state_consistent": state_consistent, "receipts_valid": receipts_valid, "receipts_consistent": receipts_consistent, "changes_valid": true, "evaluations_valid": true, "report_valid": true, "tool_results_required": dict_get_or(tool_results_evidence, "required", false), "tool_results_valid": true, "packet_manifest_required": dict_get_or(packet_manifest_evidence, "required", false), "packet_manifest_valid": true, "run": state, "events": events, "receipts": receipts, "changes": changes_evidence["value"], "evaluations": evaluations_evidence["value"], "report": report_evidence["value"], "tool_results": dict_get_or(tool_results_evidence, "value", null), "packet_manifest": dict_get_or(packet_manifest_evidence, "value", null)}
+        bundle := {"format": "relay-run-export-v1", "run_id": id, "integrity_valid": true, "chain_integrity_valid": event_bundle["chain_integrity_valid"], "state_consistent": event_bundle["state_consistent"], "receipts_valid": event_bundle["receipts_valid"], "receipts_consistent": event_bundle["receipts_consistent"], "changes_valid": true, "evaluations_valid": true, "report_valid": true, "tool_results_required": dict_get_or(tool_results_evidence, "required", false), "tool_results_valid": true, "packet_manifest_required": dict_get_or(packet_manifest_evidence, "required", false), "packet_manifest_valid": true, "run": state, "events": events, "receipts": receipts, "changes": changes_evidence["value"], "evaluations": evaluations_evidence["value"], "report": report_evidence["value"], "tool_results": dict_get_or(tool_results_evidence, "value", null), "packet_manifest": dict_get_or(packet_manifest_evidence, "value", null)}
         if has_flag(parsed["flags"], "signed") {
             key_id := string_or(dict_get_or(parsed["flags"], "key-id", ""), "")
             signed := signed_export(bundle, key_id, signing_key(key_id))
@@ -748,7 +784,7 @@ func cmd_runs(tokens) {
         artifact_name := "changes.json"
         expected_type := "dict"
         if sub == "evaluations" { artifact_name = "evaluations.json"; expected_type = "array" }
-        artifact := read_run_artifact_evidence(record["run_dir"], artifact_name, expected_type, 8388608)
+        artifact := read_run_artifact_evidence(record["run_dir"], artifact_name, expected_type)
         if dict_get_or(artifact, "ok", false) == false {
             return {"ok": false, "failure_class": "evidence_failure", "error": dict_get_or(artifact, "error", "run artifact evidence is invalid")}
         }

@@ -1,4 +1,5 @@
-from src.common import dict_get_or, env_or, env_bool, bool_or, safe_env_name, int_or, path_is_symlink_safe, path_has_symlink_component, capability_registry_posture
+from src.common import dict_get_or, env_or, env_bool, bool_or, safe_env_name, int_or, path_is_symlink_safe, path_has_symlink_component
+from src.capabilities import capability_registry_posture
 from src.adapters import kujo_bin, trusted_executable, trusted_file, ai_sdk_root, agents_sdk_root, ai_bridge_path, watchdog_url, run_process, safe_watchdog_upstream_profile
 from src.policy import real_path
 from src.watchdog import health_check, proxy_config_check, route_policy
