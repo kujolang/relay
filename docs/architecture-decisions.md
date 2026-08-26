@@ -1,6 +1,6 @@
 # Architecture Decision Records
 
-These ADRs preserve the context and consequences recorded when each decision landed. Later ADRs and the current [command reference](command-reference.md), [compatibility policy](compatibility.md), and [integration matrix](integration-matrix.md) supersede earlier forward-looking statements where the implementation has since advanced.
+These ADRs preserve the context and consequences recorded when each decision landed. Read the concise [current architecture map](architecture.md) first. Later ADRs and the current [command reference](command-reference.md), [compatibility policy](compatibility.md), and [integration matrix](integration-matrix.md) supersede earlier forward-looking statements where the implementation has since advanced.
 
 ## ADR-001: New composition repository
 

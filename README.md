@@ -42,7 +42,7 @@ Supported v1 target hosts are Linux and macOS. The exact release candidate must 
 
 ## Repository layout
 
-Runtime implementation lives in `src/`. The small root `main.kujo` file is the conventional Kujo executable entrypoint, `kujo.toml` and `kennel.toml` are package manifests, and `bin/relay` resolves and launches the pinned Kujo runtime. Tests, schemas, examples, release metadata, scripts, and operator documentation remain in their named directories. The root review found no duplicate implementation files to move into `src/`.
+Runtime implementation lives in `src/`. The small root `main.kujo` file is the conventional Kujo executable entrypoint, `kujo.toml` and `kennel.toml` are package manifests, and `bin/relay` resolves and launches the pinned Kujo runtime. Tests, schemas, examples, release metadata, scripts, and operator documentation remain in their named directories. Start with the concise [architecture map](docs/architecture.md) to locate subsystem ownership and the relevant tests.
 
 ## Quick start
 
