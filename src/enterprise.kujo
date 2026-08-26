@@ -1,4 +1,4 @@
-from src.common import dict_get_or, env_or, env_bool, string_or, bool_or, int_or, safe_json, read_json_limited, write_json, append_jsonl_bounded, redact_text, now_iso, path_is_symlink_safe, ensure_safe_directory
+from src.common import CONTROL_RECORD_MAX_BYTES, JSON_DOCUMENT_MAX_BYTES, dict_get_or, env_or, env_bool, string_or, bool_or, int_or, safe_json, read_json_limited, write_json, append_jsonl_bounded, redact_text, now_iso, path_is_symlink_safe, ensure_safe_directory
 from src.contracts import state_integrity_valid
 
 export SPEC_IMPORT_CONTRACT := "relay-spec-import-v1"
@@ -8,8 +8,8 @@ export FAILURE_HANDOFF_CONTRACT := "relay-failure-handoff-v1"
 export SIGNED_EXPORT_CONTRACT := "relay-signed-export-v1"
 
 func negotiate_contract(path) {
-    if path == "" || path_is_symlink_safe(path) || path_exists(path) == false || path_is_file(path) == false || file_size(path) > 1048576 { return {"ok": false, "error": "contract import must be a regular file no larger than 1 MiB"} }
-    value := read_json_limited(path, null, 1048576)
+    if path == "" || path_is_symlink_safe(path) || path_exists(path) == false || path_is_file(path) == false || file_size(path) > JSON_DOCUMENT_MAX_BYTES { return {"ok": false, "error": "contract import must be a regular file no larger than 1 MiB"} }
+    value := read_json_limited(path, null, JSON_DOCUMENT_MAX_BYTES)
     if type(value) != "dict" { return {"ok": false, "error": "contract import must be a JSON object"} }
     kind := string_or(dict_get_or(value, "kind", ""), "")
     version := string_or(dict_get_or(value, "version", ""), "")
@@ -62,8 +62,8 @@ func failure_handoff(run_dir, run_id, output_path, confirmed) {
     if confirmed == false { return {"ok": false, "error": "failed-run handoff requires --confirm"} }
     if output_path == "" || path_is_symlink_safe(output_path) { return {"ok": false, "error": "failed-run handoff requires a safe --output path"} }
     state_path := run_dir + "/state.json"
-    if path_is_symlink_safe(state_path) || path_exists(state_path) == false || file_size(state_path) > 1048576 { return {"ok": false, "error": "run state is unavailable or exceeds 1 MiB"} }
-    state := read_json_limited(state_path, null, 1048576)
+    if path_is_symlink_safe(state_path) || path_exists(state_path) == false || file_size(state_path) > JSON_DOCUMENT_MAX_BYTES { return {"ok": false, "error": "run state is unavailable or exceeds 1 MiB"} }
+    state := read_json_limited(state_path, null, JSON_DOCUMENT_MAX_BYTES)
     if type(state) != "dict" || state_integrity_valid(state) == false || string_or(dict_get_or(state, "run_id", ""), "") != run_id { return {"ok": false, "error": "run state integrity or identity is invalid"} }
     status := string_or(dict_get_or(state, "status", ""), "")
     if status != "failed" && status != "cancelled" { return {"ok": false, "error": "handoff is limited to failed or cancelled runs"} }
@@ -84,7 +84,7 @@ func signed_export(bundle, key_id, secret) {
 
 func signing_key(key_id) {
     raw := env_or("RELAY_SIGNING_KEYS", "")
-    if raw != "" && len(raw) <= 65536 {
+    if raw != "" && len(raw) <= CONTROL_RECORD_MAX_BYTES {
         keys_value := null
         try { keys_value = parse_json(raw) } except err { return "" }
         if type(keys_value) == "dict" { return string_or(dict_get_or(keys_value, key_id, ""), "") }
@@ -94,8 +94,8 @@ func signing_key(key_id) {
 
 func verify_signed_export(path, secret) {
     if secret == "" { return {"ok": false, "error": "RELAY_SIGNING_KEY is required"} }
-    if path == "" || path_is_symlink_safe(path) || path_exists(path) == false || path_is_file(path) == false || file_size(path) > 1048576 { return {"ok": false, "error": "signed export is unavailable or exceeds 1 MiB"} }
-    value := read_json_limited(path, null, 1048576)
+    if path == "" || path_is_symlink_safe(path) || path_exists(path) == false || path_is_file(path) == false || file_size(path) > JSON_DOCUMENT_MAX_BYTES { return {"ok": false, "error": "signed export is unavailable or exceeds 1 MiB"} }
+    value := read_json_limited(path, null, JSON_DOCUMENT_MAX_BYTES)
     if type(value) != "dict" || string_or(dict_get_or(value, "format", ""), "") != SIGNED_EXPORT_CONTRACT || type(dict_get_or(value, "payload", null)) != "dict" { return {"ok": false, "error": "signed export contract is invalid"} }
     payload_sha := sha256(safe_json(value["payload"]))
     expected := hmac_sha256(secret, SIGNED_EXPORT_CONTRACT + "|" + string_or(dict_get_or(value, "key_id", ""), "") + "|" + payload_sha)
@@ -117,7 +117,7 @@ func aggregate_metrics(index) {
         if runs >= 4096 { break }
         record := index[id]
         run_dir := string_or(dict_get_or(record, "run_dir", ""), "")
-        state := read_json_limited(run_dir + "/state.json", null, 1048576)
+        state := read_json_limited(run_dir + "/state.json", null, JSON_DOCUMENT_MAX_BYTES)
         if type(state) != "dict" || state_integrity_valid(state) == false { continue }
         runs = runs + 1
         status := string_or(dict_get_or(state, "status", "unknown"), "unknown")

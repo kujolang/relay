@@ -1,4 +1,5 @@
-from src.common import dict_get_or, issue_agent_capability, env_or, int_or
+from src.common import dict_get_or, env_or, int_or
+from src.capabilities import issue_agent_capability
 
 raw := env_or("RELAY_CAPABILITY_FIXTURE", "")
 payload := null

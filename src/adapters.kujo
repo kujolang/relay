@@ -1,4 +1,5 @@
-from src.common import dict_get_or, env_or, env_bool, string_or, bool_or, int_or, safe_json, read_json_or, redact_text, process_options, safe_env_name, contains_any, path_is_symlink_safe, path_has_symlink_component, issue_agent_capability, revoke_agent_capability
+from src.common import dict_get_or, env_or, env_bool, string_or, bool_or, int_or, safe_json, read_json_or, redact_text, process_options, safe_env_name, contains_any, path_is_symlink_safe, path_has_symlink_component
+from src.capabilities import issue_agent_capability, revoke_agent_capability
 from src.policy import real_path, path_is_within_root
 from src.watchdog import watchdog_verify, safe_base, route_policy, safe_correlation_id
 

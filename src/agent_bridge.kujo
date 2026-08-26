@@ -1,7 +1,7 @@
 # Agents SDK bridge executed with the Agents SDK checkout as its working
 # directory. The SDK owns registry, approval, and runner semantics; Relay owns
 # policy and repository authority through the bounded tools worker callback.
-from src.common import path_is_symlink_safe, path_has_symlink_component, redact_text, safe_env_name
+from src.common import JSONL_EVIDENCE_MAX_BYTES, path_is_symlink_safe, path_has_symlink_component, redact_text, safe_env_name
 from src.agents.ai.adapter import create_ai_sdk_adapter
 from src.agents.runner import create_agent_runner, run_agent
 from src.agents.core_types import create_agent, create_agent_run_request
@@ -74,7 +74,7 @@ func process_options(extra_env, timeout_ms) {
     }
     env_map["PATH"] := "/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
     if index_of(allowed, "PATH") < 0 { allowed := push(allowed, "PATH") }
-    return {"inherit_env": false, "timeout_ms": timeout_ms, "max_output_bytes": 8388608, "env": env_map, "env_allow": allowed}
+    return {"inherit_env": false, "timeout_ms": timeout_ms, "max_output_bytes": JSONL_EVIDENCE_MAX_BYTES, "env": env_map, "env_allow": allowed}
 }
 
 func call_relay_worker(tool_name, input_payload, context, payload) {
