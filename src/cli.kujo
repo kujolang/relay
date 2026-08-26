@@ -3,7 +3,7 @@ from src.contracts import RELAY_VERSION, event_chain_integrity_valid, event_sequ
 from src.registry import agent_catalog, find_agent, agent_path
 from src.adapters import ai_chat, capsule_run
 from src.runtime import ensure_dir, create_mission, run_mission, pause_run, cancel_run, cleanup_run, resume_run, execute_tool_request, verify_packet_manifest, retention_plan, prune_run_evidence, state_root, run_root
-from src.store import load_run_index, rebuild_run_index, persist_run_index, rebuild_and_persist_run_index_result, migrate_run_index_sqlite, store_backend, store_root_safe, run_store_posture
+from src.store import load_run_index_result, rebuild_run_index, persist_run_index, rebuild_and_persist_run_index_result, migrate_run_index_sqlite, store_backend, store_root_safe, run_store_posture
 from src.doctor import doctor
 from src.enterprise import negotiate_contract, machine_access_status, authorize_machine_request, failure_handoff, signed_export, signing_key, verify_signed_export, aggregate_metrics
 
@@ -295,7 +295,9 @@ func cmd_missions(tokens) {
     if shape["ok"] == false { return shape }
     store_check := state_store_check()
     if store_check["ok"] == false { return store_check }
-    index := load_run_index(state_root())
+    index_result := load_run_index_result(state_root())
+    if dict_get_or(index_result, "ok", false) == false { return {"ok": false, "failure_class": "state_store_failure", "error": dict_get_or(index_result, "error", "Run index is unavailable")} }
+    index := dict_get_or(index_result, "index", {})
     if sub == "pause" { return pause_run(id) }
     if sub == "cancel" { return cancel_run(id) }
     if sub == "cleanup" { return cleanup_run(id, has_flag(parsed["flags"], "confirm")) }
@@ -586,13 +588,25 @@ func cmd_runs(tokens) {
     if shape["ok"] == false { return shape }
     store_check := state_store_check()
     if store_check["ok"] == false { return store_check }
-    index := load_run_index(state_root())
     id := positional(parsed["positionals"], 1, "")
-    if sub == "metrics" { return aggregate_metrics(index) }
     if sub == "verify-signature" {
         signed_value := read_json_limited(id, {}, 1048576)
         return verify_signed_export(id, signing_key(string_or(dict_get_or(signed_value, "key_id", ""), "")))
     }
+    if sub == "rebuild" {
+        rebuilt_result := rebuild_and_persist_run_index_result(state_root())
+        if dict_get_or(rebuilt_result, "ok", false) == false { return {"ok": false, "failure_class": "state_store_failure", "runs": dict_get_or(rebuilt_result, "index", {}), "index_source": "rebuild", "error": dict_get_or(rebuilt_result, "error", "Run index persistence failed")} }
+        return {"ok": true, "runs": dict_get_or(rebuilt_result, "index", {}), "index_source": "rebuild", "persisted": true}
+    }
+    if sub == "migrate-store" {
+        if string_or(dict_get_or(parsed["flags"], "backend", ""), "") != "sqlite" { return {"ok": false, "error": "migrate-store requires --backend sqlite"} }
+        if has_flag(parsed["flags"], "confirm") == false { return {"ok": false, "error": "store migration requires --confirm"} }
+        return migrate_run_index_sqlite(state_root())
+    }
+    index_result := load_run_index_result(state_root())
+    if dict_get_or(index_result, "ok", false) == false { return {"ok": false, "failure_class": "state_store_failure", "error": dict_get_or(index_result, "error", "Run index is unavailable")} }
+    index := dict_get_or(index_result, "index", {})
+    if sub == "metrics" { return aggregate_metrics(index) }
     if sub == "list" {
         response := {"ok": true, "runs": index, "index_source": "validated_cache_or_rebuild"}
         if has_key(parsed["flags"], "after") || has_key(parsed["flags"], "limit") {
@@ -605,16 +619,6 @@ func cmd_runs(tokens) {
             response["next_after"] := window["next_after"]
         }
         return response
-    }
-    if sub == "rebuild" {
-        rebuilt_result := rebuild_and_persist_run_index_result(state_root())
-        if dict_get_or(rebuilt_result, "ok", false) == false { return {"ok": false, "failure_class": "state_store_failure", "runs": dict_get_or(rebuilt_result, "index", {}), "index_source": "rebuild", "error": dict_get_or(rebuilt_result, "error", "Run index persistence failed")} }
-        return {"ok": true, "runs": dict_get_or(rebuilt_result, "index", {}), "index_source": "rebuild", "persisted": true}
-    }
-    if sub == "migrate-store" {
-        if string_or(dict_get_or(parsed["flags"], "backend", ""), "") != "sqlite" { return {"ok": false, "error": "migrate-store requires --backend sqlite"} }
-        if has_flag(parsed["flags"], "confirm") == false { return {"ok": false, "error": "store migration requires --confirm"} }
-        return migrate_run_index_sqlite(state_root())
     }
     if sub == "retention" { return prune_run_evidence(int_or(dict_get_or(parsed["flags"], "keep-last", 100), -1), has_flag(parsed["flags"], "confirm")) }
     record := dict_get_or(index, id, null)

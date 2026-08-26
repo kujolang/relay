@@ -234,19 +234,28 @@ func rebuild_and_persist_run_index_result(state_root) {
     return {"ok": true, "index": authoritative, "persisted": true, "backend": store_backend(), "sqlite": sqlite_result, "attempts": lock["attempts"]}
 }
 
-func load_run_index(state_root) {
-    if store_root_safe(state_root) == false { return {} }
+func load_run_index_result(state_root) {
+    if store_root_safe(state_root) == false { return {"ok": false, "index": {}, "error": "Run index store root is unsafe"} }
     if store_backend() == "sqlite" {
         sqlite := sqlite_read_index(state_root)
         sqlite_index := dict_get_or(sqlite, "index", null)
-        if dict_get_or(sqlite, "ok", false) && cached_index_is_safe(state_root, sqlite_index) && run_directories_match_index(state_root, sqlite_index) { return sqlite_index }
-        return rebuild_and_persist_run_index(state_root)
+        if dict_get_or(sqlite, "ok", false) && cached_index_is_safe(state_root, sqlite_index) && run_directories_match_index(state_root, sqlite_index) { return {"ok": true, "index": sqlite_index, "source": "sqlite"} }
+        rebuilt := rebuild_and_persist_run_index_result(state_root)
+        if dict_get_or(rebuilt, "ok", false) == false { return {"ok": false, "index": dict_get_or(rebuilt, "index", {}), "source": "rebuild", "error": dict_get_or(rebuilt, "error", "Transactional SQLite run index could not be rebuilt")} }
+        return {"ok": true, "index": dict_get_or(rebuilt, "index", {}), "source": "rebuild", "persisted": true}
     }
     cached := read_json_limited(state_root + "/index.json", null, 8388608)
     if cached_index_is_safe(state_root, cached) && run_directories_match_index(state_root, cached) {
-        return cached
+        return {"ok": true, "index": cached, "source": "json"}
     }
-    return rebuild_and_persist_run_index(state_root)
+    rebuilt := rebuild_and_persist_run_index_result(state_root)
+    if dict_get_or(rebuilt, "ok", false) == false { return {"ok": false, "index": dict_get_or(rebuilt, "index", {}), "source": "rebuild", "error": dict_get_or(rebuilt, "error", "Run index could not be rebuilt")} }
+    return {"ok": true, "index": dict_get_or(rebuilt, "index", {}), "source": "rebuild", "persisted": true}
+}
+
+func load_run_index(state_root) {
+    result := load_run_index_result(state_root)
+    return dict_get_or(result, "index", {})
 }
 
 func migrate_run_index_sqlite(state_root) {
@@ -290,5 +299,6 @@ export release_index_lock := release_index_lock
 export rebuild_run_index := rebuild_run_index
 export rebuild_and_persist_run_index_result := rebuild_and_persist_run_index_result
 export rebuild_and_persist_run_index := rebuild_and_persist_run_index
+export load_run_index_result := load_run_index_result
 export load_run_index := load_run_index
 export persist_run_index := persist_run_index

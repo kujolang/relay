@@ -3,7 +3,7 @@ from src.contracts import run_state, event, event_integrity_input, receipt, rece
 from src.registry import find_agent
 from src.policy import tool_decision, classify_failure, repair_allowed, path_is_safe, path_is_within_workspace, command_is_allowed, script_hash_policy_valid
 from src.adapters import ai_chat_correlated, ai_chat_correlated_with_tools, normalize_provider_tool_calls, tool_definitions, agents_sdk_smoke, agents_sdk_tool_run, packwrite_generate, runledger_start, runledger_finish, changebucket, eval_run
-from src.store import rebuild_run_index, rebuild_and_persist_run_index_result, load_run_index, persist_run_index, store_root_safe
+from src.store import rebuild_run_index, rebuild_and_persist_run_index_result, load_run_index_result, persist_run_index, store_root_safe
 
 export MISSION_SPEC_MAX_BYTES := 1048576
 export MISSION_COMMAND_MAX_BYTES := 16384
@@ -1181,7 +1181,9 @@ func run_mission(path, options) {
 func pause_run(run_id) {
     store_check := state_store_ready()
     if store_check["ok"] == false { return {"ok": false, "failure_class": "state_store_failure", "error": store_check["error"]} }
-    index := load_run_index(state_root())
+    index_result := load_run_index_result(state_root())
+    if dict_get_or(index_result, "ok", false) == false { return {"ok": false, "failure_class": "state_store_failure", "error": dict_get_or(index_result, "error", "Run index is unavailable")} }
+    index := dict_get_or(index_result, "index", {})
     record := dict_get_or(index, run_id, null)
     if type(record) != "dict" { return {"ok": false, "error": "unknown run: " + run_id} }
     state := read_json_limited(record["run_dir"] + "/state.json", null, JSON_EVIDENCE_MAX_BYTES)
@@ -1199,7 +1201,9 @@ func pause_run(run_id) {
 func cancel_run(run_id) {
     store_check := state_store_ready()
     if store_check["ok"] == false { return {"ok": false, "failure_class": "state_store_failure", "error": store_check["error"]} }
-    index := load_run_index(state_root())
+    index_result := load_run_index_result(state_root())
+    if dict_get_or(index_result, "ok", false) == false { return {"ok": false, "failure_class": "state_store_failure", "error": dict_get_or(index_result, "error", "Run index is unavailable")} }
+    index := dict_get_or(index_result, "index", {})
     record := dict_get_or(index, run_id, null)
     if type(record) != "dict" { return {"ok": false, "error": "unknown run: " + run_id} }
     run_dir := string_or(dict_get_or(record, "run_dir", ""), "")
@@ -1242,7 +1246,9 @@ func cleanup_run(run_id, confirmed) {
     if bool_or(confirmed, false) == false { return {"ok": false, "error": "worktree cleanup requires --confirm"} }
     store_check := state_store_ready()
     if store_check["ok"] == false { return {"ok": false, "failure_class": "state_store_failure", "error": store_check["error"]} }
-    index := load_run_index(state_root())
+    index_result := load_run_index_result(state_root())
+    if dict_get_or(index_result, "ok", false) == false { return {"ok": false, "failure_class": "state_store_failure", "error": dict_get_or(index_result, "error", "Run index is unavailable")} }
+    index := dict_get_or(index_result, "index", {})
     record := dict_get_or(index, run_id, null)
     if type(record) != "dict" { return {"ok": false, "error": "unknown run: " + run_id} }
     state := read_json_limited(record["run_dir"] + "/state.json", null, JSON_EVIDENCE_MAX_BYTES)
@@ -1275,13 +1281,27 @@ func cleanup_run(run_id, confirmed) {
 func retention_plan(keep_last) {
     keep := int_or(keep_last, 100)
     if keep < 0 || keep > 4096 { return {"ok": false, "error": "retention keep-last must be between 0 and 4096"} }
-    index := load_run_index(state_root())
-    if type(index) != "dict" { return {"ok": false, "error": "run index is unavailable"} }
-    completed := []
-    for run_id in sort(keys(index)) {
+    index_result := load_run_index_result(state_root())
+    if dict_get_or(index_result, "ok", false) == false { return {"ok": false, "failure_class": "state_store_failure", "error": dict_get_or(index_result, "error", "Run index is unavailable")} }
+    index := dict_get_or(index_result, "index", {})
+    ordered := {}
+    for run_id in keys(index) {
         record := index[run_id]
-        if type(record) == "dict" && string_or(dict_get_or(record, "status", ""), "") == "completed" { completed = push(completed, run_id) }
+        if type(record) == "dict" && string_or(dict_get_or(record, "status", ""), "") == "completed" {
+            updated_at := string_or(dict_get_or(record, "updated_at", ""), "")
+            parts := split(run_id, "-")
+            if regex_match(updated_at, "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$") == false || len(parts) < 3 {
+                return {"ok": false, "failure_class": "evidence_failure", "error": "completed run has invalid retention ordering evidence", "run_id": run_id}
+            }
+            created_at_ms := parts[len(parts) - 2]
+            if regex_match(created_at_ms, "^[0-9]{13}$") == false {
+                return {"ok": false, "failure_class": "evidence_failure", "error": "completed run has invalid retention ordering evidence", "run_id": run_id}
+            }
+            ordered[updated_at + "|" + created_at_ms + "|" + run_id] := run_id
+        }
     }
+    completed := []
+    for order_key in sort(keys(ordered)) { completed = push(completed, ordered[order_key]) }
     prune_count := len(completed) - keep
     if prune_count < 0 { prune_count = 0 }
     if prune_count > 256 { prune_count = 256 }
@@ -1293,7 +1313,7 @@ func retention_plan(keep_last) {
         candidates = push(candidates, {"run_id": run_id, "run_dir": dict_get_or(record, "run_dir", ""), "status": "completed", "updated_at": dict_get_or(record, "updated_at", "")})
         i = i + 1
     }
-    return {"ok": true, "format": "relay-retention-plan-v1", "policy": {"terminal_status": "completed", "keep_last": keep, "max_prune_per_invocation": 256, "order": "run_id_ascending"}, "completed_runs": len(completed), "candidate_count": len(candidates), "candidates": candidates, "has_more": len(completed) - keep > len(candidates), "dry_run": true}
+    return {"ok": true, "format": "relay-retention-plan-v1", "policy": {"terminal_status": "completed", "keep_last": keep, "max_prune_per_invocation": 256, "order": "updated_at_then_created_at_ascending"}, "completed_runs": len(completed), "candidate_count": len(candidates), "candidates": candidates, "has_more": len(completed) - keep > len(candidates), "dry_run": true}
 }
 
 func prune_run_evidence(keep_last, confirmed) {
@@ -1325,7 +1345,9 @@ func prune_run_evidence(keep_last, confirmed) {
 func resume_run(run_id, repair_requested) {
     store_check := state_store_ready()
     if store_check["ok"] == false { return {"ok": false, "failure_class": "state_store_failure", "error": store_check["error"]} }
-    index := load_run_index(state_root())
+    index_result := load_run_index_result(state_root())
+    if dict_get_or(index_result, "ok", false) == false { return {"ok": false, "failure_class": "state_store_failure", "error": dict_get_or(index_result, "error", "Run index is unavailable")} }
+    index := dict_get_or(index_result, "index", {})
     record := dict_get_or(index, run_id, null)
     if type(record) != "dict" { return {"ok": false, "error": "unknown run: " + run_id} }
     state := read_json_limited(record["run_dir"] + "/state.json", null, JSON_EVIDENCE_MAX_BYTES)

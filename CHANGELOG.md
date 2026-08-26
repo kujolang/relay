@@ -10,6 +10,7 @@ All notable Relay changes are recorded here. Relay follows semantic versioning f
 - Added an optional transactional SQLite run index, authoritative crash rebuild, bounded store posture, retention preview/pruning, and receipted capability/index lease recovery.
 - Added version-negotiated Spec/Dispatch envelopes, a disabled-by-default authenticated machine authorization/audit boundary, redacted CaseFile-compatible failed-run handoff, and rotated HMAC-signed exports without changing unsigned v1.
 - Added bounded aggregate run metrics, committed performance budgets and benchmark harness, and a generated evidence-linked showcase gallery.
+- Fixed retention ordering to use validated completion/update evidence across different mission IDs, and made selected SQLite index rebuild failures propagate instead of returning a healthy run-list result.
 
 ## [1.0.0] - 2026-08-08
 
