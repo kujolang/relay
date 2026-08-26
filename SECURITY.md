@@ -16,7 +16,7 @@ Provider request payloads are bounded below the bridge transport limit, provider
 
 ## Local evidence and integrity
 
-Run evidence is stored below `RELAY_STATE_ROOT` (default `.relay`). State, events, receipts, reports, tool-result bundles, and PackWrite manifests use bounded, symlink-safe reads and fail-closed writes. Event and receipt evidence is limited to 8 MiB per bounded artifact; state reads are limited to 64 MiB; packet and exported artifact inventories have file, depth, entry, and byte limits.
+Run evidence is stored below `RELAY_STATE_ROOT` (default `.relay`). State, events, receipts, reports, tool-result bundles, and PackWrite manifests use bounded, symlink-safe reads and fail-closed writes. Every parsed JSON document is limited to the pinned runtime's 1 MiB parser ceiling. Event JSONL, Markdown reports, and exported artifact inventories have separate 8 MiB envelopes plus file, depth, and entry limits.
 
 SHA-256 integrity fields detect local mutation and sequence inconsistency. They are not cryptographic signatures, identity assertions, tenant authorization, non-repudiation, or proof that an operator controls a signing key. Exports must be verified before use and remain local unsigned evidence unless an external approved signing system is applied by the release owner.
 

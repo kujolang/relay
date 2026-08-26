@@ -5,6 +5,7 @@ Relay is a stable local-first composition and execution layer for bounded agent 
 ## Required Reading
 
 - `README.md`
+- `docs/architecture.md`
 - `docs/command-reference.md`
 - `docs/integration-matrix.md`
 - `docs/launch-checklist.md`
