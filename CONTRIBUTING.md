@@ -2,6 +2,8 @@
 
 Relay is a local-first safety boundary for bounded agent missions. Keep `main.kujo` and `bin/relay` thin, put reusable implementation under `src/`, schemas under `schemas/`, deterministic examples under `examples/`, and regression coverage under `tests/`.
 
+Use the [architecture map](docs/architecture.md) to find subsystem ownership and the focused verification path before editing.
+
 ## Development setup
 
 Use the pinned Kujo runtime recorded in `RUNTIME_VERSION` and the exact sibling revisions in `release/dependencies.json`. Do not make tests depend on a developer-specific directory layout; CI checks out those repositories as siblings at immutable revisions.
