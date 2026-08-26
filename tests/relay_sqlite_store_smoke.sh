@@ -36,6 +36,15 @@ printf '%s' "$listed_again" | jq -e --arg run_id "$run_id" '.ok == true and .run
 
 rm "$RELAY_STATE_ROOT/run-index.sqlite3"
 rm -f "$RELAY_STATE_ROOT/run-index.sqlite3-wal" "$RELAY_STATE_ROOT/run-index.sqlite3-shm"
+printf '%s' 'not-a-sqlite-database' > "$RELAY_STATE_ROOT/run-index.sqlite3"
+set +e
+failed_rebuild="$(RELAY_STORE_BACKEND=sqlite $KUJO run "$ROOT/main.kujo" -- runs list --json 2>&1)"
+failed_rebuild_rc=$?
+set -e
+test "$failed_rebuild_rc" -ne 0
+printf '%s' "$failed_rebuild" | jq -e '.ok == false and .failure_class == "state_store_failure" and (.error | contains("SQLite"))' >/dev/null
+rm "$RELAY_STATE_ROOT/run-index.sqlite3"
+rm -f "$RELAY_STATE_ROOT/run-index.sqlite3-wal" "$RELAY_STATE_ROOT/run-index.sqlite3-shm"
 recovered="$(RELAY_STORE_BACKEND=sqlite $KUJO run "$ROOT/main.kujo" -- runs list --json)"
 printf '%s' "$recovered" | jq -e --arg run_id "$run_id" '.ok == true and .runs[$run_id].status == "completed"' >/dev/null
 test -f "$RELAY_STATE_ROOT/run-index.sqlite3"

@@ -134,7 +134,7 @@ missing_state="$($KUJO run "$ROOT/main.kujo" -- runs inspect "$run_id" --json 2>
 missing_state_rc=$?
 set -e
 test "$missing_state_rc" -ne 0
-printf '%s' "$missing_state" | grep -Eq 'unknown run|run state evidence is missing'
+printf '%s' "$missing_state" | jq -e '.ok == false and .failure_class == "state_store_failure"' >/dev/null
 mv "$state_path.missing" "$state_path"
 
 # An index entry with placeholder metadata must not make a run with missing
@@ -146,11 +146,8 @@ set +e
 missing_index_state="$($KUJO run "$ROOT/main.kujo" -- runs list --json 2>&1)"
 missing_index_state_rc=$?
 set -e
-test "$missing_index_state_rc" -eq 0
-if printf '%s' "$missing_index_state" | jq -e --arg run_id "$run_id" '.runs[$run_id] != null' >/dev/null; then
-  echo "index placeholder entry was accepted without state evidence" >&2
-  exit 1
-fi
+test "$missing_index_state_rc" -ne 0
+printf '%s' "$missing_index_state" | jq -e '.ok == false and .failure_class == "state_store_failure"' >/dev/null
 mv "$state_path.missing" "$state_path"
 
 inspected="$($KUJO run "$ROOT/main.kujo" -- runs inspect "$run_id" --json)"
