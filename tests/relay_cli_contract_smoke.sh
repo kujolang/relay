@@ -10,9 +10,9 @@ export RELAY_STATE_ROOT="$RELAY_TEST_TMP_ROOT/state"
 trap 'rm -rf "$RELAY_TEST_TMP_ROOT"' EXIT
 
 version="$($ROOT/bin/relay --version)"
-test "$version" = "relay 1.0.0"
+test "$version" = "relay 1.1.0"
 help="$($ROOT/bin/relay --help)"
-grep -q 'Relay 1.0.0' <<<"$help"
+grep -q 'Relay 1.1.0' <<<"$help"
 grep -q 'chat <prompt>' <<<"$help"
 grep -q 'missions create' <<<"$help"
 grep -q 'runs list' <<<"$help"

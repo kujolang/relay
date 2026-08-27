@@ -35,7 +35,7 @@ while run_number <= run_count {
         parent = item["event_id"]
         event_number = event_number + 1
     }
-    state := {"type": "RelayRun", "relay_version": "1.0.0", "contract_version": "relay-run-v1", "mission_id": "relay-benchmark-" + profile, "run_id": run_id, "workflow": "benchmark", "status": "completed", "repository": ".", "started_at": "2026-08-12T00:00:00Z", "updated_at": "2026-08-12T00:00:00Z", "current_step": "complete", "attempt": 0, "budgets": {"used_tokens": 0}, "events": events, "receipts": [], "artifacts": [], "evaluations": [], "changes": {}, "failure": null, "telemetry": {"duration_ms": 0}}
+    state := {"type": "RelayRun", "relay_version": "1.1.0", "contract_version": "relay-run-v1", "mission_id": "relay-benchmark-" + profile, "run_id": run_id, "workflow": "benchmark", "status": "completed", "repository": ".", "started_at": "2026-08-12T00:00:00Z", "updated_at": "2026-08-12T00:00:00Z", "current_step": "complete", "attempt": 0, "budgets": {"used_tokens": 0}, "events": events, "receipts": [], "artifacts": [], "evaluations": [], "changes": {}, "failure": null, "telemetry": {"duration_ms": 0}}
     state["integrity_sha256"] := sha256(state_integrity_input(state))
     event_lines := []
     for item in events { event_lines = push(event_lines, safe_json(item)) }

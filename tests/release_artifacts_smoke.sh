@@ -32,7 +32,7 @@ VERSION="$(cat "$ROOT/VERSION")"
 mkdir "$TMP_ROOT/extract"
 tar -xzf "$TMP_ROOT/one/relay-v$VERSION.tar.gz" -C "$TMP_ROOT/extract"
 PACKAGE="$TMP_ROOT/extract/relay-v$VERSION"
-test "$(KUJO_BIN="$KUJO" "$PACKAGE/bin/relay" --version)" = "relay 1.0.0"
+test "$(KUJO_BIN="$KUJO" "$PACKAGE/bin/relay" --version)" = "relay 1.1.0"
 RELAY_ROOT="$PACKAGE" \
 RELAY_STATE_ROOT="$TMP_ROOT/state" \
 KUJO_BIN="$KUJO" \
