@@ -16,7 +16,7 @@ provider request remains capped at 16,384 and receives no more than the
 remaining mission budget. Unsupported or missing mission versions fail before
 execution.
 
-Product `1.0.0` does not rename the existing `v1` event, receipt, run, export,
+Product `1.1.0` does not rename the existing `v1` event, receipt, run, export,
 verification, sizes, tool-result, packet-manifest, or capability identifiers.
 Those identifiers describe their own compatibility generations. Additive
 fields are allowed where `additionalProperties` permits them; incompatible

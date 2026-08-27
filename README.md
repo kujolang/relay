@@ -1,6 +1,6 @@
 # Kujo Relay
 
-[![Version](https://img.shields.io/badge/version-1.0.0-black)](https://github.com/kujolang/relay)
+[![Version](https://img.shields.io/badge/version-1.1.0-black)](https://github.com/kujolang/relay)
 [![License](https://img.shields.io/badge/license-MIT-lightgrey)](LICENSE)
 [![built with Kujo](https://img.shields.io/badge/built%20with-Kujo-white.svg)](https://github.com/kujolang/kujo)
 [![CI](https://img.shields.io/github/actions/workflow/status/kujolang/relay/ci.yml?branch=main&style=flat&label=CI&color=black)](https://github.com/kujolang/relay/actions/workflows/ci.yml)
@@ -30,13 +30,13 @@ Relay is distributed as source. Use Kujo 1.0.0 at the exact revision in [`RUNTIM
 ```bash
 git clone https://github.com/kujolang/relay.git
 cd relay
-git checkout v1.0.0
+git checkout v1.1.0
 export KUJO_BIN=/path/to/kujo
 test "$($KUJO_BIN --version | awk '{print $2}')" = "1.0.0"
 ./bin/relay --version
 ```
 
-Before the final tag exists, release candidates use the approved commit on the release-preparation branch instead of `git checkout v1.0.0`. Relay never downloads or replaces Kujo or sibling tools at runtime.
+Before the final tag exists, release candidates use the approved commit on the release-preparation branch instead of `git checkout v1.1.0`. Relay never downloads or replaces Kujo or sibling tools at runtime.
 
 Supported v1 target hosts are Linux and macOS. The exact release candidate must pass the committed platform matrix before release; Windows is not claimed. Host-specific status and external runner blockers are recorded in the [launch checklist](docs/launch-checklist.md).
 
@@ -148,7 +148,7 @@ The next bounded improvement set is tracked in the [v87 enhancement backlog](doc
 
 Relay product version, mission format, and evidence contracts are independent:
 
-- product and CLI: `1.0.0`;
+- product and CLI: `1.1.0`;
 - current mission format: `1.0.0`;
 - accepted legacy mission format: `0.1.0` for the Relay 1.x line;
 - event, receipt, run, export, verification, sizes, tool-result, packet-manifest, and capability identifiers retain their existing `v1` names.

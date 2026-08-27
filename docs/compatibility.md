@@ -4,7 +4,7 @@ Relay uses semantic versioning for the product and independent identifiers for m
 
 | Surface | Current | Relay 1.x guarantee |
 | --- | --- | --- |
-| Relay product/CLI | `1.0.0` | patch releases preserve behavior; minor releases may add optional surface; incompatible CLI changes require Relay 2.0 |
+| Relay product/CLI | `1.1.0` | patch releases preserve behavior; minor releases may add optional surface; incompatible CLI changes require Relay 2.0 |
 | Mission files | `1.0.0` | `1.0.0` is current; `0.1.0` remains accepted throughout Relay 1.x; missing/unknown versions fail before action |
 | Persisted run state/report | `relay-run-v1` | additive fields allowed; identity, status meaning, integrity input, and required evidence cannot be weakened |
 | Events | `AgentEvent-compatible-v1` | existing required fields, parent ordering, identity, and integrity meaning remain stable |

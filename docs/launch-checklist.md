@@ -1,10 +1,10 @@
-# Relay v1.0.0 release checklist
+# Relay v1.1.0 release checklist
 
 This checklist separates repository-controlled preparation from exact-candidate, approval-gated, external-administration, and release-owner work. An item is complete only when its evidence exists for the stated commit.
 
 ## Repository-controlled preparation
 
-- [x] Product and CLI metadata report `1.0.0`; mission and evidence versions are explicitly independent.
+- [x] Product and CLI metadata report `1.1.0`; mission and evidence versions are explicitly independent.
 - [x] `LICENSE`, `VERSION`, `CHANGELOG.md`, `kennel.toml`, `CONTRIBUTING.md`, and `SECURITY.md` are present and consistent.
 - [x] Stable commands, flags, exit codes, environment, JSON contracts, compatibility, limitations, and security boundaries are documented.
 - [x] Mission `1.0.0` plus legacy `0.1.0` acceptance and unsupported-version rejection have committed fixtures.
@@ -42,7 +42,7 @@ Until these items pass, external provider compatibility is an explicit release b
 ## Release-owner actions
 
 - [ ] Review the final diff, clean tree, pushed commits, exact-candidate evidence, and all blockers.
-- [ ] Create and push `v1.0.0` only after every required gate is green.
+- [ ] Create and push `v1.1.0` only after every required gate is green.
 - [ ] Approve the tag workflow publication job.
 - [ ] Verify uploaded checksums, provenance, SBOM, manifest, source archive, and clean-install behavior.
 - [ ] Create or approve the public GitHub release only for the verified tag.
