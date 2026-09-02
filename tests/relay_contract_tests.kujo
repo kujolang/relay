@@ -5,7 +5,7 @@ from src.common import safe_id, redact_text, shell_quote_single, command_args, p
 from src.capabilities import issue_agent_capability, revoke_agent_capability
 from src.adapters import fallback_allowed, fallback_decision, watchdog_route_allowed, tool_definitions, normalize_provider_tool_calls, provider_payload_size, provider_payload_allowed, safe_watchdog_upstream_profile, bounded_max_tokens
 from src.store import safe_run_key, store_root_safe, run_store_posture, index_lock_owner_path, index_lock_recovery_path, index_lock_recovery_input, acquire_index_lock, acquire_index_lock_retry, release_index_lock, rebuild_and_persist_run_index, rebuild_and_persist_run_index_result
-from src.watchdog import safe_base, safe_correlation_id, route_policy, usage_reconciliation, usage_reconciliation_for_rows
+from src.watchdog import safe_base, safe_correlation_id, route_policy, usage_reconciliation, usage_reconciliation_for_rows, watchdog_native_event
 
 func check(label, condition) {
     if condition { print("PASS " + label); return 0 }
@@ -81,6 +81,10 @@ failed = failed + check("Watchdog usage mismatch", usage_reconciliation({"input_
 duplicate_request_usage := usage_reconciliation_for_rows({"input_tokens": 8, "output_tokens": 4, "total_tokens": 12}, [{"usage_complete": true, "input_tokens": 4, "output_tokens": 6, "total_tokens": 10}, {"usage_complete": true, "input_tokens": 8, "output_tokens": 4, "total_tokens": 12}])
 failed = failed + check("Watchdog duplicate request IDs reconcile by usage", duplicate_request_usage["matched"] && duplicate_request_usage["matched_row"]["total_tokens"] == 12)
 failed = failed + check("Watchdog incomplete usage unavailable", usage_reconciliation({"total_tokens": 5}, {"usage_complete": false, "total_tokens": 5})["available"] == false)
+watchdog_projection := watchdog_native_event(event("tool_completed", "mission1", "run1", "step1", "agent1", {"prompt": "never-export", "tool_output": "never-export"}, ""))
+failed = failed + check("Watchdog lifecycle projection succeeds", watchdog_projection["ok"] && watchdog_projection["event"]["event_kind"] == "tool")
+failed = failed + check("Watchdog lifecycle projection preserves mission correlation", watchdog_projection["event"]["references"][1]["id"] == "mission1")
+failed = failed + check("Watchdog lifecycle projection excludes payload content", !contains(to_json(watchdog_projection["event"]), "never-export"))
 script_workspace := "/tmp/relay-script-policy-" + to_string(current_timestamp())
 create_dir(script_workspace)
 create_dir(script_workspace + "/scripts")

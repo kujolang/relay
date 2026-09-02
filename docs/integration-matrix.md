@@ -22,6 +22,13 @@ This matrix separates required local v1 dependencies, optional proven integratio
 | Spec | `1.0.0` / `11180d8f6af1ed3eea84abb3434dd736fa51293b` | experimental | explicit `1.0.0` envelope version negotiation and compatibility fixtures | complete upstream Spec execution semantics |
 | Dispatch | `1.0.0` / `35b73aca3ce0c51ef480f84b4150ea566d8a26fe` | experimental | explicit `1.0.0` envelope version negotiation and compatibility fixtures | Dispatch graph execution or hosted orchestration |
 
+Relay's `src/watchdog.kujo` also provides a metadata-only
+`watchdog_native_event` projection for mission lifecycle events. It preserves
+mission/run/task/agent correlation while excluding event payloads, repository
+paths, artifact bodies, prompts, responses, and receipts. Relay remains the
+orchestrator and evidence owner; a host-owned fail-open client delivers the
+projection to Watchdog's native ingestion boundary.
+
 ## Required evidence boundaries
 
 Required local dependencies are checked for regular non-symlink paths, bounded version output, and optional configured SHA-256 pins by `doctor`. The release workflow checks out immutable revisions as siblings and never depends on an undocumented workstation layout.

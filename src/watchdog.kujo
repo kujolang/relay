@@ -203,6 +203,58 @@ func verify(correlation_id, expected_usage, request_id) {
     return {"ok": verified, "health": health, "proxy_config": config, "correlation": correlation, "usage_reconciliation": reconciliation}
 }
 
+func relay_watchdog_kind(kind) {
+    value := to_lower(string_or(kind, "event"))
+    if contains(value, "tool") { return "tool" }
+    if contains(value, "agent") { return "agent" }
+    if contains(value, "handoff") { return "handoff" }
+    if contains(value, "approval") { return "approval" }
+    if contains(value, "model") || contains(value, "provider") { return "model" }
+    if contains(value, "evaluation") { return "evaluation" }
+    return "workflow"
+}
+
+func relay_watchdog_status(kind) {
+    value := to_lower(string_or(kind, ""))
+    if contains(value, "failed") || contains(value, "error") { return "error" }
+    if contains(value, "cancel") { return "cancelled" }
+    if contains(value, "denied") || contains(value, "rejected") { return "denied" }
+    if contains(value, "completed") || contains(value, "succeeded") || contains(value, "resumed") { return "ok" }
+    return "unset"
+}
+
+# Relay owns mission orchestration and receipts. This projection gives Watchdog
+# lifecycle correlation only; event payloads, repository paths, artifacts,
+# prompts, responses, and receipt bodies are intentionally excluded.
+func watchdog_native_event(item) {
+    if type(item) != "dict" { return {"ok": false, "error": "Relay event must be an object"} }
+    event_id := safe_correlation_id(dict_get_or(item, "event_id", ""))
+    run_id := safe_correlation_id(dict_get_or(item, "run_id", ""))
+    if event_id == "" || run_id == "" { return {"ok": false, "error": "Relay event_id and run_id must be safe correlation IDs"} }
+    metadata := dict_get_or(item, "metadata", {})
+    mission_id := safe_correlation_id(dict_get_or(metadata, "mission_id", ""))
+    step_id := safe_correlation_id(dict_get_or(item, "step_id", ""))
+    agent_id := safe_correlation_id(dict_get_or(item, "agent_id", ""))
+    kind_value := string_or(dict_get_or(item, "kind", "event"), "event")
+    refs := [{"type": "run", "id": run_id, "namespace": "relay", "relation": "source"}]
+    if mission_id != "" { refs = push(refs, {"type": "workflow", "id": mission_id, "namespace": "relay", "relation": "source"}) }
+    if step_id != "" { refs = push(refs, {"type": "task", "id": step_id, "namespace": "relay", "relation": "source"}) }
+    if agent_id != "" { refs = push(refs, {"type": "agent", "id": agent_id, "namespace": "relay", "relation": "source"}) }
+    status := relay_watchdog_status(kind_value)
+    error_value := null
+    if status == "error" { error_value = {"category": "relay_mission", "message": null} }
+    return {"ok": true, "event": {
+        "schema_version": "watchdog.native-event.v1", "event_id": event_id,
+        "event_kind": relay_watchdog_kind(kind_value), "instantaneous": true,
+        "trace_id": substring(sha256("relay:" + run_id), 0, 32),
+        "span_id": substring(sha256("relay:" + event_id), 0, 16), "parent_span_id": null,
+        "name": "relay." + kind_value, "status": status,
+        "started_at_ms": current_timestamp(), "ended_at_ms": null, "references": refs,
+        "attributes": {"relay.event_kind": kind_value, "relay.contract_version": string_or(dict_get_or(metadata, "contract_version", ""), ""), "relay.has_payload": type(dict_get_or(item, "payload", null)) != "null"},
+        "usage": null, "costs": [], "error": error_value
+    }}
+}
+
 export api_base := api_base
 export route_policy := route_policy
 export safe_base := safe_base
@@ -214,3 +266,4 @@ export usage_reconciliation := usage_reconciliation
 export usage_reconciliation_for_rows := usage_reconciliation_for_rows
 export verify := verify
 export watchdog_verify := verify
+export watchdog_native_event := watchdog_native_event
