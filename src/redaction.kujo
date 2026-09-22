@@ -154,15 +154,18 @@ func redact_text(value) {
     # Logs may prepend human-readable diagnostics to a JSON result. Invalid or
     # truncated JSON-looking lines are suppressed rather than partially leaked.
     redacted_lines := []
+    plain_lines := []
     for source_line in split(source_text, "\n") {
         candidate := trim(source_line)
         if looks_like_json(candidate) {
-            if len(candidate) > 1048576 { redacted_lines = push(redacted_lines, "[REDACTED_OVERSIZED_JSON]"); continue }
+            if len(plain_lines) > 0 { redacted_lines = push(redacted_lines, redact_plain_text(join(plain_lines, "\n"))); plain_lines = [] }
+            if len(candidate) > 1048576 { redacted_lines = push(redacted_lines, "[REDACTED_OVERSIZED_JSON]"); return join(redacted_lines, "\n") }
             try { document := parse_json(candidate); sanitized := redact_value(document, 0, {}); encoded := to_json(sanitized); redacted_lines = push(redacted_lines, encoded); continue } except err {}
             redacted_lines = push(redacted_lines, "[REDACTED_INVALID_JSON]")
             return join(redacted_lines, "\n")
-        } else { redacted_lines = push(redacted_lines, redact_plain_text(source_line)) }
+        } else { plain_lines = push(plain_lines, source_line) }
     }
+    if len(plain_lines) > 0 { redacted_lines = push(redacted_lines, redact_plain_text(join(plain_lines, "\n"))) }
     return join(redacted_lines, "\n")
 }
 

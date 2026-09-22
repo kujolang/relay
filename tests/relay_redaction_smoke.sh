@@ -26,6 +26,7 @@ cases += ['{\n "message": "password=\\"alpha\n omega', 'log ready\n{\n "message"
 deep={'message':'password="alpha omega"'}
 for _ in range(70): deep={'nested':deep}
 cases.append(json.dumps(deep))
+cases.append('password="alpha\nmultiline omega" diagnostic=preserved\n'+json.dumps({'safe':'preserved'}))
 json.dump(cases,open(sys.argv[1],'w'))
 PY
 RELAY_REDACTION_CASES="$TMP_ROOT/cases.json" "$KUJO" run "$ROOT/tests/relay_redaction_fixture.kujo" --interpreter > "$TMP_ROOT/results.json"
@@ -36,6 +37,7 @@ assert len(results)==len(cases)
 for i,text in enumerate(results):
  assert 'alpha' not in text and 'omega' not in text, (i,text)
  if i in [0,1,2,3,5,6,7,8,10,12]: assert 'preserved' in text,(i,text)
+assert 'preserved' in results[16]
 for i in [6,7,10]:json.loads(results[i])
 assert json.loads(results[10])==json.loads(cases[10])
 assert results[11]==cases[11]
