@@ -6,30 +6,70 @@ func sqlite_store_path(state_root) { return state_root + "/run-index.sqlite3" }
 
 func sqlite_store_safe(state_root) {
     path := sqlite_store_path(state_root)
-    if path_has_symlink_component(state_root) || path_is_symlink_safe(path) { return false }
-    if path_exists(path) && path_is_file(path) == false { return false }
+    if path_has_symlink_component(state_root) { return false }
+    # SQLite may access these companions even when the main file is regular.
+    for suffix in ["", "-wal", "-shm", "-journal"] {
+        candidate := path + suffix
+        if path_is_symlink_safe(candidate) { return false }
+        if path_exists(candidate) && path_is_file(candidate) == false { return false }
+    }
     return true
 }
 
-func sqlite_open(state_root) {
-    if sqlite_store_safe(state_root) == false { return null }
+func sqlite_uri(state_root, mode) {
+    path := sqlite_store_path(state_root)
+    # Escape URI metacharacters so a directory name cannot add SQLite options.
+    path = replace(replace(replace(path, "%", "%25"), "?", "%3F"), "#", "%23")
+    return "file:" + path + "?mode=" + mode
+}
+
+func sqlite_schema_valid(db) {
     try {
-        db := db_connect("sqlite", sqlite_store_path(state_root))
+        migrations := db_query(db, "SELECT version, contract_version FROM schema_migrations ORDER BY version LIMIT 2", [])
+        if len(migrations) != 1 || dict_get_or(migrations[0], "version", 0) != 1 || dict_get_or(migrations[0], "contract_version", "") != SQLITE_STORE_CONTRACT { return false }
+        db_query(db, "SELECT run_id, run_dir, mission_id, status, updated_at, integrity_valid FROM run_index LIMIT 0", [])
+        return true
+    } except err { return false }
+}
+
+func sqlite_open_existing(state_root, writable) {
+    if sqlite_store_safe(state_root) == false || path_is_file(sqlite_store_path(state_root)) == false { return null }
+    mode := "ro"
+    if writable { mode = "rw" }
+    try {
+        db := db_connect("sqlite", sqlite_uri(state_root, mode))
+        db_query(db, "PRAGMA busy_timeout=1000", [])
+        if writable == false { db_execute(db, "PRAGMA query_only=ON", []) }
+        if sqlite_schema_valid(db) == false { return null }
+        return db
+    } except err { return null }
+}
+
+func sqlite_initialize(state_root) {
+    if sqlite_store_safe(state_root) == false { return null }
+    # Existing files must validate, never be silently initialized or upgraded.
+    if path_exists(sqlite_store_path(state_root)) { return sqlite_open_existing(state_root, true) }
+    try {
+        db := db_connect("sqlite", sqlite_uri(state_root, "rwc"))
+        db_query(db, "PRAGMA busy_timeout=1000", [])
         db_query(db, "PRAGMA journal_mode=WAL", [])
         db_execute(db, "PRAGMA synchronous=FULL", [])
-        db_execute(db, "CREATE TABLE IF NOT EXISTS schema_migrations (version INTEGER PRIMARY KEY, contract_version TEXT NOT NULL, applied_at_ms INTEGER NOT NULL)", [])
-        db_execute(db, "CREATE TABLE IF NOT EXISTS run_index (run_id TEXT PRIMARY KEY, run_dir TEXT NOT NULL, mission_id TEXT NOT NULL, status TEXT NOT NULL, updated_at TEXT NOT NULL, integrity_valid INTEGER NOT NULL)", [])
-        db_execute(db, "INSERT OR IGNORE INTO schema_migrations (version, contract_version, applied_at_ms) VALUES (1, ?, ?)", [SQLITE_STORE_CONTRACT, current_timestamp()])
+        db_execute(db, "BEGIN IMMEDIATE", [])
+        db_execute(db, "CREATE TABLE schema_migrations (version INTEGER PRIMARY KEY, contract_version TEXT NOT NULL, applied_at_ms INTEGER NOT NULL)", [])
+        db_execute(db, "CREATE TABLE run_index (run_id TEXT PRIMARY KEY, run_dir TEXT NOT NULL, mission_id TEXT NOT NULL, status TEXT NOT NULL, updated_at TEXT NOT NULL, integrity_valid INTEGER NOT NULL)", [])
+        db_execute(db, "INSERT INTO schema_migrations (version, contract_version, applied_at_ms) VALUES (1, ?, ?)", [SQLITE_STORE_CONTRACT, current_timestamp()])
+        db_execute(db, "COMMIT", [])
         return db
     } except err { return null }
 }
 
 func sqlite_write_index(state_root, index) {
     if type(index) != "dict" || len(keys(index)) > 4096 { return {"ok": false, "error": "SQLite run index input is invalid or oversized"} }
-    db := sqlite_open(state_root)
+    db := sqlite_initialize(state_root)
     if type(db) == "null" { return {"ok": false, "error": "SQLite run index is unavailable or unsafe"} }
     mut committed := false
     try {
+        db_execute(db, "PRAGMA synchronous=FULL", [])
         db_execute(db, "BEGIN IMMEDIATE", [])
         db_execute(db, "DELETE FROM run_index", [])
         for run_id in sort(keys(index)) {
@@ -47,11 +87,9 @@ func sqlite_write_index(state_root, index) {
 
 func sqlite_read_index(state_root) {
     if sqlite_store_safe(state_root) == false || path_exists(sqlite_store_path(state_root)) == false { return {"ok": false, "index": {}, "error": "SQLite run index is absent or unsafe"} }
-    db := sqlite_open(state_root)
+    db := sqlite_open_existing(state_root, false)
     if type(db) == "null" { return {"ok": false, "index": {}, "error": "SQLite run index could not be opened"} }
     try {
-        migrations := db_query(db, "SELECT contract_version FROM schema_migrations WHERE version = 1 LIMIT 1", [])
-        if len(migrations) != 1 || string_or(dict_get_or(migrations[0], "contract_version", ""), "") != SQLITE_STORE_CONTRACT { return {"ok": false, "index": {}, "error": "SQLite run index migration contract is invalid"} }
         rows := db_query(db, "SELECT run_id, run_dir, mission_id, status, updated_at, integrity_valid FROM run_index ORDER BY run_id ASC LIMIT 4097", [])
         if len(rows) > 4096 { return {"ok": false, "index": {}, "error": "SQLite run index exceeds the 4096-record safety limit"} }
         index := {}

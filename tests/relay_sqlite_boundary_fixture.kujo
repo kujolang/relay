@@ -1,0 +1,9 @@
+from src.common import env_or, safe_json
+from src.store_sqlite import sqlite_read_index, sqlite_write_index
+root := env_or("RELAY_SQLITE_FIXTURE_ROOT", "")
+if root == "" { exit(2) }
+result := {"ok": false}
+if env_or("RELAY_SQLITE_FIXTURE_ACTION", "read") == "write" { result = sqlite_write_index(root, {}) }
+else { result = sqlite_read_index(root) }
+print(safe_json(result))
+if result["ok"] == false { exit(1) }

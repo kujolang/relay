@@ -16,8 +16,18 @@ export RELAY_STORE_BACKEND=sqlite
 The migration rebuilds from integrity-checked run state, writes all index rows
 inside `BEGIN IMMEDIATE`/`COMMIT`, uses full SQLite synchronization and WAL,
 records `relay-run-index-sqlite-v1`, reads the rows back, and compares them to
-the authoritative run directories. If the database is missing, malformed, or
-stale while SQLite mode is selected, Relay rebuilds it from run evidence.
+the authoritative run directories. A missing cache is initialized and a stale valid cache is rebuilt from run
+evidence. Existing malformed databases, missing migration records, extra/future
+schema versions, or missing columns fail closed; reads never initialize them.
+After backing up evidence, an operator can remove only the invalid cache and
+rebuild it. Do not replace authoritative run directories to repair an index.
+
+Reads use a SQLite `mode=ro` connection and query-only validation, with a bounded
+one-second lock wait. They do not create schema, insert migration records, or
+change journal mode. SQLite may still use WAL coordination sidecars for an
+existing WAL database. Main files and `-wal`, `-shm`, and `-journal` companions
+must be regular non-symlink files when present. URI metacharacters in state
+paths are escaped, so filenames cannot inject SQLite connection options.
 
 The legacy `index.json` cache remains as a rollback-compatible sidecar. Set
 `RELAY_STORE_BACKEND=json` to return to it; no evidence conversion is needed.

@@ -4,6 +4,8 @@ All notable Relay changes are recorded here. Relay follows semantic versioning f
 
 ## [Unreleased]
 
+- Separate SQLite read-only validation from initialization, reject unknown schemas and unsafe sidecars, and bound lock waits.
+
 - Redact complete and truncated PEM private-key bodies, including JSON-escaped content, rather than only their headers.
 - Reject invalid signing keyrings without legacy fallback and validate signed-export wrapper metadata.
 - Verify portable signed bundles independently of the local run store.
