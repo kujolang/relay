@@ -16,7 +16,7 @@ The stable line includes:
 - `chat`, `models`, `agents`, and `doctor` for bounded provider and environment operations;
 - `missions` for create, run, inspect, pause, resume, repair, cancel, cleanup, and report workflows;
 - `runs` for list, aggregate metrics, rebuild, transactional-index migration, retention, inspect, verify, events, watch, sizes, changes, evaluations, failed-run handoff, and complete, partial, or separately signed export;
-- version-negotiated Spec/Dispatch envelopes and a disabled-by-default authenticated machine authorization boundary with identity, role, tenant, approval, and sealed audit mappings;
+- version-negotiated Spec/Dispatch envelopes and disabled-by-default [operator-owned machine authorization](docs/machine-authorization.md) with exact actions, tenant/resource mappings, bound approvals and persistent replay checks;
 - `benchmark run` for the bounded Capsule discovery slice;
 - fixture mode, mandatory Watchdog routing for live calls, provider-generated tool planning, Agents SDK policy execution, PackWrite packets, RunLedger lifecycle evidence, ChangeBucket and Eval results;
 - explicit budgets, direct-argv commands, script hashes, cooperative cancellation, timeouts, bounded repair, detached Git worktrees, evidence verification, and cleanup authority.
@@ -194,6 +194,8 @@ export KUJO_BIN=/path/to/pinned/kujo
 bash scripts/release_gate.sh
 bash tests/release_artifacts_smoke.sh
 ```
+
+The [backup/restore drill](docs/backup-restore.md) verifies quiesced run recovery and rebuilds both local cache backends, with measured fixture recovery times.
 
 The release gate checks source, CLI and machine contracts, every committed smoke test, schemas, Markdown links, metadata consistency, Kennel, ShipCheck, and deterministic clean-install artifacts. Workcell and external live-provider evidence are exact-commit gates tracked separately in the [launch checklist](docs/launch-checklist.md).
 

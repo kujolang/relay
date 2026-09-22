@@ -60,17 +60,20 @@ release gate, and explicit deployment scope. These continue the v87 P0 gates.
   isolate bottlenecks, and preserve the existing budgets until evidence
   justifies a reviewed change.
 
-- [ ] Define operator-owned machine identity/role/tenant mappings before adding
+- [x] Define operator-owned machine identity/role/tenant mappings before adding
   socket or MCP transport. `src/enterprise.kujo::authorize_machine_request`
   currently trusts caller-supplied claims after shared-secret authentication;
   it accepts action prefixes and approved operator actions rather than a fixed
   action dictionary. The CLI primitive is not a service authorization layer.
   Add exact action mappings, deny unknown actions, derive approval server-side,
   and test forged role/tenant/approval, replay, expiry, and cross-tenant access.
-- [ ] Add a documented backup/restore drill for authoritative run directories;
+  Resolved by [operator policy v2](machine-authorization.md) in `5c5a909`;
+  the preceding text records the reviewed v1 behavior, not current authority.
+- [x] Add a documented backup/restore drill for authoritative run directories;
   rebuild both index backends from restored evidence and test partial copies,
   corruption, and interrupted restore. Define recovery objectives from measured
-  results instead of implying multi-host durability.
+  results instead of implying multi-host durability. Implemented in `76b5e64`;
+  see the [drill and measured receipt](backup-restore.md).
 - [x] Review SQLite open behavior: `sqlite_read_index` calls `sqlite_open`, which
   performs schema creation, migration insertion, and WAL configuration even on
   read paths. Separate initialization from read-only validation and add fixtures

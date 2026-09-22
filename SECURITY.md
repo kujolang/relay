@@ -52,3 +52,14 @@ Malformed JSON-looking output (including its continuation tail), oversized JSON
 and excessive nesting are replaced with redaction markers. Diagnostic text
 outside those boundaries is retained. These rules are a bounded pattern filter,
 not a guarantee of detecting arbitrary secrets in unlabelled prose.
+
+### Machine authorization ownership
+
+The optional machine command uses [v2 operator policy](docs/machine-authorization.md)
+for identity credentials, roles, tenant/resource ownership, exact grants and
+request-bound mutation approvals. Caller claims and v1 shared-secret authority
+are rejected. The operator owns policy/environment selection and local audit
+storage; a wrapper must enforce the returned decision on the same tenant/resource.
+Replay checks survive process restarts and credential rotation but cannot survive
+an operator rolling back or deleting the audit. This local primitive does not
+establish network authentication, host-user isolation or distributed locking.
