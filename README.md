@@ -36,13 +36,23 @@ test "$($KUJO_BIN --version | awk '{print $2}')" = "1.0.0"
 ./bin/relay --version
 ```
 
-Before the final tag exists, release candidates use the approved commit on the release-preparation branch instead of `git checkout v1.1.0`. Relay never downloads or replaces Kujo or sibling tools at runtime.
+For an unreleased candidate, check out its reviewed commit instead of a release
+tag. Relay never downloads or replaces Kujo or sibling tools at runtime.
+
+The full mission workflow also requires `ai-sdk`, `agents-sdk`, `kujo-agents`,
+`packwrite`, `runledger`, `changebucket`, and `eval` checked out beside `relay`
+at the revisions in [`release/dependencies.json`](release/dependencies.json).
+Keep the pinned Kujo source checkout beside them for module resolution. The
+[CI workflow](.github/workflows/ci.yml) shows the complete pinned setup and
+build commands. Existing installations can use the explicit dependency paths
+in the [command reference](docs/command-reference.md). A source archive alone
+does not bundle these dependencies; run `doctor` before starting a mission.
 
 Supported v1 target hosts are Linux and macOS. The exact release candidate must pass the committed platform matrix before release; Windows is not claimed. Host-specific status and external runner blockers are recorded in the [launch checklist](docs/launch-checklist.md).
 
 ## Repository layout
 
-Runtime implementation lives in `src/`. The September review found no duplicate tracked root implementation to move. The small root `main.kujo` file is the conventional Kujo executable entrypoint, `kujo.toml` and `kennel.toml` are package manifests, and `bin/relay` resolves and launches the pinned Kujo runtime. Tests, schemas, examples, release metadata, scripts, and operator documentation remain in their named directories. Start with the concise [architecture map](docs/architecture.md) to locate subsystem ownership and the relevant tests.
+Runtime implementation lives in `src/`. The September review found no duplicate tracked root implementation to move. The small root `main.kujo` file is the conventional Kujo executable entrypoint, `kujo.toml` and `kennel.toml` are package manifests, and `bin/relay` resolves and launches the configured trusted Kujo runtime. Tests, schemas, examples, release metadata, scripts, and operator documentation remain in their named directories. Start with the concise [architecture map](docs/architecture.md) to locate subsystem ownership and the relevant tests.
 
 ## Quick start
 
