@@ -95,6 +95,13 @@ jobs:
           ref: dce9d030a3547803dab876b404c44c25b247dde1
           path: eval
           token: ${{ secrets.KUJO_ECOSYSTEM_TOKEN || github.token }}
+      - name: Checkout Workcell
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          repository: kujolang/workcell
+          ref: 28d2c4a3b8d317fedd5e20be618f98bd3859eaea
+          path: workcell
+          token: ${{ secrets.KUJO_ECOSYSTEM_TOKEN || github.token }}
       - name: Checkout Kennel
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
