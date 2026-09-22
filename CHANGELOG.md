@@ -7,6 +7,7 @@ All notable Relay changes are recorded here. Relay follows semantic versioning f
 - Redact complete and truncated PEM private-key bodies, including JSON-escaped content, rather than only their headers.
 - Reject invalid signing keyrings without legacy fallback and validate signed-export wrapper metadata.
 - Verify portable signed bundles independently of the local run store.
+- Reuse file-size metadata on bounded JSON reads and canonical payload serialization when signing exports.
 - Correct nearest-rank p95 calculation and collect five representative benchmark samples in CI.
 - Repair the lifecycle projection regression assertion for Kujo's integer-returning `contains` function.
 - Refresh security boundaries and add the September review and next-session backlog.

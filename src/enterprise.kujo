@@ -75,9 +75,10 @@ func failure_handoff(run_dir, run_id, output_path, confirmed) {
 
 func signed_export(bundle, key_id, secret) {
     if type(bundle) != "dict" { return {"ok": false, "error": "signed export payload must be an object"} }
-    if len(safe_json(bundle)) > 900000 { return {"ok": false, "error": "signed export payload exceeds its bounded 900 KiB envelope"} }
+    payload_json := safe_json(bundle)
+    if len(payload_json) > 900000 { return {"ok": false, "error": "signed export payload exceeds its bounded 900 KiB envelope"} }
     if key_id == "" || secret == "" { return {"ok": false, "error": "signed export requires --key-id and RELAY_SIGNING_KEY"} }
-    payload_sha := sha256(safe_json(bundle))
+    payload_sha := sha256(payload_json)
     signature := hmac_sha256(secret, SIGNED_EXPORT_CONTRACT + "|" + key_id + "|" + payload_sha)
     return {"ok": true, "format": SIGNED_EXPORT_CONTRACT, "algorithm": "hmac-sha256", "key_id": key_id, "created_at": now_iso(), "payload_sha256": payload_sha, "signature": signature, "payload": bundle}
 }

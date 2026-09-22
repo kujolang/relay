@@ -14,6 +14,8 @@ certification or proof of every deployment environment.
 - Invalid configured signing keyrings cannot silently select the legacy secret.
   Signed-export verification validates wrapper metadata and works without the
   originating local state store. Existing HMAC payload inputs are unchanged.
+- Bounded JSON reads reuse one file-size probe, and signed exports reuse their
+  canonical payload serialization for the size check and digest.
 - Benchmark p95 now uses nearest rank rather than rounding down. Five-sample
   CI evidence replaces single-sample representative runs. This improves
   measurement integrity; it does not establish a throughput improvement.
