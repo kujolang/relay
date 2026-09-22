@@ -1,7 +1,8 @@
 {
   "format": "relay-fixture-walkthrough-v1",
   "ok": true,
-  "source_commit": "76b5e64497c90a081d0e6dee0eb1a5f0f05a0440",
+  "source_commit": "757cd961b65ef1a823ae54dd1df6c0952691c92e",
+  "generator_sha256": "40b96e78660cd01500bf992bcce65e17b7d05de614939af2c927ff5f028fc193",
   "runtime_revision": "9b77dce592047121cb71066629836ad89252f3ce",
   "runtime_sha256": "40d12094c82b0cfb99134cb6c7d5eea4793c9c5fa2c384f2cea6cfdc4a15f9df",
   "dependencies": {
@@ -23,5 +24,5 @@
   "mission_status": "completed",
   "run_verified": true,
   "signature_valid_without_origin_store": true,
-  "transcript_sha256": "398bf876e82eaf5514be2f8a4e5cac9a929ea4b0ca19df5ea5f27e670f94a90f"
+  "transcript_sha256": "f72a1bb47526010d84dbf7bc123c49b52245d7612c746f3772cb492e3fa1f210"
 }

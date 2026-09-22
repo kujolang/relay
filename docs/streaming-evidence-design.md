@@ -15,9 +15,22 @@ bounded pages from that snapshot. No path is interpreted as a shell command.
 
 The snapshot producer must use a bounded streaming process API, backpressure,
 a deadline and cancellation. Redirecting a buffered result into a file does not
-satisfy this requirement. The pinned Kujo runtime's available process API must
-be established before implementation; if streaming is unavailable, add and pin
-a runtime capability first. Do not silently require an unpinned helper binary.
+satisfy this requirement. Pinned-runtime inspection establishes a prerequisite: Kujo `9b77dce` already
+supports `stream_channel`, `stream_stdout_path` and cancellation, but
+`MAX_PROCESS_MAX_OUTPUT_BYTES` is 16 MiB. `StreamSink::emit` applies that same
+limit to streamed bytes, and `collect_stream_with_limit` also retains a bounded
+copy. Merely selecting a stream file cannot provide complete larger discovery.
+See the pinned [process implementation](https://github.com/kujolang/kujo/blob/9b77dce592047121cb71066629836ad89252f3ce/src/interpreter/native_functions/system.rs#L495).
+
+Before implementing this design, add and pin a runtime API that independently
+bounds retained output, emitted bytes and channel capacity. It must permit
+zero retained output with a larger explicitly bounded stream quota, preserve
+structured argv, enforce cancellation/deadlines and report stream truncation.
+The channel must preserve bytes or use an incremental strict UTF-8 decoder; the
+pinned channel currently applies lossy conversion independently to each chunk,
+which is insufficient for paths split across a multibyte character.
+Do not silently require an unpinned helper binary or increase the current global
+capture limit. The proposed new API is a prerequisite, not an existing capability.
 
 Acquire an index snapshot without modifying the caller's index. Record the
 repository identity, index digest and starting commit. Detect mutation while
@@ -37,9 +50,11 @@ Each page contains at most 256 paths and 16 KiB encoded JSON. Measure serialized
 UTF-8 bytes, including escaping and envelope overhead. Store paths as decoded
 UTF-8 with an explicit unsupported-encoding error; no lossy replacement and no
 newline splitting. A single path exceeding the page allowance fails with a
-specific bounded error. Snapshot storage has explicit total-byte, path-count,
-duration and concurrent-snapshot quotas, initially operator configured with
-conservative defaults. Exceeding a quota fails; it never advertises completion.
+specific bounded error. Proposed default snapshot quotas are 256 MiB total bytes, 1,000,000 paths,
+60 seconds capture time, eight concurrent snapshots and ten-minute cursor
+expiry. These are design limits to be validated, not performance claims.
+Operators may lower them; exceeding these ceilings requires a reviewed contract
+revision. Page bounds remain 256 paths / 16 KiB encoded JSON. Exceeding a quota fails; it never advertises completion.
 
 Cancellation terminates the child, closes handles and removes unpublished
 pages. Expired published snapshots are garbage-collected under the same lease
@@ -62,7 +77,10 @@ silently split. For larger individual content, use a distinct blob contract
 with encoding, exact byte length and digest, not an incomplete JSON record.
 Readers stream chunks, validate exact lengths/digests/order, reject duplicates,
 missing chunks, traversal and symlinks, and retain only one chunk plus bounded
-metadata in memory. Cap chunk count, total bytes and nesting before traversal.
+metadata in memory. Proposed v2 limits are 8,192 data chunks, 4 GiB total referenced bytes,
+256 descriptors per manifest page and two manifest levels. Validate these
+before traversal; repeated object IDs and cycles fail. Limits are explicit
+contract fields that cannot exceed the reader's configured ceiling.
 
 Write temporary chunks, flush them, atomically rename immutable objects, then
 publish the manifest last. Interrupted publication leaves no accepted manifest.
@@ -94,3 +112,25 @@ all referenced bytes have passed validation in a staging directory.
 Keep these acceptance cases pending until an implementation runs them on the
 pinned runtime. Required evidence includes the exact candidate/dependency pins,
 fixture generator seed, measured bytes/RSS/timing and cancellation receipts.
+
+## Design deliverable and implementation sequencing
+
+The v88 checklist asks to **design** streaming discovery and chunked evidence.
+This document delivers that design and its acceptance matrix; it does not
+introduce a runtime feature or relax an existing envelope. The earlier execution
+ledger's requirement for an implementation was broader than that checkbox.
+Implementation is a separate follow-up requiring the runtime primitive above,
+versioned contracts and the complete acceptance matrix before any scale claim.
+
+The proposed state machine is `capturing -> validating -> published -> expired`.
+Failure or cancellation before publication transitions to `aborted`; no cursor
+is issued. Read requests authenticate the cursor, validate manifest identity and
+expiry, acquire the snapshot lease, verify the selected page and release the
+lease. They return `snapshot_changed`, `cursor_invalid`, `cursor_expired`,
+`budget_exceeded`, `cancelled`, `evidence_invalid` or `io_failure` as applicable;
+errors never silently restart against a changed repository.
+
+An implementation review should first approve the runtime API and quota policy,
+then the v2 manifest/cursor canonicalization and compatibility fixtures, then
+run the acceptance matrix on immutable source pins. Existing v1 readers and
+limits remain supported throughout that sequence.

@@ -16,8 +16,8 @@ Historical receipts must not be promoted to the eventual final candidate.
 | G7 | SQLite reader/init split with missing/future schemas, locks and unsafe sidecars covered | Implemented in `ef02ab0`; pinned-runtime boundary, migration/recovery and state-store safety tests verify the change. |
 | G8 | Quoted credentials, whitespace, escaped quotes and chunk-boundary redaction fixtures | Implemented in `f324e90` with `2926cdb`/`838a05e` follow-ups; real buffered chat/stream fixtures, contracts and pinned-dependency integration gate passed. See redaction evidence below. |
 | G9 | Cold/warm latency and memory comparison on both index backends, small/medium/large profiles, preserved tamper detection | Pending profiling and controlled measurements. |
-| G10 | Streaming discovery and chunked-evidence design beyond current limits, stable cursors, mutation, cancellation and bounded acceptance | Proposed contracts and acceptance matrix in [streaming/evidence design](streaming-evidence-design.md); runtime implementation and acceptance evidence remain pending. |
-| G11 | Isolated fixture installation-to-export walkthrough, generated screenshots, Kujo learning links, clean-host validation | Pending implementation and evidence. |
+| G10 | Streaming discovery and chunked-evidence design beyond current limits, stable cursors, mutation, cancellation and bounded acceptance | Design delivered in [streaming/evidence design](streaming-evidence-design.md): pinned-runtime prerequisite, bounded snapshot/cursor and chunk contracts, mutation/cancellation state machine and acceptance matrix. The requested deliverable is a design; implementation is explicitly future work. |
+| G11 | Isolated fixture installation-to-export walkthrough, generated screenshots, Kujo learning links, clean-host validation | Implemented in `757cd96`; archive installation into fresh HOME, full fixture mission and portable signed-export verification pass with exact pinned siblings. Screenshots visually reviewed; fresh-host platform CI remains part of G1. |
 
 ## SQLite evidence
 
@@ -72,3 +72,20 @@ The script hash binds the receipt to the drill committed in `76b5e64`.
 These measurements are not production SLOs; see [recovery guidance](backup-restore.md).
 The added `tests/relay_backup_restore_smoke.sh` passed separately at `76b5e64`
 in the same pinned environment. The final candidate gate must include it.
+
+## Walkthrough evidence
+
+[First verified run](first-verified-run.md) contains the pinned install procedure,
+copyable offline runner, generated transcript screenshots and official Kujo
+learning links. [Receipt](walkthrough/receipt.json) binds the full command
+[transcript](walkthrough/transcript.json) to source `757cd96`, the generator hash,
+the Kujo binary hash and immutable required dependency revisions.
+
+`tests/relay_walkthrough_smoke.sh` passed in the isolated pinned tree. The runner
+extracts a committed archive into an empty HOME, uses an explicit environment
+allowlist, validates agents, runs the complete fixture mission, verifies evidence,
+exports under an ephemeral random fixture signing key and verifies with an absent
+origin store. The fixture key is never stored. Both PNG transcript views were
+rendered with an isolated Chromium profile and visually checked. Platform clean-host
+runs remain in the final G1 matrix; local clean installation is not evidence for
+unrun platforms.

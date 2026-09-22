@@ -176,7 +176,7 @@
           "symlink_component": false
         },
         {
-          "duration_ms": 72,
+          "duration_ms": 64,
           "error": "",
           "name": "Kujo runtime version",
           "ok": true,
@@ -186,7 +186,7 @@
           "version": "kujo 1.0.0"
         },
         {
-          "duration_ms": 146,
+          "duration_ms": 117,
           "error": "",
           "name": "PackWrite version",
           "ok": true,
@@ -196,7 +196,7 @@
           "version": "packwrite 1.0.0"
         },
         {
-          "duration_ms": 117,
+          "duration_ms": 109,
           "error": "",
           "name": "RunLedger version",
           "ok": true,
@@ -206,7 +206,7 @@
           "version": "runledger 1.0.0"
         },
         {
-          "duration_ms": 115,
+          "duration_ms": 109,
           "error": "",
           "name": "ChangeBucket version",
           "ok": true,
@@ -313,7 +313,7 @@
       "contract_version": "1.0.0",
       "finish_reason": "stop",
       "model": "fixture-model",
-      "normalized_at": 1790095171315,
+      "normalized_at": 1790095358341,
       "ok": true,
       "output_text": "Standardized AI SDK responses reduce integration complexity and speed up development.",
       "provider": "openai-compatible",
@@ -322,8 +322,8 @@
         "model": "fixture-model"
       },
       "relay_telemetry": {
-        "correlation_id": "relay-ai-1790095171119-169637",
-        "duration_ms": 140,
+        "correlation_id": "relay-ai-1790095358177-62951",
+        "duration_ms": 121,
         "model": "fixture-model",
         "provider": "fixture",
         "requested_max_tokens": 700,
@@ -363,7 +363,7 @@
           {
             "cancelled": false,
             "command": "git status --short",
-            "duration_ms": 53,
+            "duration_ms": 41,
             "exit_code": 0,
             "failure_class": "tool_failure",
             "ok": true,
@@ -400,7 +400,7 @@
           {
             "integrity_sha256": "282f473a47446e49aa6b7f7742b9de348c3a9896ac2e5c0d07d18e9fb513590d",
             "kind": "packwrite_agent_pack",
-            "manifest_integrity_sha256": "278a356c77f9bb9f055dc73d085e037b53405cf111af73a081914f07d8e1a351",
+            "manifest_integrity_sha256": "5e29b33b32e535343cb0b9886a2bd87e2a59180c052823f1d21c2db47dd37f0c",
             "manifest_path": "$DEMO/state/runs/$RUN_ID/packet-manifest.json",
             "ok": true,
             "path": "$DEMO/state/runs/$RUN_ID/agent",
@@ -457,7 +457,7 @@
               "status": "added"
             }
           ],
-          "generated_at": "2026-09-22T16:39:37Z",
+          "generated_at": "2026-09-22T16:42:41Z",
           "head": "working tree",
           "summary": {
             "binary_files": 0,
@@ -475,9 +475,9 @@
         "checkpoint": null,
         "completion_candidate": {
           "changes_ok": true,
-          "changes_receipt_id": "rcpt-1790095177067-971426-changes",
+          "changes_receipt_id": "rcpt-1790095361765-494753-changes",
           "evaluation_ok": true,
-          "evaluation_receipt_id": "rcpt-1790095178203-810354-evaluation"
+          "evaluation_receipt_id": "rcpt-1790095362692-283448-evaluation"
         },
         "contract_version": "relay-run-v1",
         "current_step": "",
@@ -490,7 +490,7 @@
               "cache_metric_hits": 0,
               "cache_metric_misses": 0,
               "cache_metric_unique_files": 0,
-              "duration_ms": 295,
+              "duration_ms": 278,
               "failed": 0,
               "parallel_fallback_reason": "",
               "parallel_mode": "serial",
@@ -552,8 +552,8 @@
         "events": [
           {
             "agent_id": "relay",
-            "event_id": "evt-1790095173958-773337-run_started",
-            "integrity_sha256": "195bb53accd51eab4e0d12615b56fdc052815dcecdfe0429cf19fde71289ea3d",
+            "event_id": "evt-1790095359376-189435-run_started",
+            "integrity_sha256": "097dccf0d03be7b8b9d0def40b46940ce60e6af0055f9c7ba3bc09e3e1077e2e",
             "kind": "run_started",
             "metadata": {
               "agent_id": "relay",
@@ -574,7 +574,7 @@
             },
             "parent_event_id": "",
             "payload": {
-              "receipt_id": "rcpt-1790095173441-660818-runledger",
+              "receipt_id": "rcpt-1790095359172-522368-runledger",
               "repository": "$DEMO/workspace",
               "source_repository": "$DEMO/workspace",
               "workflow": "verified-feature",
@@ -587,13 +587,13 @@
             "run_id": "$RUN_ID",
             "session_id": "$RUN_ID",
             "step_id": "",
-            "timestamp": "2026-09-22T16:39:33Z",
+            "timestamp": "2026-09-22T16:42:39Z",
             "type": "AgentEvent"
           },
           {
             "agent_id": "planner",
-            "event_id": "evt-1790095175546-418155-artifact_created",
-            "integrity_sha256": "3d299b8d8b508e13d5313c78ee25f6ec7a61901aee58b19b28147551083d0757",
+            "event_id": "evt-1790095360419-427980-artifact_created",
+            "integrity_sha256": "b96e1cc40cf3d1936e13a0fff28b0f2c427666b5de340bbea950e35c0153efb6",
             "kind": "artifact_created",
             "metadata": {
               "agent_id": "planner",
@@ -612,27 +612,27 @@
               "tool": "packwrite_agent_pack",
               "workflow": "verified-feature"
             },
-            "parent_event_id": "evt-1790095173958-773337-run_started",
+            "parent_event_id": "evt-1790095359376-189435-run_started",
             "payload": {
               "integrity_sha256": "282f473a47446e49aa6b7f7742b9de348c3a9896ac2e5c0d07d18e9fb513590d",
               "kind": "packwrite_agent_pack",
-              "manifest_integrity_sha256": "278a356c77f9bb9f055dc73d085e037b53405cf111af73a081914f07d8e1a351",
+              "manifest_integrity_sha256": "5e29b33b32e535343cb0b9886a2bd87e2a59180c052823f1d21c2db47dd37f0c",
               "manifest_path": "$DEMO/state/runs/$RUN_ID/packet-manifest.json",
               "ok": true,
               "path": "$DEMO/state/runs/$RUN_ID/agent",
-              "receipt_id": "rcpt-1790095175475-122404-artifact",
+              "receipt_id": "rcpt-1790095360348-81501-artifact",
               "revision": 1
             },
             "run_id": "$RUN_ID",
             "session_id": "$RUN_ID",
             "step_id": "packet",
-            "timestamp": "2026-09-22T16:39:35Z",
+            "timestamp": "2026-09-22T16:42:40Z",
             "type": "AgentEvent"
           },
           {
             "agent_id": "planner",
-            "event_id": "evt-1790095175662-899893-artifact_created",
-            "integrity_sha256": "fbe6e1e95aafadb578a61a688bccc6bc0ead2e1df69cffadd0dd8da4a7fe7e6d",
+            "event_id": "evt-1790095360519-662453-artifact_created",
+            "integrity_sha256": "117b405c2d7e07a2a65f736c0e10dd0205ed9602fec3e190443e5b68de476b01",
             "kind": "artifact_created",
             "metadata": {
               "agent_id": "planner",
@@ -651,22 +651,22 @@
               "tool": "agents_sdk_offline_smoke",
               "workflow": "verified-feature"
             },
-            "parent_event_id": "evt-1790095175546-418155-artifact_created",
+            "parent_event_id": "evt-1790095360419-427980-artifact_created",
             "payload": {
               "kind": "agents_sdk_offline_smoke",
               "ok": true,
-              "receipt_id": "rcpt-1790095175588-775695-artifact"
+              "receipt_id": "rcpt-1790095360456-647695-artifact"
             },
             "run_id": "$RUN_ID",
             "session_id": "$RUN_ID",
             "step_id": "agent-sdk",
-            "timestamp": "2026-09-22T16:39:35Z",
+            "timestamp": "2026-09-22T16:42:40Z",
             "type": "AgentEvent"
           },
           {
             "agent_id": "core-developer",
-            "event_id": "evt-1790095175773-302300-tool_call_completed",
-            "integrity_sha256": "9045e23539c4b2419170fe8126a80fcfdd781e3e1b05085415adf716bebf54d2",
+            "event_id": "evt-1790095360621-491691-tool_call_completed",
+            "integrity_sha256": "e8bb0db97e5d052b7c5477b33adb1af19f9f2284abbf67ee66b4e8988a5bbe38",
             "kind": "tool_call_completed",
             "metadata": {
               "agent_id": "core-developer",
@@ -685,24 +685,24 @@
               "tool": "agents_sdk_tool_registry",
               "workflow": "verified-feature"
             },
-            "parent_event_id": "evt-1790095175662-899893-artifact_created",
+            "parent_event_id": "evt-1790095360519-662453-artifact_created",
             "payload": {
               "data": {},
               "kind": "agents_sdk_tool_registry",
               "ok": true,
-              "receipt_id": "rcpt-1790095175707-65235-tool",
+              "receipt_id": "rcpt-1790095360555-962004-tool",
               "skipped": true
             },
             "run_id": "$RUN_ID",
             "session_id": "$RUN_ID",
             "step_id": "agent-sdk-tools",
-            "timestamp": "2026-09-22T16:39:35Z",
+            "timestamp": "2026-09-22T16:42:40Z",
             "type": "AgentEvent"
           },
           {
             "agent_id": "planner",
-            "event_id": "evt-1790095176157-947498-artifact_created",
-            "integrity_sha256": "0fda8625d99cd3dcca593c1fac6d19e42d3d915575ab027f5167068086166cf9",
+            "event_id": "evt-1790095360957-13453-artifact_created",
+            "integrity_sha256": "dce767f879b4a7f91ea36c2aa093b4ab09ff3f45ee17169558946cbab5851475",
             "kind": "artifact_created",
             "metadata": {
               "agent_id": "planner",
@@ -721,22 +721,22 @@
               "tool": "agent_response",
               "workflow": "verified-feature"
             },
-            "parent_event_id": "evt-1790095175773-302300-tool_call_completed",
+            "parent_event_id": "evt-1790095360621-491691-tool_call_completed",
             "payload": {
               "kind": "agent_response",
               "path": "$DEMO/state/runs/$RUN_ID/agent-response.md",
-              "receipt_id": "rcpt-1790095176072-522082-artifact"
+              "receipt_id": "rcpt-1790095360894-695590-artifact"
             },
             "run_id": "$RUN_ID",
             "session_id": "$RUN_ID",
             "step_id": "plan-response",
-            "timestamp": "2026-09-22T16:39:36Z",
+            "timestamp": "2026-09-22T16:42:40Z",
             "type": "AgentEvent"
           },
           {
             "agent_id": "planner",
-            "event_id": "evt-1790095176265-445097-model_request_completed",
-            "integrity_sha256": "eb4f89eb8faa0627229082cee23d9152a132455f0faaabdb93b3de5758cc241c",
+            "event_id": "evt-1790095361054-662477-model_request_completed",
+            "integrity_sha256": "8712a2224e9d69465c99af0d737ede93fd1bd166ac9ed8df83bc43b0198b81f5",
             "kind": "model_request_completed",
             "metadata": {
               "agent_id": "planner",
@@ -755,13 +755,13 @@
               "tool": "",
               "workflow": "verified-feature"
             },
-            "parent_event_id": "evt-1790095176157-947498-artifact_created",
+            "parent_event_id": "evt-1790095360957-13453-artifact_created",
             "payload": {
               "ok": true,
-              "receipt_id": "rcpt-1790095176196-133737-model",
+              "receipt_id": "rcpt-1790095360992-842886-model",
               "telemetry": {
                 "correlation_id": "$RUN_ID",
-                "duration_ms": 123,
+                "duration_ms": 110,
                 "model": "fixture-model",
                 "provider": "fixture",
                 "requested_max_tokens": 4000,
@@ -780,13 +780,13 @@
             "run_id": "$RUN_ID",
             "session_id": "$RUN_ID",
             "step_id": "plan",
-            "timestamp": "2026-09-22T16:39:36Z",
+            "timestamp": "2026-09-22T16:42:41Z",
             "type": "AgentEvent"
           },
           {
             "agent_id": "core-developer",
-            "event_id": "evt-1790095176480-982172-tool_call_completed",
-            "integrity_sha256": "91bb330571f6d83ee39916a26ca4feac6e8568bf2fb7897bf4359e771b5945d0",
+            "event_id": "evt-1790095361258-607851-tool_call_completed",
+            "integrity_sha256": "c4a2500345e4d7b398d3ded6afd121ead9f65a8973478e93a286ab070e0eb6a8",
             "kind": "tool_call_completed",
             "metadata": {
               "agent_id": "core-developer",
@@ -805,7 +805,7 @@
               "tool": "",
               "workflow": "verified-feature"
             },
-            "parent_event_id": "evt-1790095176265-445097-model_request_completed",
+            "parent_event_id": "evt-1790095361054-662477-model_request_completed",
             "payload": {
               "actions": 2,
               "ok": true
@@ -813,13 +813,13 @@
             "run_id": "$RUN_ID",
             "session_id": "$RUN_ID",
             "step_id": "implementation",
-            "timestamp": "2026-09-22T16:39:36Z",
+            "timestamp": "2026-09-22T16:42:41Z",
             "type": "AgentEvent"
           },
           {
             "agent_id": "release-verifier",
-            "event_id": "evt-1790095178844-209079-run_completed",
-            "integrity_sha256": "ac49be13f5584fe09bfb0e68f24c0711a6a75512a2dedc2646dffd0a7fbe214a",
+            "event_id": "evt-1790095363276-171812-run_completed",
+            "integrity_sha256": "3b1fdd85a91973768e884d6062975c08b68bca1e285cec9dc98c6be071bb86c7",
             "kind": "run_completed",
             "metadata": {
               "agent_id": "release-verifier",
@@ -838,22 +838,22 @@
               "tool": "",
               "workflow": "verified-feature"
             },
-            "parent_event_id": "evt-1790095176480-982172-tool_call_completed",
+            "parent_event_id": "evt-1790095361258-607851-tool_call_completed",
             "payload": {
               "changes_ok": true,
-              "changes_receipt_id": "rcpt-1790095177067-971426-changes",
+              "changes_receipt_id": "rcpt-1790095361765-494753-changes",
               "evaluation_ok": true,
-              "evaluation_receipt_id": "rcpt-1790095178203-810354-evaluation"
+              "evaluation_receipt_id": "rcpt-1790095362692-283448-evaluation"
             },
             "run_id": "$RUN_ID",
             "session_id": "$RUN_ID",
             "step_id": "verify",
-            "timestamp": "2026-09-22T16:39:38Z",
+            "timestamp": "2026-09-22T16:42:43Z",
             "type": "AgentEvent"
           }
         ],
         "failure": null,
-        "integrity_sha256": "b97c486e6b5f82806aea82c43f7b5a2d84088f689d2082f57c1f5d52805dac27",
+        "integrity_sha256": "358bcc8ccadce48b740953ff76bc450559cd6ed033fb1c97c3cf93196f7f6705",
         "mission_id": "relay-fixture-mission",
         "mission_spec": {
           "acceptance_criteria": [
@@ -890,11 +890,11 @@
           "version": "1.0.0",
           "workflow": "verified-feature"
         },
-        "mission_spec_integrity_sha256": "bd2c7e85b4907ced7e928a41dbad13c4babed85d24de26e97cb68cd310ab8ff1",
+        "mission_spec_integrity_sha256": "ffbf08a67f2d003f87154be2ab5fe3dfc1360ce232f2352a3f23df60a77192f2",
         "model": "fixture-model",
         "packet_manifest": {
           "entries": 13,
-          "integrity_sha256": "278a356c77f9bb9f055dc73d085e037b53405cf111af73a081914f07d8e1a351",
+          "integrity_sha256": "5e29b33b32e535343cb0b9886a2bd87e2a59180c052823f1d21c2db47dd37f0c",
           "path": "$DEMO/state/runs/$RUN_ID/packet-manifest.json",
           "required": true
         },
@@ -908,8 +908,8 @@
             "agent_id": "relay",
             "artifact_ref": "$DEMO/state/runs/$RUN_ID/ledger",
             "contract_version": "relay-receipt-v1",
-            "created_at": "2026-09-22T16:39:33Z",
-            "integrity_sha256": "584064f6320c411c68c1c4cbda12df3ecc7e090c5f56104831104b34119790b2",
+            "created_at": "2026-09-22T16:42:39Z",
+            "integrity_sha256": "e4283b5d85ab001f1ea459dcf6bcb3fa3c5c34520294f24ba31f134e394466a0",
             "kind": "runledger",
             "metadata": {
               "artifact": "$DEMO/state/runs/$RUN_ID/ledger",
@@ -933,7 +933,7 @@
               "ok": true,
               "runledger_id": "2026-09-22-fixture-model-relay-fixture-mission-001"
             },
-            "receipt_id": "rcpt-1790095173441-660818-runledger",
+            "receipt_id": "rcpt-1790095359172-522368-runledger",
             "run_id": "$RUN_ID",
             "status": "completed",
             "step_id": "plan",
@@ -943,8 +943,8 @@
             "agent_id": "planner",
             "artifact_ref": "$DEMO/state/runs/$RUN_ID/agent",
             "contract_version": "relay-receipt-v1",
-            "created_at": "2026-09-22T16:39:35Z",
-            "integrity_sha256": "30f625a0928bb81276e79068aaecae2a8bcee62df69e4044f5596e46b004a08d",
+            "created_at": "2026-09-22T16:42:40Z",
+            "integrity_sha256": "c45c38d7c425b68b0f5f17e5582d668ddcf68425a47e582da60cceebdfa40d78",
             "kind": "artifact",
             "metadata": {
               "artifact": "$DEMO/state/runs/$RUN_ID/agent",
@@ -967,13 +967,13 @@
             "payload": {
               "integrity_sha256": "282f473a47446e49aa6b7f7742b9de348c3a9896ac2e5c0d07d18e9fb513590d",
               "kind": "packwrite_agent_pack",
-              "manifest_integrity_sha256": "278a356c77f9bb9f055dc73d085e037b53405cf111af73a081914f07d8e1a351",
+              "manifest_integrity_sha256": "5e29b33b32e535343cb0b9886a2bd87e2a59180c052823f1d21c2db47dd37f0c",
               "manifest_path": "$DEMO/state/runs/$RUN_ID/packet-manifest.json",
               "ok": true,
               "path": "$DEMO/state/runs/$RUN_ID/agent",
               "revision": 1
             },
-            "receipt_id": "rcpt-1790095175475-122404-artifact",
+            "receipt_id": "rcpt-1790095360348-81501-artifact",
             "run_id": "$RUN_ID",
             "status": "completed",
             "step_id": "packet",
@@ -983,8 +983,8 @@
             "agent_id": "planner",
             "artifact_ref": "agent_sdk",
             "contract_version": "relay-receipt-v1",
-            "created_at": "2026-09-22T16:39:35Z",
-            "integrity_sha256": "0452f57db2ae983960fa103c7111a6b5e461e6830c5427ec91348ec2cd203f17",
+            "created_at": "2026-09-22T16:42:40Z",
+            "integrity_sha256": "b809c6a90caac2a91f2fd79dc6277fd66fc67569608b16cd747c0462914c9e21",
             "kind": "artifact",
             "metadata": {
               "artifact": "agent_sdk",
@@ -1008,7 +1008,7 @@
               "kind": "agents_sdk_offline_smoke",
               "ok": true
             },
-            "receipt_id": "rcpt-1790095175588-775695-artifact",
+            "receipt_id": "rcpt-1790095360456-647695-artifact",
             "run_id": "$RUN_ID",
             "status": "completed",
             "step_id": "agent-sdk",
@@ -1018,8 +1018,8 @@
             "agent_id": "core-developer",
             "artifact_ref": "agent_sdk_tools",
             "contract_version": "relay-receipt-v1",
-            "created_at": "2026-09-22T16:39:35Z",
-            "integrity_sha256": "a6dae524ae3ea12e7c2fbec6710a7c718915da4f334f9e82663546a841384a7e",
+            "created_at": "2026-09-22T16:42:40Z",
+            "integrity_sha256": "fd64404161bc4fcc178cfd5b573e7e5a3f9bb3b73f7fdbd28b9e146a4f649fce",
             "kind": "tool",
             "metadata": {
               "artifact": "agent_sdk_tools",
@@ -1044,7 +1044,7 @@
               "ok": true,
               "skipped": true
             },
-            "receipt_id": "rcpt-1790095175707-65235-tool",
+            "receipt_id": "rcpt-1790095360555-962004-tool",
             "run_id": "$RUN_ID",
             "status": "completed",
             "step_id": "agent-sdk-tools",
@@ -1054,8 +1054,8 @@
             "agent_id": "planner",
             "artifact_ref": "$DEMO/state/runs/$RUN_ID/agent-response.md",
             "contract_version": "relay-receipt-v1",
-            "created_at": "2026-09-22T16:39:36Z",
-            "integrity_sha256": "3d1a08dc9c1e08d98c799afa1c891665c475f44cb17a7832eac53e8e012d1bae",
+            "created_at": "2026-09-22T16:42:40Z",
+            "integrity_sha256": "300aab58978a4be5b25723852f9cd3b5b29a8178301187029ac47bff63b50ee4",
             "kind": "artifact",
             "metadata": {
               "artifact": "$DEMO/state/runs/$RUN_ID/agent-response.md",
@@ -1080,7 +1080,7 @@
               "kind": "agent_response",
               "path": "$DEMO/state/runs/$RUN_ID/agent-response.md"
             },
-            "receipt_id": "rcpt-1790095176072-522082-artifact",
+            "receipt_id": "rcpt-1790095360894-695590-artifact",
             "run_id": "$RUN_ID",
             "status": "completed",
             "step_id": "plan-response",
@@ -1090,8 +1090,8 @@
             "agent_id": "planner",
             "artifact_ref": "fixture-model",
             "contract_version": "relay-receipt-v1",
-            "created_at": "2026-09-22T16:39:36Z",
-            "integrity_sha256": "cb3f5c5a24bfd62c8ecb17d397a019c761c2cf06deb6d066b11de8880b202f3b",
+            "created_at": "2026-09-22T16:42:40Z",
+            "integrity_sha256": "4749a3e251a81c579c55324831002989889822640514e9863cd923c0937b3a8a",
             "kind": "model",
             "metadata": {
               "artifact": "fixture-model",
@@ -1115,7 +1115,7 @@
               "ok": true,
               "telemetry": {
                 "correlation_id": "$RUN_ID",
-                "duration_ms": 123,
+                "duration_ms": 110,
                 "model": "fixture-model",
                 "provider": "fixture",
                 "requested_max_tokens": 4000,
@@ -1139,7 +1139,7 @@
                 "total_tokens": 20
               }
             },
-            "receipt_id": "rcpt-1790095176196-133737-model",
+            "receipt_id": "rcpt-1790095360992-842886-model",
             "run_id": "$RUN_ID",
             "status": "completed",
             "step_id": "plan",
@@ -1149,8 +1149,8 @@
             "agent_id": "release-verifier",
             "artifact_ref": "$DEMO/state/runs/$RUN_ID/changes.json",
             "contract_version": "relay-receipt-v1",
-            "created_at": "2026-09-22T16:39:37Z",
-            "integrity_sha256": "022b408d49e948b7b90e924d38fedcfcc551dfa8c159bcea0fff824e0ff44b5b",
+            "created_at": "2026-09-22T16:42:41Z",
+            "integrity_sha256": "5a62e15b0e6f32020e295254d1e52b7286e95448ada1d9a81c7f111d54a31d8f",
             "kind": "changes",
             "metadata": {
               "artifact": "$DEMO/state/runs/$RUN_ID/changes.json",
@@ -1174,7 +1174,7 @@
               "ok": true,
               "persisted": true
             },
-            "receipt_id": "rcpt-1790095177067-971426-changes",
+            "receipt_id": "rcpt-1790095361765-494753-changes",
             "run_id": "$RUN_ID",
             "status": "completed",
             "step_id": "verify",
@@ -1184,8 +1184,8 @@
             "agent_id": "release-verifier",
             "artifact_ref": "$DEMO/state/runs/$RUN_ID/evaluations.json",
             "contract_version": "relay-receipt-v1",
-            "created_at": "2026-09-22T16:39:38Z",
-            "integrity_sha256": "4fd169b576d18a037abd28e0f01e7752c267611afe568b4fbbdba31c1074cd6b",
+            "created_at": "2026-09-22T16:42:42Z",
+            "integrity_sha256": "8e7c92b81b23508c40412d4bfa51d2c565fdf26c85379a46bf2d1cc5d6e3945f",
             "kind": "evaluation",
             "metadata": {
               "artifact": "$DEMO/state/runs/$RUN_ID/evaluations.json",
@@ -1210,7 +1210,7 @@
               "ok": true,
               "persisted": true
             },
-            "receipt_id": "rcpt-1790095178203-810354-evaluation",
+            "receipt_id": "rcpt-1790095362692-283448-evaluation",
             "run_id": "$RUN_ID",
             "status": "completed",
             "step_id": "verify",
@@ -1220,8 +1220,8 @@
             "agent_id": "relay",
             "artifact_ref": "$DEMO/state/runs/$RUN_ID/ledger",
             "contract_version": "relay-receipt-v1",
-            "created_at": "2026-09-22T16:39:38Z",
-            "integrity_sha256": "94b3e4fb969f50a35c66a218369ce218fc34f7d5022e91fd3f6eedaafb7b72f6",
+            "created_at": "2026-09-22T16:42:43Z",
+            "integrity_sha256": "bf2807fe94816ea9b4bdd9e5c1948d08e393941cb0f1fc2e000c4b4e8f725958",
             "kind": "runledger",
             "metadata": {
               "artifact": "$DEMO/state/runs/$RUN_ID/ledger",
@@ -1245,7 +1245,7 @@
               "ok": true,
               "runledger_id": "2026-09-22-fixture-model-relay-fixture-mission-001"
             },
-            "receipt_id": "rcpt-1790095178747-985000-runledger",
+            "receipt_id": "rcpt-1790095363187-946122-runledger",
             "run_id": "$RUN_ID",
             "status": "pass",
             "step_id": "finish",
@@ -1256,24 +1256,24 @@
         "repository": "$DEMO/workspace",
         "run_id": "$RUN_ID",
         "runledger": {
-          "duration_ms": 547,
+          "duration_ms": 241,
           "error": "",
           "ledger": "$DEMO/state/runs/$RUN_ID/ledger",
           "ok": true,
-          "output": "Started run: 2026-09-22-fixture-model-relay-fixture-mission-001\n  storage:      $DEMO/state/runs/$RUN_ID/ledger/runs/2026-09-22-fixture-model-relay-fixture-mission-001.json\n  repo:         $DEMO/workspace\n  start commit: 4eb1e35deaa229416263d94e3ab6f1d204f48f3b\n\nNext: runledger finish 2026-09-22-fixture-model-relay-fixture-mission-001 --status <pass|partial|fail|abandoned> --verdict \"...\"\n",
+          "output": "Started run: 2026-09-22-fixture-model-relay-fixture-mission-001\n  storage:      $DEMO/state/runs/$RUN_ID/ledger/runs/2026-09-22-fixture-model-relay-fixture-mission-001.json\n  repo:         $DEMO/workspace\n  start commit: 2e710f09b21c7638024482164289317214cc1ed9\n\nNext: runledger finish 2026-09-22-fixture-model-relay-fixture-mission-001 --status <pass|partial|fail|abandoned> --verdict \"...\"\n",
           "run_id": "2026-09-22-fixture-model-relay-fixture-mission-001"
         },
         "runledger_finish": {
-          "duration_ms": 389,
+          "duration_ms": 352,
           "error": "",
           "ok": true,
-          "output": "Finished run: 2026-09-22-fixture-model-relay-fixture-mission-001\n  status:       pass\n  end commit:   4eb1e35deaa229416263d94e3ab6f1d204f48f3b\n  changed files: 1\n"
+          "output": "Finished run: 2026-09-22-fixture-model-relay-fixture-mission-001\n  status:       pass\n  end commit:   2e710f09b21c7638024482164289317214cc1ed9\n  changed files: 1\n"
         },
-        "started_at": "2026-09-22T16:39:32Z",
+        "started_at": "2026-09-22T16:42:38Z",
         "status": "completed",
         "telemetry": {
           "correlation_id": "$RUN_ID",
-          "duration_ms": 123,
+          "duration_ms": 110,
           "model": "fixture-model",
           "provider": "fixture",
           "requested_max_tokens": 4000,
@@ -1289,7 +1289,7 @@
           "watchdog_upstream_profile_configured": false
         },
         "type": "RelayRun",
-        "updated_at": "2026-09-22T16:39:38Z",
+        "updated_at": "2026-09-22T16:42:43Z",
         "usage": {
           "input_tokens": 12,
           "output_tokens": 8,
@@ -1353,7 +1353,7 @@
     "result": {
       "key_id": "walkthrough",
       "ok": true,
-      "payload_sha256": "4b7d7199300e9f520a8436dfc3dc86673ee6b412d596fe1bc3ab08dec8a4c2ca",
+      "payload_sha256": "ed1da3281032cf89108850eda3d3b9a8ec091876f98caa2a4b309755157c579e",
       "signature_valid": true
     }
   }

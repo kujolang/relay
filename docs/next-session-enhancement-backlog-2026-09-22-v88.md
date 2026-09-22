@@ -93,14 +93,17 @@ release gate, and explicit deployment scope. These continue the v87 P0 gates.
   on a cache hit; aggregate metrics reads them again. Profile this cost before
   designing an invalidation strategy. Preserve tamper detection and bounded
   reads; compare cold/warm latency and memory on both backends.
-- [ ] Design streaming tracked-file discovery beyond the current 16 MiB envelope
+- [x] Design streaming tracked-file discovery beyond the current 16 MiB envelope
   and versioned chunked evidence beyond the 1 MiB JSON ceiling. Acceptance must
   cover stable cursors, concurrent repository changes, cancellation, and bounds.
-  The [proposed design](streaming-evidence-design.md) records these contracts;
-  implementation acceptance remains pending.
-- [ ] Add an isolated fixture walkthrough from installation to verified export,
+  The [design](streaming-evidence-design.md) records the pinned-runtime
+  prerequisite, bounded contracts, state transitions and acceptance matrix.
+  Implementation remains a separate follow-up; current limits are unchanged.
+- [x] Add an isolated fixture walkthrough from installation to verified export,
   with generated screenshots and clear links to Kujo learning material. Confirm
-  it works with pinned sibling dependencies on a clean host.
+  it works with pinned sibling dependencies on a clean host. The
+  [walkthrough](first-verified-run.md) passes an isolated fresh-home archive
+  installation with exact pins; full clean-host platform proof remains in P0.
 
 Asymmetric custody and full Spec/Dispatch execution remain deferred v87 items;
 implementing them requires explicit contracts and compatibility fixtures.
