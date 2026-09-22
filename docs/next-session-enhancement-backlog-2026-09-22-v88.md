@@ -77,9 +77,11 @@ release gate, and explicit deployment scope. These continue the v87 P0 gates.
   for missing/unknown schema versions, locked databases, and unsafe sidecars.
   Implemented and verified in `ef02ab0`; see the
   [execution status](v88-execution-status.md) for pinned-runtime evidence.
-- [ ] Expand redaction fixtures for quoted credentials containing whitespace,
+- [x] Expand redaction fixtures for quoted credentials containing whitespace,
   escaped quotes, and chunk boundaries. Preserve useful diagnostics without
   treating pattern matching as a general secret-classification guarantee.
+  Implemented with real buffered-stream fixtures; see the
+  [component verification](review-evidence/2026-09-22/redaction-verification.json).
 
 ## P2 — Measure scale and improve adoption
 
@@ -91,6 +93,8 @@ release gate, and explicit deployment scope. These continue the v87 P0 gates.
 - [ ] Design streaming tracked-file discovery beyond the current 16 MiB envelope
   and versioned chunked evidence beyond the 1 MiB JSON ceiling. Acceptance must
   cover stable cursors, concurrent repository changes, cancellation, and bounds.
+  The [proposed design](streaming-evidence-design.md) records these contracts;
+  implementation acceptance remains pending.
 - [ ] Add an isolated fixture walkthrough from installation to verified export,
   with generated screenshots and clear links to Kujo learning material. Confirm
   it works with pinned sibling dependencies on a clean host.

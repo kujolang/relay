@@ -1,0 +1,39 @@
+{
+  "scope": "v88 G8 component verification, not final release approval",
+  "full_release_gate": {
+    "source_commit": "f324e90f025ba05908491140968eac3c3db07e07",
+    "result": "passed",
+    "smoke_scripts": 36,
+    "runtime_revision": "9b77dce592047121cb71066629836ad89252f3ce",
+    "dependency_pins": "release/dependencies.json",
+    "environment": "isolated pinned sibling worktrees; macOS x86_64",
+    "log_sha256": "dcb60d62596c1a581ecd06d319efd2bf6cf62c6344d1a690f1c5ab0f427b6029",
+    "includes": [
+      "source checks",
+      "contracts",
+      "25 schemas",
+      "Markdown links",
+      "release metadata",
+      "36 smoke scripts",
+      "Kennel",
+      "ShipCheck 16/16",
+      "two-build archive reproducibility",
+      "clean archive install"
+    ]
+  },
+  "followup_source_commit": "838a05e12df903377174d43f5331f70476a26613",
+  "followup_changes": [
+    "multiline plaintext blocks in mixed JSON logs",
+    "credential environment suffix compatibility"
+  ],
+  "followup_verification": [
+    "redaction smoke including idempotence and real buffered chat stream path",
+    "contract suite"
+  ],
+  "remaining": [
+    "final-candidate full multi-platform gates",
+    "live provider approval and proof",
+    "Workcell candidate proof",
+    "other v88 execution ledger requirements"
+  ]
+}

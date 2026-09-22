@@ -14,9 +14,9 @@ Historical receipts must not be promoted to the eventual final candidate.
 | G5 | Operator-owned identity/role/tenant/action/approval mappings; forged claims, replay, expiry and cross-tenant tests | Pending implementation. Disabled-by-default primitive remains trusted-caller only until replaced. |
 | G6 | Authoritative backup/restore drill, both cache rebuilds, partial/corrupt/interrupted restoration, measured recovery objectives | Pending implementation and drill. |
 | G7 | SQLite reader/init split with missing/future schemas, locks and unsafe sidecars covered | Implemented in `ef02ab0`; pinned-runtime boundary, migration/recovery and state-store safety tests verify the change. |
-| G8 | Quoted credentials, whitespace, escaped quotes and chunk-boundary redaction fixtures | Pending. Include actual buffered stream handling, not only concatenated test strings. |
+| G8 | Quoted credentials, whitespace, escaped quotes and chunk-boundary redaction fixtures | Implemented in `f324e90` with `2926cdb`/`838a05e` follow-ups; real buffered chat/stream fixtures, contracts and pinned-dependency integration gate passed. See redaction evidence below. |
 | G9 | Cold/warm latency and memory comparison on both index backends, small/medium/large profiles, preserved tamper detection | Pending profiling and controlled measurements. |
-| G10 | Streaming discovery and chunked-evidence design beyond current limits, stable cursors, mutation, cancellation and bounded acceptance | Pending design and acceptance evidence. |
+| G10 | Streaming discovery and chunked-evidence design beyond current limits, stable cursors, mutation, cancellation and bounded acceptance | Proposed contracts and acceptance matrix in [streaming/evidence design](streaming-evidence-design.md); runtime implementation and acceptance evidence remain pending. |
 | G11 | Isolated fixture installation-to-export walkthrough, generated screenshots, Kujo learning links, clean-host validation | Pending implementation and evidence. |
 
 ## SQLite evidence
@@ -38,3 +38,18 @@ The existing integration tests run with the pinned sibling dependency worktrees.
 
 The final full release gate will include the newly discovered smoke script.
 No final-candidate platform, provider, performance or Workcell claim is made here.
+
+## Redaction evidence
+
+[Component receipt](review-evidence/2026-09-22/redaction-verification.json).
+The full release gate passed at `f324e90` with pinned Kujo and siblings:
+36 smoke scripts, contracts, 25 schemas, source/link/metadata checks, Kennel,
+ShipCheck 16/16, deterministic two-build archives and clean archive installation.
+Follow-up commits `2926cdb` and `838a05e` retain multiline mixed-log context and
+credential-name suffix compatibility; the expanded redaction smoke and contract
+suite passed again. These are component receipts, not final candidate receipts.
+
+Fixtures cover quoted whitespace, escaped quotes, multiline/truncated values,
+JSON strings and malformed JSON continuation tails, nesting bounds, idempotence,
+public/private PEM handling, preserved benign structure and diagnostics, and
+actual buffered chat/stream subprocess output with split content/tool arguments.
