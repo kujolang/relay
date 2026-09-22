@@ -21,7 +21,7 @@ run="$($KUJO run "$ROOT/main.kujo" -- missions run "$TMP_ROOT/mission.json" --fi
 export RELAY_BENCHMARK_RUN_ID="$(jq -r '.run.run_id' <<<"$run")"
 export RELAY_BENCHMARK_ITERATIONS=3
 bash "$ROOT/scripts/benchmark_run_store.sh" "$TMP_ROOT/result.json" >/dev/null
-jq -e '.contract_version == "relay-run-store-benchmark-v1" and .iterations == 3 and (.commands | keys | length) == 4 and all(.commands[]; .p95_ms >= 0)' "$TMP_ROOT/result.json" >/dev/null
+jq -e '.contract_version == "relay-run-store-benchmark-v1" and .iterations == 3 and (.commands | keys | length) == 4 and all(.commands[]; .p95_ms == (.samples_ms | max))' "$TMP_ROOT/result.json" >/dev/null
 jq -e '
   .contract_version == "relay-performance-budgets-v1" and
   .regression_percent >= 0 and

@@ -31,12 +31,12 @@ for i in $(seq 1 "$ITERATIONS"); do
 done
 sizes="$($KUJO run "$ROOT/main.kujo" -- runs sizes "$RUN_ID" --json)"
 python3 - "$tmp" "$OUTPUT" "$RUN_ID" "$ITERATIONS" "$sizes" "$(git -C "$ROOT" rev-parse HEAD)" <<'PY'
-import json, pathlib, platform, statistics, sys
+import json, math, pathlib, platform, statistics, sys
 tmp, output, run_id, iterations, sizes, relay_commit = sys.argv[1:]
 def summary(name):
     values = [int(x) for x in pathlib.Path(tmp, name).read_text().split()]
     ordered = sorted(values)
-    return {"samples_ms": values, "min_ms": min(values), "median_ms": statistics.median(values), "p95_ms": ordered[max(0, int(len(ordered)*.95)-1)], "max_ms": max(values)}
+    return {"samples_ms": values, "min_ms": min(values), "median_ms": statistics.median(values), "p95_ms": ordered[max(0, math.ceil(len(ordered)*.95)-1)], "max_ms": max(values)}
 sizes_value = json.loads(sizes)
 size_profile = {"summary": sizes_value.get("summary", {}), "hashes_included": sizes_value.get("hashes_included", False), "excluded_count": len(sizes_value.get("excluded", []))}
 payload = {"contract_version":"relay-run-store-benchmark-v1","relay_commit":relay_commit,"platform":f"{platform.system().lower()}-{platform.machine().lower()}","run_id":run_id,"iterations":int(iterations),"sizes":size_profile,"commands":{"runs_list":summary("list"),"runs_verify":summary("verify"),"runs_watch_completed":summary("watch"),"runs_export":summary("export")}}

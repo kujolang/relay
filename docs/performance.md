@@ -3,7 +3,9 @@
 Relay treats performance as a tested contract, not an unqualified claim. The
 committed [budget file](../benchmarks/budgets.json) defines representative
 small, medium, and large profiles, five-sample p95 limits, and the
-20 percent regression threshold. Platform results must name the exact commit
+20 percent regression threshold. p95 uses the nearest-rank definition
+(`ceil(0.95 * samples)`); for five samples this is the maximum. CI collects
+five samples per representative profile. Platform results must name the exact commit
 and remain separated; one machine is not evidence for another.
 
 Run a local sample against a completed, verified run:
