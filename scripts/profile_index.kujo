@@ -1,0 +1,12 @@
+from src.common import env_or, safe_json
+from src.store import load_run_index_result
+from src.enterprise import aggregate_metrics
+
+profile_root := env_or("RELAY_STATE_ROOT", "")
+profile_started := current_timestamp()
+profile_index := load_run_index_result(profile_root)
+profile_loaded := current_timestamp()
+if profile_index["ok"] == false { print(safe_json(profile_index)); exit(1) }
+profile_metrics := aggregate_metrics(profile_index["index"])
+profile_finished := current_timestamp()
+print(safe_json({"ok": profile_metrics["ok"], "index_source": profile_index["source"], "index_load_ms": profile_loaded - profile_started, "aggregate_state_scan_ms": profile_finished - profile_loaded, "records": len(keys(profile_index["index"]))}))

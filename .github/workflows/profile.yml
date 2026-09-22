@@ -1,0 +1,61 @@
+name: Relay controlled store profiling
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - .github/workflows/profile.yml
+      - scripts/profile_run_store.py
+      - scripts/profile_index.kujo
+      - benchmarks/budgets.json
+
+permissions:
+  contents: read
+
+jobs:
+  profile:
+    name: cold-warm (${{ matrix.backend }})
+    strategy:
+      fail-fast: false
+      matrix:
+        backend: [json, sqlite]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - name: Checkout Relay
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          path: relay
+      - name: Checkout pinned Kujo
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          repository: kujolang/kujo
+          ref: 9b77dce592047121cb71066629836ad89252f3ce
+          path: kujo
+          token: ${{ secrets.KUJO_ECOSYSTEM_TOKEN || github.token }}
+      - name: Setup pinned Rust toolchain action
+        uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8
+      - name: Build pinned runtime
+        run: cargo build --release --locked --manifest-path kujo/Cargo.toml --bin kujo
+      - name: Profile all datasets on a quiet runner
+        working-directory: relay
+        shell: bash
+        env:
+          KUJO_BIN: ${{ github.workspace }}/kujo/target/release/kujo
+          PROFILE_BACKEND: ${{ matrix.backend }}
+        run: |
+          set -euo pipefail
+          test "$(git -C ../kujo rev-parse HEAD)" = "$(cat RUNTIME_VERSION)"
+          profile_status=0
+          for profile_name in small medium large; do
+            python3 scripts/profile_run_store.py --profile "$profile_name" --backend "$PROFILE_BACKEND" --iterations 5 --require-quiet --output "$RUNNER_TEMP/relay-profile/$profile_name.json" || profile_status=1
+          done
+          exit "$profile_status"
+      - name: Retain all measurements, including failures
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: relay-${{ github.sha }}-cold-warm-${{ matrix.backend }}
+          path: ${{ runner.temp }}/relay-profile/*.json
+          if-no-files-found: error
+          retention-days: 90
