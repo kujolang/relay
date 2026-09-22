@@ -642,13 +642,14 @@ func cmd_runs(tokens) {
     if sub == "export" { shape = cli_shape(parsed, 2, 2, ["partial", "output", "signed", "key-id", "json"]) }
     if sub == "verify-signature" { shape = cli_shape(parsed, 2, 2, ["json"]) }
     if shape["ok"] == false { return shape }
-    store_check := state_store_check()
-    if store_check["ok"] == false { return store_check }
     id := positional(parsed["positionals"], 1, "")
+    # Portable bundle verification has no dependency on the local run store.
     if sub == "verify-signature" {
         signed_value := read_json_limited(id, {}, JSON_DOCUMENT_MAX_BYTES)
         return verify_signed_export(id, signing_key(string_or(dict_get_or(signed_value, "key_id", ""), "")))
     }
+    store_check := state_store_check()
+    if store_check["ok"] == false { return store_check }
     if sub == "rebuild" {
         rebuilt_result := rebuild_and_persist_run_index_result(state_root())
         if dict_get_or(rebuilt_result, "ok", false) == false { return {"ok": false, "failure_class": "state_store_failure", "runs": dict_get_or(rebuilt_result, "index", {}), "index_source": "rebuild", "error": dict_get_or(rebuilt_result, "error", "Run index persistence failed")} }

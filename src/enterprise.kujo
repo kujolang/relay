@@ -84,10 +84,12 @@ func signed_export(bundle, key_id, secret) {
 
 func signing_key(key_id) {
     raw := env_or("RELAY_SIGNING_KEYS", "")
-    if raw != "" && len(raw) <= CONTROL_RECORD_MAX_BYTES {
+    if raw != "" {
+        if len(raw) > CONTROL_RECORD_MAX_BYTES { return "" }
         keys_value := null
         try { keys_value = parse_json(raw) } except err { return "" }
-        if type(keys_value) == "dict" { return string_or(dict_get_or(keys_value, key_id, ""), "") }
+        if type(keys_value) != "dict" { return "" }
+        return string_or(dict_get_or(keys_value, key_id, ""), "")
     }
     return env_or("RELAY_SIGNING_KEY", "")
 }
@@ -97,6 +99,7 @@ func verify_signed_export(path, secret) {
     if path == "" || path_is_symlink_safe(path) || path_exists(path) == false || path_is_file(path) == false || file_size(path) > JSON_DOCUMENT_MAX_BYTES { return {"ok": false, "error": "signed export is unavailable or exceeds 1 MiB"} }
     value := read_json_limited(path, null, JSON_DOCUMENT_MAX_BYTES)
     if type(value) != "dict" || string_or(dict_get_or(value, "format", ""), "") != SIGNED_EXPORT_CONTRACT || type(dict_get_or(value, "payload", null)) != "dict" { return {"ok": false, "error": "signed export contract is invalid"} }
+    if dict_get_or(value, "ok", false) != true || dict_get_or(value, "algorithm", "") != "hmac-sha256" || string_or(dict_get_or(value, "key_id", ""), "") == "" { return {"ok": false, "error": "signed export metadata is invalid"} }
     payload_sha := sha256(safe_json(value["payload"]))
     expected := hmac_sha256(secret, SIGNED_EXPORT_CONTRACT + "|" + string_or(dict_get_or(value, "key_id", ""), "") + "|" + payload_sha)
     valid := payload_sha == string_or(dict_get_or(value, "payload_sha256", ""), "") && expected == string_or(dict_get_or(value, "signature", ""), "")

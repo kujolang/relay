@@ -84,7 +84,7 @@ failed = failed + check("Watchdog incomplete usage unavailable", usage_reconcili
 watchdog_projection := watchdog_native_event(event("tool_completed", "mission1", "run1", "step1", "agent1", {"prompt": "never-export", "tool_output": "never-export"}, ""))
 failed = failed + check("Watchdog lifecycle projection succeeds", watchdog_projection["ok"] && watchdog_projection["event"]["event_kind"] == "tool")
 failed = failed + check("Watchdog lifecycle projection preserves mission correlation", watchdog_projection["event"]["references"][1]["id"] == "mission1")
-failed = failed + check("Watchdog lifecycle projection excludes payload content", !contains(to_json(watchdog_projection["event"]), "never-export"))
+failed = failed + check("Watchdog lifecycle projection excludes payload content", bool_or(contains(to_json(watchdog_projection["event"]), "never-export"), true) == false)
 script_workspace := "/tmp/relay-script-policy-" + to_string(current_timestamp())
 create_dir(script_workspace)
 create_dir(script_workspace + "/scripts")
@@ -175,6 +175,15 @@ json_redaction := redact_text("{\"api_key\":\"json-secret\",\"access_token\":\"a
 failed = failed + check("JSON credential redaction", bool_or(contains(json_redaction, "json-secret"), true) == false && bool_or(contains(json_redaction, "access-secret"), true) == false && bool_or(contains(json_redaction, "pw-secret"), true) == false && bool_or(contains(json_redaction, "[REDACTED_CREDENTIAL]"), false))
 failed = failed + check("provider token redaction", contains(redact_text("sk-12345678abcdefghijklmnopqrstuvwxyz"), "[REDACTED_KEY]") && contains(redact_text("github_pat_123456789012345678901234567890"), "[REDACTED_KEY]"))
 failed = failed + check("private key redaction", contains(redact_text("-----BEGIN PRIVATE KEY-----"), "[REDACTED_PRIVATE_KEY]"))
+for key_kind in ["PRIVATE KEY", "RSA PRIVATE KEY", "EC PRIVATE KEY", "OPENSSH PRIVATE KEY", "ENCRYPTED PRIVATE KEY"] {
+    pem := "before -----BEGIN " + key_kind + "-----\nfixture-private-material\n-----END " + key_kind + "----- after"
+    redacted := redact_text(pem)
+    failed = failed + check("complete PEM body redacted " + key_kind, redacted == "before [REDACTED_PRIVATE_KEY] after")
+    failed = failed + check("JSON-escaped PEM body redacted " + key_kind, bool_or(contains(redact_text(safe_json({"key": pem})), "fixture-private-material"), true) == false)
+}
+failed = failed + check("truncated PEM body redacted", redact_text("-----BEGIN PRIVATE KEY-----\nfixture-truncated-material") == "[REDACTED_PRIVATE_KEY]")
+failed = failed + check("public key preserved", redact_text("-----BEGIN PUBLIC KEY-----\npublic-material\n-----END PUBLIC KEY-----") == "-----BEGIN PUBLIC KEY-----\npublic-material\n-----END PUBLIC KEY-----")
+
 process_env_probe := process_options({"PATH": "/tmp/relay-untrusted-path", "PWD": "/tmp/relay-untrusted-pwd", "LD_PRELOAD": "/tmp/relay-loader", "RELAY_TEST_ENV": "ok"}, 1000, 1000)
 failed = failed + check("process PATH remains fixed", dict_get_or(process_env_probe["env"], "PATH", "") == safe_process_path())
 failed = failed + check("dangerous process environment is dropped", has_key(process_env_probe["env"], "LD_PRELOAD") == 0 && has_key(process_env_probe["env"], "PWD") == 0 && dict_get_or(process_env_probe["env"], "RELAY_TEST_ENV", "") == "ok")

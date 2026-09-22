@@ -53,6 +53,31 @@ RELAY_SIGNING_KEYS="$signing_keys" "$KUJO" run "$ROOT/main.kujo" -- runs export 
 jq -e '.format == "relay-signed-export-v1" and .key_id == "fixture-2026" and (.signature | length == 64)' "$signed_path" >/dev/null
 verified="$(RELAY_SIGNING_KEYS="$signing_keys" $KUJO run "$ROOT/main.kujo" -- runs verify-signature "$signed_path" --json)"
 jq -e '.ok and .signature_valid and .key_id == "fixture-2026"' <<<"$verified" >/dev/null
+printf 'not a state directory' > "$TMP_ROOT/unusable-state"
+RELAY_STATE_ROOT="$TMP_ROOT/unusable-state" RELAY_SIGNING_KEYS="$signing_keys" "$KUJO" run "$ROOT/main.kujo" -- runs verify-signature "$signed_path" --json | jq -e '.signature_valid' >/dev/null
+# A configured keyring is authoritative: invalid rings must never silently
+# downgrade to the legacy single-key secret.
+for invalid_ring in '[]' 'null' '{' '{"unrelated":"different-secret"}'; do
+  if RELAY_SIGNING_KEYS="$invalid_ring" RELAY_SIGNING_KEY=fixture-signing-secret "$KUJO" run "$ROOT/main.kujo" -- runs verify-signature "$signed_path" --json > "$TMP_ROOT/invalid-ring.json"; then
+    echo "invalid signing keyring fell back to legacy secret" >&2
+    exit 1
+  fi
+  jq -e '.ok == false' "$TMP_ROOT/invalid-ring.json" >/dev/null
+done
+oversized_ring="$(python3 -c 'print("x" * 65537)')"
+if RELAY_SIGNING_KEYS="$oversized_ring" RELAY_SIGNING_KEY=fixture-signing-secret "$KUJO" run "$ROOT/main.kujo" -- runs verify-signature "$signed_path" --json > "$TMP_ROOT/oversized-ring.json"; then
+  echo "oversized signing keyring fell back to legacy secret" >&2
+  exit 1
+fi
+for mutation in '.algorithm="none"' 'del(.algorithm)' '.ok=false' '.key_id=""'; do
+  jq "$mutation" "$signed_path" > "$TMP_ROOT/metadata.json"
+  if RELAY_SIGNING_KEY=fixture-signing-secret "$KUJO" run "$ROOT/main.kujo" -- runs verify-signature "$TMP_ROOT/metadata.json" --json > "$TMP_ROOT/metadata-result.json"; then
+    echo "invalid signed export metadata accepted" >&2
+    exit 1
+  fi
+  jq -e '.ok == false' "$TMP_ROOT/metadata-result.json" >/dev/null
+done
+RELAY_SIGNING_KEY=fixture-signing-secret "$KUJO" run "$ROOT/main.kujo" -- runs verify-signature "$signed_path" --json | jq -e '.signature_valid' >/dev/null
 jq '.payload.run.status="tampered"' "$signed_path" > "$TMP_ROOT/tampered.json"
 set +e
 tampered="$(RELAY_SIGNING_KEY=fixture-signing-secret $KUJO run "$ROOT/main.kujo" -- runs verify-signature "$TMP_ROOT/tampered.json" --json 2>&1)"

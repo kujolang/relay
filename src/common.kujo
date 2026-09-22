@@ -293,6 +293,9 @@ func append_jsonl(path, value) {
 
 func redact_text(value) {
     text := to_string(value)
+    # Remove the whole PEM body, including truncated blocks and JSON-escaped
+    # newlines, before individual credential patterns can alter its delimiters.
+    text := regex_replace(text, "(?s)-----BEGIN [A-Z ]*PRIVATE KEY-----.*?(?:-----END [A-Z ]*PRIVATE KEY-----|$)", "[REDACTED_PRIVATE_KEY]")
     text := replace(text, "Authorization: Bearer ", "Authorization: Bearer [REDACTED]")
     text := replace(text, "authorization: Bearer ", "authorization: Bearer [REDACTED]")
     text := replace(text, "Authorization: bearer ", "Authorization: bearer [REDACTED]")
