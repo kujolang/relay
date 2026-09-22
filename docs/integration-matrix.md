@@ -12,8 +12,8 @@ This matrix separates required local v1 dependencies, optional proven integratio
 | RunLedger | `1.0.0` / `5cf186c9b56b540970f75e33a06f50d3dac833a8` | required and proven locally | start/finish lifecycle receipt and correlation | hosted ledger or custody guarantee |
 | ChangeBucket | `1.0.0` / `373ac51a572bd3bb0510ac718ac1bab065c84735` | required and proven locally | bounded change report required for completion | organization-specific change approval |
 | Eval | `1.0.0` / `dce9d030a3547803dab876b404c44c25b247dde1` | required and proven locally | deterministic acceptance result required for completion | general model-quality certification |
-| Watchdog | `1.0.0` / `7c46cd0bf1680d037c24506be4ed0a2405a9841f` | optional and proven with local server/stub; external proof blocked until approved | mandatory live route, auth posture, request-ID correlation, usage reconciliation, secret-safe evidence | silent bypass, arbitrary provider certification, hosted proxy operation |
-| Workcell | `1.0.0` / `28d2c4a3b8d317fedd5e20be618f98bd3859eaea` | required exact-candidate release gate | bounded no-network success/failure execution, manifest and receipt verification when rerun | VM isolation, compromised-daemon defense, universal certification |
+| Watchdog | `1.0.0` / `7c46cd0bf1680d037c24506be4ed0a2405a9841f` | verified with local server/stub and owner-approved external Ollama `glm-5.3-flash` at candidate `e48bc56` | mandatory live route, auth posture, request-ID correlation, usage reconciliation, secret-safe evidence | silent bypass, arbitrary provider certification, hosted proxy operation |
+| Workcell | `1.0.0` / `28d2c4a3b8d317fedd5e20be618f98bd3859eaea` | required exact-candidate release gate | bounded no-network success/failure execution and verified receipts at candidate `e48bc56` | VM isolation, compromised-daemon defense, universal certification |
 | Kennel | `1.0.0` / `6df043c3ba0bde4445cc8f8f7d4c01c60c9c6d7e` | required release gate | manifest validation and public export declaration | package publication during preparation |
 | ShipCheck | `1.0.0` / `2768e3040e766b0befd354db4427afc4c7a81899` | required release gate | 16-check repository readiness gate | test, provider, platform, or security certification |
 | Concord | `1.0.0` / `d388c951b7ff0e1e03da1cd252ad5b65e25765b9` | experimental | optional artifact-drift review | v1 runtime dependency |
@@ -38,3 +38,5 @@ The aggregate acceptance suite proves fixture, local Watchdog/stub, policy, work
 ## Deferred post-v1 capabilities
 
 Hosted authenticated tenancy, durable transactional multi-host storage, hosted orchestration, full upstream Spec/Dispatch execution, automatic CaseFile export, universal provider certification, asymmetric signing/custody, unrestricted shell, and autonomous production access are outside the local v1 contract.
+
+The [completed v88 verification record](v88-execution-status.md) binds the external model and Workcell evidence to immutable revisions and records the temporary DNS transport workaround. These results do not certify other providers/models.

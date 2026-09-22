@@ -155,7 +155,7 @@ Run state, events, receipts, reports, packet manifests, tool results, and export
 ## Ecosystem integrations
 
 - Required and proven locally: Kujo, AI SDK fixture/provider boundary, Agents SDK, PackWrite, RunLedger, ChangeBucket, and Eval.
-- Optional and proven locally: Watchdog with a real local server and stub provider; Workcell once rerun for the exact candidate; ShipCheck and Kennel release gates.
+- Verified for candidate `e48bc56`: pinned Watchdog with Ollama `glm-5.3-flash` chat/tool execution, Workcell success/failure paths, and ShipCheck/Kennel release gates. The [verification record](docs/v88-execution-status.md) states the exact revisions and test conditions.
 - Experimental: Capsule benchmark discovery, versioned Spec/Dispatch envelope import, policy-selected Redact/CaseFile-compatible failed-run handoff, and the disabled-by-default authenticated machine boundary.
 - Deferred: network service transport, durable multi-host storage, hosted orchestration, public-key signing/custody, and enterprise certification.
 
