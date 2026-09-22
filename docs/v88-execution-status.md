@@ -7,9 +7,9 @@ Historical receipts must not be promoted to the eventual final candidate.
 
 | ID | Required outcome | Current evidence / remaining work |
 | --- | --- | --- |
-| G1 | Final candidate acceptance and reproducibility on Linux, macOS Intel, macOS ARM with immutable dependencies | Candidate `e48bc56` in run `35757708307`: Linux and macOS ARM passed; Intel is still building. Retained platform manifests and benchmarks below. |
+| G1 | Final candidate acceptance and reproducibility on Linux, macOS Intel, macOS ARM with immutable dependencies | Completed for frozen candidate `e48bc56`: all three platform jobs passed full gates, deterministic two-build artifacts, clean archive installs and representative benchmarks. Manifest pins and downloaded checksums verified. |
 | G2 | Explicitly approved bounded external provider/model proof through Watchdog | Configuration and approval requested; no live credentials used. |
-| G3 | Final-candidate Workcell success/failure proof, or permitted host blocker plus closest proof | Candidate `e48bc56` Workcell job awaits the three-platform matrix in run `35757708307`. Earlier blocker remains historical only. |
+| G3 | Final-candidate Workcell success/failure proof, or permitted host blocker plus closest proof | Permitted fallback completed at `e48bc56`: [host blocker and closest local proof](review-evidence/2026-09-22/workcell-e48-blocker.json). Docker security-profile inspection timed out before execution; cleanup completed. Exact-candidate worktree and walkthrough smokes passed. Remote job `106860615852` still runs for stronger evidence. |
 | G4 | Quiescent-host five-sample performance measurements; diagnose breaches without loosening budgets | Completed at `ddf690f`: six dedicated Linux profiles, five samples per command/cache mode, all unchanged budgets passed. See [controlled measurements](controlled-store-performance.md). |
 | G5 | Operator-owned identity/role/tenant/action/approval mappings; forged claims, replay, expiry and cross-tenant tests | Implemented in `5c5a909`; operator-owned v2 policy, per-identity credentials, registered resources, exact actions, bound approval and persistent replay tests pass. Full pinned gate: 37 smokes and 28 schemas. |
 | G6 | Authoritative backup/restore drill, both cache rebuilds, partial/corrupt/interrupted restoration, measured recovery objectives | Implemented in `76b5e64`; isolated drill restores with original location unavailable, rebuilds both caches and rejects partial/corrupt/interrupted publication. Measured fixture receipt retained. |
@@ -90,14 +90,14 @@ rendered with an isolated Chromium profile and visually checked. Platform clean-
 runs remain in the final G1 matrix; local clean installation is not evidence for
 unrun platforms.
 
-## Candidate platform evidence in progress
+## Candidate platform evidence
 
 Frozen verification candidate: `e48bc56c71fdcae5b8e852419672836f00edb99f`.
 [Release preparation run](https://github.com/kujolang/relay/actions/runs/35757708307)
 has live-provider and publication disabled. Subsequent commits retain documentation
 and receipts; they are not silently substituted for the tested candidate.
 
-Linux and macOS ARM completed the full release gate and five-sample representative
+Linux and both macOS architectures completed the full release gate and five-sample representative
 benchmarks. Downloaded artifact checksums passed. Their uncompressed source tar
 archives are byte-identical (`e8fe4e4d0bf665480315ed116c4537accd69e0dba9fee8258b3b874bd83bf129`);
 compressed bytes differ across host gzip implementations. Each platform's own
@@ -109,8 +109,20 @@ claimed. Retained [Linux verification](review-evidence/2026-09-22/platform-candi
 [ARM manifest](review-evidence/2026-09-22/platform-candidate/macos-arm64-manifest.json) and
 [ARM benchmarks](review-evidence/2026-09-22/platform-candidate/macos-arm64-benchmarks.json).
 
-Intel and the dependent Workcell job remain pending at this snapshot. Run
+Intel evidence: [verification](review-evidence/2026-09-22/platform-candidate/macos-x86_64-verification.json), [manifest](review-evidence/2026-09-22/platform-candidate/macos-x86_64-manifest.json), [benchmarks](review-evidence/2026-09-22/platform-candidate/macos-x86_64-benchmarks.json). All three source tar archives match; dependency manifests match every entry in `release/dependencies.json`. The Workcell job is running at this snapshot. Run
 `35756595210` was cancelled after Linux exposed a missing pinned Workcell checkout
 in the walkthrough environment; `e48bc56` adds that checkout, and the corrected
 Linux and ARM gates pass. Controlled profiling at `ddf690f` uses identical runtime
 and profiling source to `e48bc56`; the intervening change only adds CI checkout.
+
+## Exact-candidate Workcell fallback
+
+Local run `wc-46ca4a78378c4bc09aa494cafe77fdb8` used candidate `e48bc56` and
+pinned Kujo/Workcell revisions. It exited 4 during preparation because Docker
+security-profile inspection timed out. Cleanup completed; no container execution
+or verification success is claimed. The sanitized [receipt](review-evidence/2026-09-22/workcell-e48-blocker.json)
+retains the original receipt SHA256. The same clean candidate passed local
+`tests/relay_worktree_smoke.sh` and `tests/relay_walkthrough_smoke.sh`, covering
+fixture execution, worktree integrity/cleanup, archive installation and portable
+signed-export verification. This satisfies the backlog's explicit host-blocker
+alternative; it does not authorize a successful container-runtime claim.

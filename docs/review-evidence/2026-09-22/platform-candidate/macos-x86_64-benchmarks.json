@@ -1,0 +1,216 @@
+{
+  "contract_version": "relay-representative-benchmark-suite-v1",
+  "relay_commit": "e48bc56c71fdcae5b8e852419672836f00edb99f",
+  "profiles": {
+    "small": {
+      "commands": {
+        "runs_export": {
+          "max_ms": 405,
+          "median_ms": 383,
+          "min_ms": 379,
+          "p95_ms": 405,
+          "samples_ms": [
+            379,
+            381,
+            384,
+            383,
+            405
+          ]
+        },
+        "runs_list": {
+          "max_ms": 273,
+          "median_ms": 170,
+          "min_ms": 169,
+          "p95_ms": 273,
+          "samples_ms": [
+            273,
+            172,
+            169,
+            170,
+            170
+          ]
+        },
+        "runs_verify": {
+          "max_ms": 390,
+          "median_ms": 379,
+          "min_ms": 377,
+          "p95_ms": 390,
+          "samples_ms": [
+            379,
+            377,
+            379,
+            378,
+            390
+          ]
+        },
+        "runs_watch_completed": {
+          "max_ms": 385,
+          "median_ms": 372,
+          "min_ms": 369,
+          "p95_ms": 385,
+          "samples_ms": [
+            369,
+            374,
+            372,
+            371,
+            385
+          ]
+        }
+      },
+      "contract_version": "relay-run-store-benchmark-v1",
+      "iterations": 5,
+      "platform": "darwin-x86_64",
+      "relay_commit": "e48bc56c71fdcae5b8e852419672836f00edb99f",
+      "run_id": "benchmark-small-10",
+      "sizes": {
+        "excluded_count": 1,
+        "hashes_included": false,
+        "summary": {
+          "bytes": 105069,
+          "directories": 0,
+          "files": 7
+        }
+      }
+    },
+    "medium": {
+      "commands": {
+        "runs_export": {
+          "max_ms": 3010,
+          "median_ms": 2955,
+          "min_ms": 2902,
+          "p95_ms": 3010,
+          "samples_ms": [
+            2974,
+            2902,
+            2955,
+            2909,
+            3010
+          ]
+        },
+        "runs_list": {
+          "max_ms": 1574,
+          "median_ms": 1007,
+          "min_ms": 1002,
+          "p95_ms": 1574,
+          "samples_ms": [
+            1574,
+            1006,
+            1002,
+            1019,
+            1007
+          ]
+        },
+        "runs_verify": {
+          "max_ms": 3211,
+          "median_ms": 2939,
+          "min_ms": 2869,
+          "p95_ms": 3211,
+          "samples_ms": [
+            2939,
+            3032,
+            2936,
+            2869,
+            3211
+          ]
+        },
+        "runs_watch_completed": {
+          "max_ms": 3029,
+          "median_ms": 2974,
+          "min_ms": 2972,
+          "p95_ms": 3029,
+          "samples_ms": [
+            2974,
+            2972,
+            3018,
+            3029,
+            2972
+          ]
+        }
+      },
+      "contract_version": "relay-run-store-benchmark-v1",
+      "iterations": 5,
+      "platform": "darwin-x86_64",
+      "relay_commit": "e48bc56c71fdcae5b8e852419672836f00edb99f",
+      "run_id": "benchmark-medium-100",
+      "sizes": {
+        "excluded_count": 1,
+        "hashes_included": false,
+        "summary": {
+          "bytes": 1439148,
+          "directories": 0,
+          "files": 7
+        }
+      }
+    },
+    "large": {
+      "commands": {
+        "runs_export": {
+          "max_ms": 10501,
+          "median_ms": 10486,
+          "min_ms": 10426,
+          "p95_ms": 10501,
+          "samples_ms": [
+            10501,
+            10492,
+            10486,
+            10457,
+            10426
+          ]
+        },
+        "runs_list": {
+          "max_ms": 7268,
+          "median_ms": 4780,
+          "min_ms": 4724,
+          "p95_ms": 7268,
+          "samples_ms": [
+            7268,
+            4724,
+            4990,
+            4774,
+            4780
+          ]
+        },
+        "runs_verify": {
+          "max_ms": 10691,
+          "median_ms": 10446,
+          "min_ms": 10325,
+          "p95_ms": 10691,
+          "samples_ms": [
+            10446,
+            10427,
+            10495,
+            10325,
+            10691
+          ]
+        },
+        "runs_watch_completed": {
+          "max_ms": 10754,
+          "median_ms": 10596,
+          "min_ms": 10558,
+          "p95_ms": 10754,
+          "samples_ms": [
+            10596,
+            10664,
+            10558,
+            10754,
+            10562
+          ]
+        }
+      },
+      "contract_version": "relay-run-store-benchmark-v1",
+      "iterations": 5,
+      "platform": "darwin-x86_64",
+      "relay_commit": "e48bc56c71fdcae5b8e852419672836f00edb99f",
+      "run_id": "benchmark-large-500",
+      "sizes": {
+        "excluded_count": 1,
+        "hashes_included": false,
+        "summary": {
+          "bytes": 8163589,
+          "directories": 0,
+          "files": 7
+        }
+      }
+    }
+  }
+}

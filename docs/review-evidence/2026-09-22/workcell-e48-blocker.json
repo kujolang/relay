@@ -1,0 +1,37 @@
+{
+  "run_id": "wc-46ca4a78378c4bc09aa494cafe77fdb8",
+  "final_status": "failed",
+  "exit_code": 4,
+  "errors": [
+    {
+      "message": "inspect Docker security profiles: timed out",
+      "stage": "preparing"
+    }
+  ],
+  "cleanup_status": "complete",
+  "source_commit": "e48bc56c71fdcae5b8e852419672836f00edb99f",
+  "workcell_version": "1.0.0",
+  "start_time": "2026-09-22T17:30:50Z",
+  "end_time": "2026-09-22T17:31:06Z",
+  "verification": {
+    "artifacts_exported": false,
+    "checks": [],
+    "cleanup_succeeded": true,
+    "execution_succeeded": false,
+    "verification_succeeded": false
+  },
+  "format": "relay-review-workcell-blocker-v1",
+  "source_receipt_sha256": "03bb71f2e0c32947e562069b3b667dd51d2faebae4ac6e83b05113ae343d7a22",
+  "status": "blocked",
+  "workcell_revision": "28d2c4a3b8d317fedd5e20be618f98bd3859eaea",
+  "kujo_revision": "9b77dce592047121cb71066629836ad89252f3ce",
+  "required_next_step": "Complete the remote exact-candidate success/failure proof on a responsive Docker host satisfying the pinned security policy.",
+  "closest_equivalent": "Candidate Linux and ARM release gates passed fixture mission, isolated walkthrough/portable export verification and worktree smoke tests. These do not demonstrate container execution.",
+  "closest_local_proof": {
+    "source_commit": "e48bc56c71fdcae5b8e852419672836f00edb99f",
+    "tests/relay_worktree_smoke.sh": "passed",
+    "tests/relay_walkthrough_smoke.sh": "passed",
+    "runtime_revision": "9b77dce592047121cb71066629836ad89252f3ce",
+    "scope": "Fixture mission, isolated archive installation, worktree integrity/cleanup and portable signed-export verification; no container execution."
+  }
+}

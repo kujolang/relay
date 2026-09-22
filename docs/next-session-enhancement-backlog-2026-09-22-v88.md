@@ -35,15 +35,20 @@ artifacts and were not deleted as part of source cleanup.
 
 ## P0 — Release evidence before production claims
 
-- [ ] Run the final candidate on Linux and both supported macOS architectures,
+- [x] Run the final candidate on Linux and both supported macOS architectures,
   retain full acceptance and artifact reproducibility evidence, and confirm
-  all immutable ecosystem revisions match `release/dependencies.json`.
+  all immutable ecosystem revisions match `release/dependencies.json`. Completed
+  for frozen candidate `e48bc56`; [platform receipts](v88-execution-status.md)
+  retain three passing gates, archive checks and exact dependency manifests.
 - [ ] Obtain explicit owner approval for credentials/provider/model and run
   `scripts/live_provider_verification.sh` through Watchdog. Fixture and local
   stub results cannot establish external provider compatibility.
-- [ ] Rerun Workcell success/failure proof on the final candidate. If Docker or
+- [x] Rerun Workcell success/failure proof on the final candidate. If Docker or
   the host is unavailable, retain a blocker receipt and closest local proof;
-  never carry an old commit's receipt forward as current evidence.
+  never carry an old commit's receipt forward as current evidence. The permitted
+  [current-candidate fallback](review-evidence/2026-09-22/workcell-e48-blocker.json)
+  records Docker inspection timeout, complete cleanup and passing exact-candidate
+  local worktree/walkthrough proof; remote container proof remains in progress.
 
 Acceptance: candidate-specific receipts and CI results, no unresolved required
 release gate, and explicit deployment scope. These continue the v87 P0 gates.
