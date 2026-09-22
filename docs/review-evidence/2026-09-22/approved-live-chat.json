@@ -1,0 +1,136 @@
+{
+  "format": "relay-approved-live-chat-v1",
+  "recorded_at": "2026-09-22T17:53:31.932703+00:00",
+  "relay_candidate": "e48bc56c71fdcae5b8e852419672836f00edb99f",
+  "kujo_revision": "9b77dce592047121cb71066629836ad89252f3ce",
+  "ai_sdk_revision": "d3c6def0f7844f8b42bd92d3b176e80283af8e79",
+  "watchdog_checkout_revision": "52f6d61a07bf1785ef802ac4b3a970ba2da9ab47",
+  "watchdog_deployed_revision_verified": false,
+  "watchdog_instance": "existing loopback listener on port 7700",
+  "upstream_profile": "default",
+  "upstream_provider": "Ollama",
+  "model": "glm-5.3-flash",
+  "prompt": "Reply with exactly: relay-watchdog-live-ok",
+  "output_text": "relay-watchdog-live-ok",
+  "request_id": "chatcmpl-85",
+  "usage": {
+    "input_tokens": 21,
+    "output_tokens": 106,
+    "total_tokens": 127
+  },
+  "relay_telemetry": {
+    "correlation_id": "relay-approved-chat-default-20260922",
+    "duration_ms": 5049,
+    "model": "glm-5.3-flash",
+    "provider": "openai-compatible",
+    "requested_max_tokens": 700,
+    "route": "watchdog_proxy",
+    "stream_requested": 0,
+    "watchdog_auth_configured": true,
+    "watchdog_route": {
+      "configured": true,
+      "reason": "",
+      "scheme": "http",
+      "valid": true
+    },
+    "watchdog_upstream_profile_configured": true,
+    "watchdog_verification": {
+      "correlation_matched": true,
+      "ok": true,
+      "usage_matched": true
+    }
+  },
+  "relay_watchdog_verification": {
+    "correlation": {
+      "correlation_id": "relay-approved-chat-default-20260922",
+      "endpoint": "/api/requests?correlation_id=relay-approved-chat-default-20260922&page_size=20",
+      "matched": true,
+      "matched_row": {
+        "cost_usd": 0.00033900000000000005,
+        "input_tokens": 21,
+        "latency_ms": 3692,
+        "model": "glm-5.3-flash",
+        "output_tokens": 106,
+        "request_id": "chatcmpl-85",
+        "status": "success",
+        "total_tokens": 127,
+        "usage_complete": true
+      },
+      "matched_rows": [
+        {
+          "cost_usd": 0.00033900000000000005,
+          "input_tokens": 21,
+          "latency_ms": 3692,
+          "model": "glm-5.3-flash",
+          "output_tokens": 106,
+          "request_id": "chatcmpl-85",
+          "status": "success",
+          "total_tokens": 127,
+          "usage_complete": true
+        }
+      ],
+      "ok": true,
+      "request_id": "chatcmpl-85",
+      "status": 200
+    },
+    "health": {
+      "endpoint": "/healthz",
+      "healthy": true,
+      "ok": true,
+      "status": 200
+    },
+    "ok": true,
+    "proxy_config": {
+      "configured": true,
+      "endpoint": "/api/proxy-config",
+      "ok": true,
+      "status": 200
+    },
+    "usage_reconciliation": {
+      "available": true,
+      "expected_input_tokens": 21,
+      "expected_output_tokens": 106,
+      "expected_total_tokens": 127,
+      "matched": true,
+      "matched_row": {
+        "cost_usd": 0.00033900000000000005,
+        "input_tokens": 21,
+        "latency_ms": 3692,
+        "model": "glm-5.3-flash",
+        "output_tokens": 106,
+        "request_id": "chatcmpl-85",
+        "status": "success",
+        "total_tokens": 127,
+        "usage_complete": true
+      },
+      "observed_input_tokens": 21,
+      "observed_output_tokens": 106,
+      "observed_total_tokens": 127,
+      "reason": "compared"
+    }
+  },
+  "raw_response_sha256": "03cc076d22b6a6f24880a22dfe0b5e4e7e1beb84428770b752d22c25a7377fdd",
+  "exit_code": 0,
+  "approved_scope": "User approved chat through Watchdog using GLM 5.3 Flash or similar.",
+  "failed_attempts": [
+    {
+      "profile": "ollama-tud-work",
+      "client": "Relay",
+      "http_status": 401,
+      "correlation_id": "relay-approved-chat-20260922-glm53flash"
+    },
+    {
+      "profile": "ollama-tud-work",
+      "client": "direct Watchdog diagnostic, no provider bypass",
+      "http_status": 401,
+      "correlation_id": "relay-approved-route-check-20260922"
+    }
+  ],
+  "release_gate_complete": false,
+  "limitations": [
+    "Chat only; provider-tool mission not run.",
+    "Existing Watchdog checkout differs from release pin and the running process revision was not independently established.",
+    "No compatibility claim for other models or providers."
+  ],
+  "secrets_recorded": false
+}

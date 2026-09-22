@@ -3,14 +3,15 @@
 Objective: complete every checkbox in the
 [v88 next-session list](next-session-enhancement-backlog-2026-09-22-v88.md).
 All authorized implementation and offline/container verification work is complete.
-G2 remains blocked on explicit owner approval and live-provider configuration.
+G2 is partially verified: owner-approved live chat passed; exact pinned
+Watchdog/provider-tool proof remains outstanding.
 This is not final release approval.
 Historical receipts must not be promoted to the eventual final candidate.
 
 | ID | Required outcome | Current evidence / remaining work |
 | --- | --- | --- |
 | G1 | Final candidate acceptance and reproducibility on Linux, macOS Intel, macOS ARM with immutable dependencies | Completed for frozen candidate `e48bc56`: all three platform jobs passed full gates, deterministic two-build artifacts, clean archive installs and representative benchmarks. Manifest pins and downloaded checksums verified. |
-| G2 | Explicitly approved bounded external provider/model proof through Watchdog | Configuration and approval requested; no live credentials used. |
+| G2 | Explicitly approved bounded external provider/model proof through Watchdog | Owner-approved chat passed through existing Watchdog/default Ollama route using `glm-5.3-flash`: correlation and all 127 tokens matched. [Receipt](review-evidence/2026-09-22/approved-live-chat.json). Exact pinned deployment/tool-mission proof remains outstanding. |
 | G3 | Final-candidate Workcell success/failure proof, or permitted host blocker plus closest proof | Completed remotely at `e48bc56`, job `106860615852`: successful workload and intentional exit 17 both have valid receipts and complete cleanup. [Proof](review-evidence/2026-09-22/workcell-candidate/proof.json). Local host blocker retained as historical context. |
 | G4 | Quiescent-host five-sample performance measurements; diagnose breaches without loosening budgets | Completed at `ddf690f`: six dedicated Linux profiles, five samples per command/cache mode, all unchanged budgets passed. See [controlled measurements](controlled-store-performance.md). |
 | G5 | Operator-owned identity/role/tenant/action/approval mappings; forged claims, replay, expiry and cross-tenant tests | Implemented in `5c5a909`; operator-owned v2 policy, per-identity credentials, registered resources, exact actions, bound approval and persistent replay tests pass. Full pinned gate: 37 smokes and 28 schemas. |
@@ -152,3 +153,21 @@ environment-variable names or trusted upstream profile, and explicit approval fo
 one bounded chat plus the bounded provider-tool mission. Do not place secret values
 in the conversation or evidence. The guarded [procedure](live-provider-verification.md)
 is prepared; fixtures cannot satisfy this external-provider requirement.
+
+## Approved live chat — partial G2 evidence
+
+The owner approved a chat request through available Watchdog Ollama models.
+Candidate `e48bc56` with pinned Kujo/AI SDK returned `relay-watchdog-live-ok`
+from `glm-5.3-flash` through the existing Watchdog `default` Ollama profile.
+Relay exited 0; Watchdog correlation and usage reconciled (21 input, 106 output,
+127 total tokens). The [sanitized receipt](review-evidence/2026-09-22/approved-live-chat.json)
+records the exact request and evidence without credentials. Two earlier requests
+through the named `ollama-tud-work` profile returned HTTP 401; the configured
+default profile succeeded. No provider was contacted outside Watchdog.
+
+This establishes working live chat, not the complete G2 release gate. The existing
+Watchdog checkout differs from the pinned release revision, the running process
+revision was not independently established, and no provider-tool mission was run.
+The earlier approval/configuration blocker description above is historical; chat
+approval and a working route are now established. Remaining work is bounded
+provider-tool verification against an independently verified pinned deployment.
