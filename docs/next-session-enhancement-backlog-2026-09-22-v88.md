@@ -71,11 +71,12 @@ release gate, and explicit deployment scope. These continue the v87 P0 gates.
   rebuild both index backends from restored evidence and test partial copies,
   corruption, and interrupted restore. Define recovery objectives from measured
   results instead of implying multi-host durability.
-- [ ] Review SQLite open behavior: `sqlite_read_index` calls `sqlite_open`, which
+- [x] Review SQLite open behavior: `sqlite_read_index` calls `sqlite_open`, which
   performs schema creation, migration insertion, and WAL configuration even on
   read paths. Separate initialization from read-only validation and add fixtures
   for missing/unknown schema versions, locked databases, and unsafe sidecars.
-  This is a follow-up design review, not a demonstrated exploit in this session.
+  Implemented and verified in `ef02ab0`; see the
+  [execution status](v88-execution-status.md) for pinned-runtime evidence.
 - [ ] Expand redaction fixtures for quoted credentials containing whitespace,
   escaped quotes, and chunk boundaries. Preserve useful diagnostics without
   treating pattern matching as a general secret-classification guarantee.
