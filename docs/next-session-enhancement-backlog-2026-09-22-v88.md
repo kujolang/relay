@@ -48,7 +48,7 @@ artifacts and were not deleted as part of source cleanup.
   never carry an old commit's receipt forward as current evidence. The permitted
   [current-candidate fallback](review-evidence/2026-09-22/workcell-e48-blocker.json)
   records Docker inspection timeout, complete cleanup and passing exact-candidate
-  local worktree/walkthrough proof; remote container proof remains in progress.
+  local worktree/walkthrough proof. Subsequently the [remote success/failure proof](review-evidence/2026-09-22/workcell-candidate/proof.json) passed for the same candidate.
 
 Acceptance: candidate-specific receipts and CI results, no unresolved required
 release gate, and explicit deployment scope. These continue the v87 P0 gates.

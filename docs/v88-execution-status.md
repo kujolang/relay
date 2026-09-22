@@ -2,14 +2,16 @@
 
 Objective: complete every checkbox in the
 [v88 next-session list](next-session-enhancement-backlog-2026-09-22-v88.md).
-The goal remains active. Component completion is not final release approval.
+All authorized implementation and offline/container verification work is complete.
+G2 remains blocked on explicit owner approval and live-provider configuration.
+This is not final release approval.
 Historical receipts must not be promoted to the eventual final candidate.
 
 | ID | Required outcome | Current evidence / remaining work |
 | --- | --- | --- |
 | G1 | Final candidate acceptance and reproducibility on Linux, macOS Intel, macOS ARM with immutable dependencies | Completed for frozen candidate `e48bc56`: all three platform jobs passed full gates, deterministic two-build artifacts, clean archive installs and representative benchmarks. Manifest pins and downloaded checksums verified. |
 | G2 | Explicitly approved bounded external provider/model proof through Watchdog | Configuration and approval requested; no live credentials used. |
-| G3 | Final-candidate Workcell success/failure proof, or permitted host blocker plus closest proof | Permitted fallback completed at `e48bc56`: [host blocker and closest local proof](review-evidence/2026-09-22/workcell-e48-blocker.json). Docker security-profile inspection timed out before execution; cleanup completed. Exact-candidate worktree and walkthrough smokes passed. Remote job `106860615852` still runs for stronger evidence. |
+| G3 | Final-candidate Workcell success/failure proof, or permitted host blocker plus closest proof | Completed remotely at `e48bc56`, job `106860615852`: successful workload and intentional exit 17 both have valid receipts and complete cleanup. [Proof](review-evidence/2026-09-22/workcell-candidate/proof.json). Local host blocker retained as historical context. |
 | G4 | Quiescent-host five-sample performance measurements; diagnose breaches without loosening budgets | Completed at `ddf690f`: six dedicated Linux profiles, five samples per command/cache mode, all unchanged budgets passed. See [controlled measurements](controlled-store-performance.md). |
 | G5 | Operator-owned identity/role/tenant/action/approval mappings; forged claims, replay, expiry and cross-tenant tests | Implemented in `5c5a909`; operator-owned v2 policy, per-identity credentials, registered resources, exact actions, bound approval and persistent replay tests pass. Full pinned gate: 37 smokes and 28 schemas. |
 | G6 | Authoritative backup/restore drill, both cache rebuilds, partial/corrupt/interrupted restoration, measured recovery objectives | Implemented in `76b5e64`; isolated drill restores with original location unavailable, rebuilds both caches and rejects partial/corrupt/interrupted publication. Measured fixture receipt retained. |
@@ -109,7 +111,7 @@ claimed. Retained [Linux verification](review-evidence/2026-09-22/platform-candi
 [ARM manifest](review-evidence/2026-09-22/platform-candidate/macos-arm64-manifest.json) and
 [ARM benchmarks](review-evidence/2026-09-22/platform-candidate/macos-arm64-benchmarks.json).
 
-Intel evidence: [verification](review-evidence/2026-09-22/platform-candidate/macos-x86_64-verification.json), [manifest](review-evidence/2026-09-22/platform-candidate/macos-x86_64-manifest.json), [benchmarks](review-evidence/2026-09-22/platform-candidate/macos-x86_64-benchmarks.json). All three source tar archives match; dependency manifests match every entry in `release/dependencies.json`. The Workcell job is running at this snapshot. Run
+Intel evidence: [verification](review-evidence/2026-09-22/platform-candidate/macos-x86_64-verification.json), [manifest](review-evidence/2026-09-22/platform-candidate/macos-x86_64-manifest.json), [benchmarks](review-evidence/2026-09-22/platform-candidate/macos-x86_64-benchmarks.json). All three source tar archives match; dependency manifests match every entry in `release/dependencies.json`. The Workcell job subsequently passed; see final candidate proof below. Run
 `35756595210` was cancelled after Linux exposed a missing pinned Workcell checkout
 in the walkthrough environment; `e48bc56` adds that checkout, and the corrected
 Linux and ARM gates pass. Controlled profiling at `ddf690f` uses identical runtime
@@ -126,3 +128,27 @@ retains the original receipt SHA256. The same clean candidate passed local
 fixture execution, worktree integrity/cleanup, archive installation and portable
 signed-export verification. This satisfies the backlog's explicit host-blocker
 alternative; it does not authorize a successful container-runtime claim.
+
+## Final candidate proof and remaining approval gate
+
+Run `35757708307` completed the three platform gates, Workcell and candidate
+artifact construction. The [Workcell proof](review-evidence/2026-09-22/workcell-candidate/proof.json)
+binds both container runs to candidate `e48bc56` and immutable Kujo/Workcell pins.
+The successful workload exited 0; intentional workload failure exited 17 and
+Workcell returned 7. Both cleaned up and passed receipt-integrity verification
+([success](review-evidence/2026-09-22/workcell-candidate/success-verify.json),
+[failure](review-evidence/2026-09-22/workcell-candidate/failure-verify.json)).
+A valid failure receipt does not mean the intentionally failed workload succeeded.
+
+The combined [candidate manifest](review-evidence/2026-09-22/platform-candidate/release-manifest.json)
+and [download verification](review-evidence/2026-09-22/platform-candidate/release-verification.json)
+retain passed platform/Workcell status and explicitly blocked live-provider status.
+All downloaded checksums, source identity and dependency pins were independently
+checked. No release was published.
+
+G2 is the sole remaining checkbox. Required owner input: an approved provider/model,
+Watchdog proxy/API configuration and verified deployed revision, existing credential
+environment-variable names or trusted upstream profile, and explicit approval for
+one bounded chat plus the bounded provider-tool mission. Do not place secret values
+in the conversation or evidence. The guarded [procedure](live-provider-verification.md)
+is prepared; fixtures cannot satisfy this external-provider requirement.

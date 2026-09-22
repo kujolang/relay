@@ -1,0 +1,420 @@
+{
+  "format": "relay-workcell-proof-v1",
+  "relay_commit": "e48bc56c71fdcae5b8e852419672836f00edb99f",
+  "kujo_revision": "9b77dce592047121cb71066629836ad89252f3ce",
+  "workcell_revision": "28d2c4a3b8d317fedd5e20be618f98bd3859eaea",
+  "workcell_version": "Workcell 1.0.0",
+  "success": {
+    "run_id": "wc-1caa95ec73904ccba92321290c4dd464",
+    "verified": true,
+    "receipt": {
+      "artifact_bytes": 39,
+      "artifact_files": 1,
+      "cancelled": false,
+      "change_report_path": "/home/runner/work/relay/relay/relay/.workcell/runs/wc-1caa95ec73904ccba92321290c4dd464/changes.json",
+      "changed_files": [
+        "relay-workcell-proof.txt"
+      ],
+      "cleanup_status": "complete",
+      "command": [
+        "sh",
+        "-lc",
+        "test -f README.md && test -f main.kujo && test -f docs/launch-checklist.md && printf 'relay launch gate source files present\\n' > relay-workcell-proof.txt"
+      ],
+      "container_image": "kujolang/workcell-base:local",
+      "container_image_digest": "sha256:b953e1436ae7694f19c025e967234b2e5285b2bcb2f282040316fe44ad31af54",
+      "container_image_digest_source": "image_id",
+      "container_image_id": "sha256:b953e1436ae7694f19c025e967234b2e5285b2bcb2f282040316fe44ad31af54",
+      "container_image_labels": {
+        "org.opencontainers.image.description": "Minimal non-root image for local Workcell examples",
+        "org.opencontainers.image.title": "Kujo Workcell base"
+      },
+      "container_image_platform": "linux/amd64",
+      "container_name": "kujo-workcell-wc-1caa95ec73904ccba92321290c4dd464",
+      "definition_version": 1,
+      "effective_security_policy": {
+        "artifact_export_boundary": "host output directory only",
+        "capabilities_dropped": "ALL",
+        "devices": false,
+        "docker_socket": false,
+        "host_home_mount": false,
+        "host_ipc": false,
+        "host_pid": false,
+        "host_root_mount": false,
+        "host_user_namespace": false,
+        "network_mode": "none",
+        "network_policy": {
+          "configured_egress": {
+            "dns": "blocked",
+            "enforcement_profile": "none",
+            "policy": "deny-by-default",
+            "proxy": "none"
+          },
+          "egress": {
+            "dns": "blocked",
+            "enforcement_profile": "none",
+            "policy": "deny-by-default",
+            "proxy": "none"
+          },
+          "enforcement_profile": "none",
+          "mode": "none",
+          "name": "",
+          "warnings": []
+        },
+        "no_new_privileges": true,
+        "non_root_user": "1001:1001",
+        "privileged": false,
+        "read_only_root": true,
+        "workspace_identity": "host",
+        "workspace_mount": "/workspace:rw"
+      },
+      "elapsed": 884,
+      "elapsed_ms": 884,
+      "end_time": "2026-09-22T17:40:22Z",
+      "errors": [],
+      "exit_code": 0,
+      "exported_artifacts": [
+        "relay-workcell-proof.txt"
+      ],
+      "final_status": "completed",
+      "image_provenance_policy": {
+        "registry_allowlist": [],
+        "require_digest": false,
+        "require_signature": false
+      },
+      "integration_status": "passed",
+      "integrations": [
+        {
+          "enabled": false,
+          "name": "runledger",
+          "ok": true,
+          "report_path": null,
+          "schema_version": "workcell-integration/v1",
+          "status": "disabled"
+        },
+        {
+          "enabled": false,
+          "name": "changebucket",
+          "ok": true,
+          "report_path": null,
+          "schema_version": "workcell-integration/v1",
+          "status": "disabled"
+        },
+        {
+          "enabled": false,
+          "name": "shipcheck",
+          "ok": true,
+          "report_path": null,
+          "schema_version": "workcell-integration/v1",
+          "status": "disabled"
+        },
+        {
+          "enabled": false,
+          "name": "fence",
+          "ok": true,
+          "report_path": null,
+          "schema_version": "workcell-integration/v1",
+          "status": "disabled"
+        },
+        {
+          "enabled": false,
+          "name": "packwrite",
+          "ok": true,
+          "report_path": null,
+          "schema_version": "workcell-integration/v1",
+          "status": "disabled"
+        },
+        {
+          "enabled": false,
+          "name": "muzzle",
+          "ok": true,
+          "report_path": null,
+          "schema_version": "workcell-integration/v1",
+          "status": "disabled"
+        }
+      ],
+      "lifecycle": [
+        "created",
+        "validated",
+        "preparing",
+        "prepared",
+        "starting",
+        "running",
+        "collecting",
+        "verifying",
+        "exporting",
+        "completed",
+        "cleaning",
+        "cleaned"
+      ],
+      "logs_path": "/home/runner/work/relay/relay/relay/.workcell/runs/wc-1caa95ec73904ccba92321290c4dd464",
+      "manifest_path": "manifest.json",
+      "manifest_schema_version": "workcell-manifest/v1",
+      "mounts": [
+        "/home/runner/work/relay/relay/.workcell-host-tmp/kujo-workcell-wc-1caa95ec73904ccba92321290c4dd464:/workspace:rw"
+      ],
+      "network_mode": "none",
+      "network_policy": {
+        "configured_egress": {
+          "dns": "blocked",
+          "enforcement_profile": "none",
+          "policy": "deny-by-default",
+          "proxy": "none"
+        },
+        "egress": {
+          "dns": "blocked",
+          "enforcement_profile": "none",
+          "policy": "deny-by-default",
+          "proxy": "none"
+        },
+        "enforcement_profile": "none",
+        "mode": "none",
+        "name": "",
+        "warnings": []
+      },
+      "patch_bytes": 208,
+      "patch_path": "/home/runner/work/relay/relay/relay/.workcell/runs/wc-1caa95ec73904ccba92321290c4dd464/changes.patch",
+      "resource_limits": {
+        "cpus": 1,
+        "max_output_bytes": 4000000,
+        "memory": "256m",
+        "pids": 64,
+        "timeout_ms": 60000
+      },
+      "run_id": "wc-1caa95ec73904ccba92321290c4dd464",
+      "runtime_backend": "docker",
+      "schema_version": "workcell-receipt/v1",
+      "secret_names": [],
+      "source_commit": "e48bc56c71fdcae5b8e852419672836f00edb99f",
+      "source_repository": "/home/runner/work/relay/relay/relay",
+      "start_time": "2026-09-22T17:40:21Z",
+      "stderr_truncated": false,
+      "stdout_truncated": false,
+      "timeout": false,
+      "verification": {
+        "artifacts_exported": true,
+        "checks": [],
+        "cleanup_succeeded": true,
+        "execution_succeeded": true,
+        "verification_succeeded": true
+      },
+      "warnings": [],
+      "workcell_definition_hash": "2d5167f711143a619e3d3ac2477bffee281e82f3a6905b6b655707027fd3cc6d",
+      "workcell_definition_path": "/home/runner/work/relay/relay/relay/docs/workcell-launch-gate.json",
+      "workcell_name": "relay-launch-gate",
+      "workcell_version": "1.0.0",
+      "workspace_path": "/home/runner/work/relay/relay/.workcell-host-tmp/kujo-workcell-wc-1caa95ec73904ccba92321290c4dd464",
+      "workspace_strategy": "git-worktree"
+    }
+  },
+  "intentional_failure": {
+    "run_id": "wc-8a9a4d9a1898476283efbf710dfab06c",
+    "workload_exit": 17,
+    "workcell_exit": 7,
+    "verified": true,
+    "receipt": {
+      "artifact_bytes": 0,
+      "artifact_files": 0,
+      "cancelled": false,
+      "change_report_path": "/home/runner/work/relay/relay/relay/.workcell/runs/wc-8a9a4d9a1898476283efbf710dfab06c/changes.json",
+      "changed_files": [],
+      "cleanup_status": "complete",
+      "command": [
+        "sh",
+        "-lc",
+        "printf 'intentional Relay release failure path\\n' >&2; exit 17"
+      ],
+      "container_image": "kujolang/workcell-base:local",
+      "container_image_digest": "sha256:b953e1436ae7694f19c025e967234b2e5285b2bcb2f282040316fe44ad31af54",
+      "container_image_digest_source": "image_id",
+      "container_image_id": "sha256:b953e1436ae7694f19c025e967234b2e5285b2bcb2f282040316fe44ad31af54",
+      "container_image_labels": {
+        "org.opencontainers.image.description": "Minimal non-root image for local Workcell examples",
+        "org.opencontainers.image.title": "Kujo Workcell base"
+      },
+      "container_image_platform": "linux/amd64",
+      "container_name": "kujo-workcell-wc-8a9a4d9a1898476283efbf710dfab06c",
+      "definition_version": 1,
+      "effective_security_policy": {
+        "artifact_export_boundary": "host output directory only",
+        "capabilities_dropped": "ALL",
+        "devices": false,
+        "docker_socket": false,
+        "host_home_mount": false,
+        "host_ipc": false,
+        "host_pid": false,
+        "host_root_mount": false,
+        "host_user_namespace": false,
+        "network_mode": "none",
+        "network_policy": {
+          "configured_egress": {
+            "dns": "blocked",
+            "enforcement_profile": "none",
+            "policy": "deny-by-default",
+            "proxy": "none"
+          },
+          "egress": {
+            "dns": "blocked",
+            "enforcement_profile": "none",
+            "policy": "deny-by-default",
+            "proxy": "none"
+          },
+          "enforcement_profile": "none",
+          "mode": "none",
+          "name": "",
+          "warnings": []
+        },
+        "no_new_privileges": true,
+        "non_root_user": "1001:1001",
+        "privileged": false,
+        "read_only_root": true,
+        "workspace_identity": "host",
+        "workspace_mount": "/workspace:rw"
+      },
+      "elapsed": 576,
+      "elapsed_ms": 576,
+      "end_time": "2026-09-22T17:40:23Z",
+      "errors": [
+        {
+          "message": "container exited with code 17",
+          "stage": "running"
+        },
+        {
+          "message": "verification checks skipped because the workload failed",
+          "stage": "verifying"
+        }
+      ],
+      "exit_code": 17,
+      "exported_artifacts": [],
+      "final_status": "workload-failed",
+      "image_provenance_policy": {
+        "registry_allowlist": [],
+        "require_digest": false,
+        "require_signature": false
+      },
+      "integration_status": "passed",
+      "integrations": [
+        {
+          "enabled": false,
+          "name": "runledger",
+          "ok": true,
+          "report_path": null,
+          "schema_version": "workcell-integration/v1",
+          "status": "disabled"
+        },
+        {
+          "enabled": false,
+          "name": "changebucket",
+          "ok": true,
+          "report_path": null,
+          "schema_version": "workcell-integration/v1",
+          "status": "disabled"
+        },
+        {
+          "enabled": false,
+          "name": "shipcheck",
+          "ok": true,
+          "report_path": null,
+          "schema_version": "workcell-integration/v1",
+          "status": "disabled"
+        },
+        {
+          "enabled": false,
+          "name": "fence",
+          "ok": true,
+          "report_path": null,
+          "schema_version": "workcell-integration/v1",
+          "status": "disabled"
+        },
+        {
+          "enabled": false,
+          "name": "packwrite",
+          "ok": true,
+          "report_path": null,
+          "schema_version": "workcell-integration/v1",
+          "status": "disabled"
+        },
+        {
+          "enabled": false,
+          "name": "muzzle",
+          "ok": true,
+          "report_path": null,
+          "schema_version": "workcell-integration/v1",
+          "status": "disabled"
+        }
+      ],
+      "lifecycle": [
+        "created",
+        "validated",
+        "preparing",
+        "prepared",
+        "starting",
+        "running",
+        "collecting",
+        "verifying",
+        "exporting",
+        "failed",
+        "cleaning",
+        "cleaned"
+      ],
+      "logs_path": "/home/runner/work/relay/relay/relay/.workcell/runs/wc-8a9a4d9a1898476283efbf710dfab06c",
+      "manifest_path": "manifest.json",
+      "manifest_schema_version": "workcell-manifest/v1",
+      "mounts": [
+        "/home/runner/work/relay/relay/.workcell-host-tmp/kujo-workcell-wc-8a9a4d9a1898476283efbf710dfab06c:/workspace:rw"
+      ],
+      "network_mode": "none",
+      "network_policy": {
+        "configured_egress": {
+          "dns": "blocked",
+          "enforcement_profile": "none",
+          "policy": "deny-by-default",
+          "proxy": "none"
+        },
+        "egress": {
+          "dns": "blocked",
+          "enforcement_profile": "none",
+          "policy": "deny-by-default",
+          "proxy": "none"
+        },
+        "enforcement_profile": "none",
+        "mode": "none",
+        "name": "",
+        "warnings": []
+      },
+      "patch_bytes": 0,
+      "patch_path": "/home/runner/work/relay/relay/relay/.workcell/runs/wc-8a9a4d9a1898476283efbf710dfab06c/changes.patch",
+      "resource_limits": {
+        "cpus": 1,
+        "max_output_bytes": 4000000,
+        "memory": "256m",
+        "pids": 64,
+        "timeout_ms": 60000
+      },
+      "run_id": "wc-8a9a4d9a1898476283efbf710dfab06c",
+      "runtime_backend": "docker",
+      "schema_version": "workcell-receipt/v1",
+      "secret_names": [],
+      "source_commit": "e48bc56c71fdcae5b8e852419672836f00edb99f",
+      "source_repository": "/home/runner/work/relay/relay/relay",
+      "start_time": "2026-09-22T17:40:22Z",
+      "stderr_truncated": false,
+      "stdout_truncated": false,
+      "timeout": false,
+      "verification": {
+        "artifacts_exported": true,
+        "checks": [],
+        "cleanup_succeeded": true,
+        "execution_succeeded": false,
+        "verification_succeeded": false
+      },
+      "warnings": [],
+      "workcell_definition_hash": "e889f57d89518f823cb0521a99f1d61a6e2a1bea5dd5e0205f6d0be7c7e09f05",
+      "workcell_definition_path": "/home/runner/work/relay/relay/relay/docs/workcell-failure-gate.json",
+      "workcell_name": "relay-launch-gate-intentional-failure",
+      "workcell_version": "1.0.0",
+      "workspace_path": "/home/runner/work/relay/relay/.workcell-host-tmp/kujo-workcell-wc-8a9a4d9a1898476283efbf710dfab06c",
+      "workspace_strategy": "git-worktree"
+    }
+  }
+}

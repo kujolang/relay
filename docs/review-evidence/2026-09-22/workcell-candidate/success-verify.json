@@ -1,0 +1,10 @@
+{
+  "manifest": {
+    "bytes": 6508,
+    "files": 6,
+    "ok": true,
+    "schema_version": "workcell-manifest/v1"
+  },
+  "ok": true,
+  "run_dir": "/home/runner/work/relay/relay/relay/.workcell/runs/wc-1caa95ec73904ccba92321290c4dd464"
+}

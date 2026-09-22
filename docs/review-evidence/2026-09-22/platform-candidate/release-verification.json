@@ -1,0 +1,12 @@
+{
+  "candidate": "e48bc56c71fdcae5b8e852419672836f00edb99f",
+  "workflow_run": 35757708307,
+  "artifact_id": 10710299824,
+  "workcell_artifact_id": 10710341727,
+  "checksums": "passed",
+  "dependency_pins": "passed",
+  "all_platforms": "passed",
+  "workcell_success_and_intentional_failure": "passed",
+  "live_provider": "blocked-approval-or-credentials-required",
+  "published": false
+}
