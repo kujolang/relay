@@ -1,0 +1,10 @@
+{
+  "source_commit": "e48bc56c71fdcae5b8e852419672836f00edb99f",
+  "workflow_run": 35757708307,
+  "artifact_id": 10710275481,
+  "platform": "macos-arm64",
+  "checksum_verification": "passed",
+  "compressed_sha256": "48addb2b277c5985e04458785d4a860bee8d0a273dd69bd8654dda4967919c27",
+  "uncompressed_tar_sha256": "e8fe4e4d0bf665480315ed116c4537accd69e0dba9fee8258b3b874bd83bf129",
+  "scope": "Platform job passed; Intel and Workcell remain pending. Compression bytes vary by host; uncompressed archives match."
+}

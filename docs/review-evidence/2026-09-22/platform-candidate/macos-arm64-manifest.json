@@ -1,0 +1,145 @@
+{
+  "contracts": {
+    "format": "relay-release-contract-inventory-v1",
+    "machine_contracts": {
+      "agent_capability": "relay-agent-capability-v1",
+      "events": "AgentEvent-compatible-v1",
+      "packet_manifest": "relay-packwrite-manifest-v1",
+      "partial_export": "relay-run-export-partial-v1",
+      "receipts": "relay-receipt-v1",
+      "run_export": "relay-run-export-v1",
+      "run_sizes": "relay-run-sizes-v1",
+      "run_state": "relay-run-v1",
+      "run_verification": "relay-run-verification-v1",
+      "tool_results": "relay-tool-result-bundle-v1"
+    },
+    "mission_current": "1.0.0",
+    "mission_supported": [
+      "1.0.0",
+      "0.1.0"
+    ],
+    "relay_product": "1.1.0"
+  },
+  "created_at": "2026-09-22T16:59:12Z",
+  "dependencies": {
+    "agents-sdk": {
+      "required": true,
+      "revision": "e92a61ec1df21c89ae26f411838b4669405a0765",
+      "version": "1.0.0"
+    },
+    "ai-sdk": {
+      "required": true,
+      "revision": "d3c6def0f7844f8b42bd92d3b176e80283af8e79",
+      "version": "1.0.0"
+    },
+    "casefile": {
+      "required": false,
+      "revision": "6e8a6ded379a9882b2e48b0a8f0bad57e284c3bf",
+      "version": "1.0.0"
+    },
+    "changebucket": {
+      "required": true,
+      "revision": "373ac51a572bd3bb0510ac718ac1bab065c84735",
+      "version": "1.0.0"
+    },
+    "concord": {
+      "required": false,
+      "revision": "d388c951b7ff0e1e03da1cd252ad5b65e25765b9",
+      "version": "1.0.0"
+    },
+    "dispatch": {
+      "required": false,
+      "revision": "35b73aca3ce0c51ef480f84b4150ea566d8a26fe",
+      "version": "1.0.0"
+    },
+    "eval": {
+      "required": true,
+      "revision": "dce9d030a3547803dab876b404c44c25b247dde1",
+      "version": "1.0.0"
+    },
+    "kennel": {
+      "required": true,
+      "revision": "6df043c3ba0bde4445cc8f8f7d4c01c60c9c6d7e",
+      "version": "1.0.0"
+    },
+    "kujo": {
+      "required": true,
+      "revision": "9b77dce592047121cb71066629836ad89252f3ce",
+      "version": "1.0.0"
+    },
+    "kujo-agents": {
+      "required": true,
+      "revision": "f0c95b66fbc74057481ef228961eb6e69ff8886a",
+      "version": "unreleased"
+    },
+    "packwrite": {
+      "required": true,
+      "revision": "0cb9487e4c02218bb4a18efe68b8a0c22998f715",
+      "version": "1.0.0"
+    },
+    "redact": {
+      "required": false,
+      "revision": "ba317c74ab3e234e33b2a8ca7a2f6d4d94aeaf69",
+      "version": "unreleased"
+    },
+    "runledger": {
+      "required": true,
+      "revision": "5cf186c9b56b540970f75e33a06f50d3dac833a8",
+      "version": "1.0.0"
+    },
+    "shipcheck": {
+      "required": true,
+      "revision": "2768e3040e766b0befd354db4427afc4c7a81899",
+      "version": "1.0.0"
+    },
+    "spec": {
+      "required": false,
+      "revision": "11180d8f6af1ed3eea84abb3434dd736fa51293b",
+      "version": "1.0.0"
+    },
+    "watchdog": {
+      "required": false,
+      "revision": "7c46cd0bf1680d037c24506be4ed0a2405a9841f",
+      "version": "1.0.0"
+    },
+    "workcell": {
+      "required": true,
+      "revision": "28d2c4a3b8d317fedd5e20be618f98bd3859eaea",
+      "version": "1.0.0"
+    }
+  },
+  "format": "relay-release-manifest-v1",
+  "git_commit": "e48bc56c71fdcae5b8e852419672836f00edb99f",
+  "kujo_runtime_revision": "9b77dce592047121cb71066629836ad89252f3ce",
+  "live_provider_proof": {
+    "model": "",
+    "provider": "",
+    "status": "blocked-approval-or-credentials-required"
+  },
+  "relay_version": "1.1.0",
+  "results": {
+    "aggregate_acceptance": "passed",
+    "cli_contracts": "passed",
+    "kennel": "passed",
+    "live_provider": "blocked-approval-or-credentials-required",
+    "markdown_links": "passed",
+    "release_metadata": "passed",
+    "schemas": "passed",
+    "shipcheck": "passed-16-of-16",
+    "source_checks": "passed",
+    "workcell": "pending-exact-candidate-release-workflow"
+  },
+  "source_archive": {
+    "name": "relay-v1.1.0.tar.gz",
+    "sha256": "48addb2b277c5985e04458785d4a860bee8d0a273dd69bd8654dda4967919c27"
+  },
+  "supported_platforms": {
+    "linux-x86_64": "pending-other-matrix-job",
+    "macos-arm64": "passed",
+    "macos-x86_64": "pending-other-matrix-job"
+  },
+  "workcell": {
+    "run_id": "",
+    "status": "pending-exact-candidate-release-workflow"
+  }
+}

@@ -7,9 +7,9 @@ Historical receipts must not be promoted to the eventual final candidate.
 
 | ID | Required outcome | Current evidence / remaining work |
 | --- | --- | --- |
-| G1 | Final candidate acceptance and reproducibility on Linux, macOS Intel, macOS ARM with immutable dependencies | Pending final candidate. Existing release-preparation workflow calls the three-platform CI matrix without requiring publication. |
+| G1 | Final candidate acceptance and reproducibility on Linux, macOS Intel, macOS ARM with immutable dependencies | Candidate `e48bc56` in run `35757708307`: Linux and macOS ARM passed; Intel is still building. Retained platform manifests and benchmarks below. |
 | G2 | Explicitly approved bounded external provider/model proof through Watchdog | Configuration and approval requested; no live credentials used. |
-| G3 | Final-candidate Workcell success/failure proof, or permitted host blocker plus closest proof | Earlier host blocker retained as historical evidence only; rerun on final candidate. |
+| G3 | Final-candidate Workcell success/failure proof, or permitted host blocker plus closest proof | Candidate `e48bc56` Workcell job awaits the three-platform matrix in run `35757708307`. Earlier blocker remains historical only. |
 | G4 | Quiescent-host five-sample performance measurements; diagnose breaches without loosening budgets | Completed at `ddf690f`: six dedicated Linux profiles, five samples per command/cache mode, all unchanged budgets passed. See [controlled measurements](controlled-store-performance.md). |
 | G5 | Operator-owned identity/role/tenant/action/approval mappings; forged claims, replay, expiry and cross-tenant tests | Implemented in `5c5a909`; operator-owned v2 policy, per-identity credentials, registered resources, exact actions, bound approval and persistent replay tests pass. Full pinned gate: 37 smokes and 28 schemas. |
 | G6 | Authoritative backup/restore drill, both cache rebuilds, partial/corrupt/interrupted restoration, measured recovery objectives | Implemented in `76b5e64`; isolated drill restores with original location unavailable, rebuilds both caches and rejects partial/corrupt/interrupted publication. Measured fixture receipt retained. |
@@ -89,3 +89,28 @@ origin store. The fixture key is never stored. Both PNG transcript views were
 rendered with an isolated Chromium profile and visually checked. Platform clean-host
 runs remain in the final G1 matrix; local clean installation is not evidence for
 unrun platforms.
+
+## Candidate platform evidence in progress
+
+Frozen verification candidate: `e48bc56c71fdcae5b8e852419672836f00edb99f`.
+[Release preparation run](https://github.com/kujolang/relay/actions/runs/35757708307)
+has live-provider and publication disabled. Subsequent commits retain documentation
+and receipts; they are not silently substituted for the tested candidate.
+
+Linux and macOS ARM completed the full release gate and five-sample representative
+benchmarks. Downloaded artifact checksums passed. Their uncompressed source tar
+archives are byte-identical (`e8fe4e4d0bf665480315ed116c4537accd69e0dba9fee8258b3b874bd83bf129`);
+compressed bytes differ across host gzip implementations. Each platform's own
+two-build reproducibility gate passed; cross-host compressed-byte identity is not
+claimed. Retained [Linux verification](review-evidence/2026-09-22/platform-candidate/linux-x86_64-verification.json),
+[Linux manifest](review-evidence/2026-09-22/platform-candidate/linux-x86_64-manifest.json),
+[Linux benchmarks](review-evidence/2026-09-22/platform-candidate/linux-x86_64-benchmarks.json),
+[ARM verification](review-evidence/2026-09-22/platform-candidate/macos-arm64-verification.json),
+[ARM manifest](review-evidence/2026-09-22/platform-candidate/macos-arm64-manifest.json) and
+[ARM benchmarks](review-evidence/2026-09-22/platform-candidate/macos-arm64-benchmarks.json).
+
+Intel and the dependent Workcell job remain pending at this snapshot. Run
+`35756595210` was cancelled after Linux exposed a missing pinned Workcell checkout
+in the walkthrough environment; `e48bc56` adds that checkout, and the corrected
+Linux and ARM gates pass. Controlled profiling at `ddf690f` uses identical runtime
+and profiling source to `e48bc56`; the intervening change only adds CI checkout.
