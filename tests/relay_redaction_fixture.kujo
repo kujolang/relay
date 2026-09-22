@@ -1,0 +1,5 @@
+from src.common import redact_text
+cases := parse_json(read_file(env("RELAY_REDACTION_CASES")))
+results := []
+for sample in cases { sanitized := redact_text(sample); if redact_text(sanitized) != sanitized { print("redaction is not idempotent"); exit(1) }; results = push(results, sanitized) }
+print(to_json(results))

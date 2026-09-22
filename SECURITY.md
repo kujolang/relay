@@ -39,3 +39,16 @@ State, JSONL, receipt, required artifact, and index persistence errors are failu
 ## Deployment limitations
 
 Relay v1 does not provide hosted orchestration, authenticated multi-tenant service operation, durable multi-host storage, unrestricted autonomous shell access, universal enterprise readiness, provider-independent production certification, host/kernel isolation, secret custody, network egress governance, or compliance certification. Worktree isolation is not a container or VM boundary. Use Workcell or an operator-provided stronger sandbox when appropriate and validate the complete host, daemon, network, identity, approval, retention, and provider environment before production use.
+
+### Buffered output redaction
+
+Relay sanitizes structured JSON values before re-encoding subprocess output.
+Quoted credentials cover whitespace, escaped quotes, multiline values and
+truncated values. Buffered provider content and tool-argument fragments are
+combined by choice/tool index before sanitizing; event metadata is retained,
+with sanitized text placed in the first fragment and later fragments emptied.
+This changes fragment boundaries, not the complete sanitized content.
+Malformed JSON-looking output (including its continuation tail), oversized JSON
+and excessive nesting are replaced with redaction markers. Diagnostic text
+outside those boundaries is retained. These rules are a bounded pattern filter,
+not a guarantee of detecting arbitrary secrets in unlabelled prose.

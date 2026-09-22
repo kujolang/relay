@@ -48,7 +48,8 @@ The index is a cache. Per-run state and evidence remain authoritative.
 | `src/policy.kujo` | Path, command, script, and tool authorization | Filesystem mutation or subprocess orchestration |
 | `src/adapters.kujo` | Trusted dependency paths, bounded subprocess calls, provider/tool normalization | Mission policy |
 | `src/capabilities.kujo` | Agent-tool capability issuance, locking, consumption, revocation, and repair posture | General filesystem/process helpers |
-| `src/common.kujo` | Shared value, JSON, path, process, atomic-write, and redaction primitives | Domain lifecycle state |
+| `src/common.kujo` | Shared value, JSON, path, process, atomic-write, and redaction entry point | Domain lifecycle state |
+| `src/redaction.kujo` | Structured and quoted credential filtering; buffered stream fragment normalization | Provider transport and domain lifecycle state |
 | `src/contracts.kujo` | Versioned state/event/receipt constructors and integrity inputs | Persistence |
 | `src/store.kujo` | Safe run discovery, cache validation, locking, rebuild, backend selection | Authoritative run behavior |
 | `src/store_sqlite.kujo` | Optional SQLite index implementation | Per-run evidence |

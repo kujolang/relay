@@ -1,0 +1,10 @@
+# Offline bridge fixture. It never calls a provider or reads credentials.
+fragments := ["pass", "word=\"relay-quoted-", "credential alpha\\\" beta\" diagnostic=preserved"]
+argument_fragments := ["{\"api_", "key\":\"relay-argument-", "credential with spaces\",\"safe\":true}"]
+events := []
+mut i := 0
+while i < len(fragments) {
+    events = push(events, {"id": "fixture-stream", "choices": [{"index": 0, "delta": {"content": fragments[i], "tool_calls": [{"index": 0, "function": {"arguments": argument_fragments[i]}}]}}]})
+    i = i + 1
+}
+print(to_json({"ok": true, "output_text": join(fragments, ""), "usage": {"input_tokens": 2, "output_tokens": 3, "total_tokens": 5}, "raw": {"stream_events": events}}))

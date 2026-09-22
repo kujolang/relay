@@ -1,0 +1,169 @@
+# Redaction is bounded by the caller input envelope and JSON parser limit.
+func redact_plain_text(value) {
+    text := to_string(value)
+    if regex_match(text, "(?i)(key|token|secret|password|authorization|bearer|sk-|akia|github_pat_|gh[pousr]_|xox[baprs]-)") == false { return text }
+    text := regex_replace(text, "(?s)-----BEGIN [A-Z ]*PRIVATE KEY-----.*?(?:-----END [A-Z ]*PRIVATE KEY-----|$)", "[REDACTED_PRIVATE_KEY]")
+    text := regex_replace(text, "(?i)((?:[A-Za-z0-9_-]*(?:token|key|secret|password)|authorization)[\"']?[[:space:]]*[:=][[:space:]]*)\"(?:\\\\.|[^\"\\\\])*(?:\"|$)", "$1\"[REDACTED_CREDENTIAL]\"")
+    text := regex_replace(text, "(?i)((?:[A-Za-z0-9_-]*(?:token|key|secret|password)|authorization)[\"']?[[:space:]]*[:=][[:space:]]*)'(?:\\\\.|[^'\\\\])*(?:'|$)", "$1'[REDACTED_CREDENTIAL]'")
+    text := regex_replace(text, "(?i)Bearer[[:space:]]+[^[:space:]\"',}]+", "Bearer [REDACTED]")
+    text := regex_replace(text, "(?i)((?:[A-Za-z0-9_-]*(?:token|key|secret|password)|authorization)[\"']?[ \\t]*[:=][ \\t]*)[^[:space:]\"'][^[:space:],}]*", "$1[REDACTED_CREDENTIAL]")
+    text := regex_replace(text, "(?im)(authorization[[:space:]]*[:=][[:space:]]*)[^\\r\\n]+", "$1[REDACTED]")
+    text := regex_replace(text, "sk-[A-Za-z0-9_-]{8}[A-Za-z0-9_-]+", "sk-[REDACTED_KEY]")
+    text := regex_replace(text, "AKIA[0-9A-Z]{16}", "AKIA[REDACTED_KEY]")
+    text := regex_replace(text, "github_pat_[A-Za-z0-9_]{20,}", "github_pat_[REDACTED_KEY]")
+    text := regex_replace(text, "gh[pousr]_[A-Za-z0-9]{20,}", "gh_[REDACTED_KEY]")
+    text := regex_replace(text, "xox[baprs]-[A-Za-z0-9-]{10,}", "xox-[REDACTED_KEY]")
+    text := regex_replace(text, "-----BEGIN [A-Z ]*PRIVATE KEY-----", "[REDACTED_PRIVATE_KEY]")
+    return text
+}
+
+func get(value, key, fallback) {
+    if type(value) != "dict" || has_key(value, key) == 0 { return fallback }
+    return value[key]
+}
+
+func stream_index(value, fallback) {
+    if type(value) == "int" && value >= 0 { return to_string(value) }
+    return to_string(fallback)
+}
+
+# The SDK already buffers the complete response. Coalesce related fragments
+# before redaction; examining each fragment separately loses credential context.
+# Preserve event metadata and put sanitized combined text in the first fragment.
+func redact_stream_events(events) {
+    if type(events) != "array" { return events }
+    buffers := {}
+    for item in events {
+        choices := get(item, "choices", [])
+        if type(choices) != "array" { continue }
+        ordinal := 0
+        for choice in choices {
+            key := stream_index(get(choice, "index", null), ordinal)
+            ordinal = ordinal + 1
+            delta := get(choice, "delta", {})
+            content := get(delta, "content", null)
+            if type(content) == "string" { buffers[key] := get(buffers, key, "") + content }
+            calls := get(delta, "tool_calls", [])
+            if type(calls) != "array" { continue }
+            tool_ordinal := 0
+            for call in calls {
+                tool_key := key + "/tool/" + stream_index(get(call, "index", null), tool_ordinal)
+                tool_ordinal = tool_ordinal + 1
+                arguments := get(get(call, "function", {}), "arguments", null)
+                if type(arguments) == "string" { buffers[tool_key] := get(buffers, tool_key, "") + arguments }
+            }
+        }
+    }
+    seen := {}
+    result := []
+    for item in events {
+        choices := get(item, "choices", null)
+        if type(choices) != "array" { result = push(result, item); continue }
+        cleaned_choices := []
+        ordinal := 0
+        for choice in choices {
+            key := stream_index(get(choice, "index", null), ordinal)
+            ordinal = ordinal + 1
+            delta := get(choice, "delta", null)
+            if type(delta) != "dict" { cleaned_choices = push(cleaned_choices, choice); continue }
+            if type(get(delta, "content", null)) == "string" {
+                replacement := ""
+                if has_key(seen, key) == 0 { replacement = redact_plain_text(get(buffers, key, "")); seen[key] := true }
+                delta["content"] := replacement
+            }
+            calls := get(delta, "tool_calls", null)
+            if type(calls) == "array" {
+                cleaned_calls := []
+                tool_ordinal := 0
+                for call in calls {
+                    tool_key := key + "/tool/" + stream_index(get(call, "index", null), tool_ordinal)
+                    tool_ordinal = tool_ordinal + 1
+                    function := get(call, "function", null)
+                    if type(get(function, "arguments", null)) == "string" {
+                        replacement := ""
+                        if has_key(seen, tool_key) == 0 { replacement = redact_plain_text(get(buffers, tool_key, "")); seen[tool_key] := true }
+                        function["arguments"] := replacement
+                        call["function"] := function
+                    }
+                    cleaned_calls = push(cleaned_calls, call)
+                }
+                delta["tool_calls"] := cleaned_calls
+            }
+            choice["delta"] := delta
+            cleaned_choices = push(cleaned_choices, choice)
+        }
+        item["choices"] := cleaned_choices
+        result = push(result, item)
+    }
+    return result
+}
+
+func credential_key(key) {
+    if to_lower(key) == "public_key" { return false }
+    return regex_match(key, "(?i)^(?:[A-Za-z0-9_-]*(?:token|key|secret|password)|authorization)$")
+}
+
+# Kujo 1.0.0 assignments can update an enclosing binding of the same name.
+# Keep recursive accumulators and pending dictionary keys in a fresh parameter
+# frame so a nested array/dictionary cannot overwrite its parent's result.
+func redact_value(value, depth, frame) {
+    if depth > 64 { return "[REDACTED_DEPTH_LIMIT]" }
+    if type(value) == "string" { return redact_plain_text(value) }
+    if type(value) == "array" {
+        frame["result"] := []
+        for item in value {
+            sanitized_child := redact_value(item, depth + 1, {})
+            frame["result"] := push(frame["result"], sanitized_child)
+        }
+        return frame["result"]
+    }
+    if type(value) == "dict" {
+        frame["result"] := {}
+        for key in keys(value) {
+            frame["key"] := key
+            if credential_key(key) { current_result := frame["result"]; current_result[key] := "[REDACTED_CREDENTIAL]"; frame["result"] := current_result; continue }
+            child := value[key]
+            if key == "stream_events" { child = redact_stream_events(child) }
+            sanitized_child := redact_value(child, depth + 1, {})
+            current_result := frame["result"]
+            current_result[frame["key"]] := sanitized_child
+            frame["result"] := current_result
+        }
+        return frame["result"]
+    }
+    return value
+}
+
+func looks_like_json(text) {
+    return starts_with(text, "{") || regex_match(text, "^\\[[[:space:]]*(\\{|\\[|\"|null|true|false|-?[0-9])")
+}
+
+func redact_text(value) {
+    source_text := to_string(value)
+    stripped := trim(source_text)
+    if looks_like_json(stripped) {
+        if len(stripped) > 1048576 { return "[REDACTED_OVERSIZED_JSON]" }
+        try { document := parse_json(stripped); sanitized := redact_value(document, 0, {}); encoded := to_json(sanitized); return encoded } except err {}
+        # A truncated pretty-printed document may leave secret continuation
+        # lines without their field name. Never process those independently.
+        return "[REDACTED_INVALID_JSON]"
+    }
+    # Keep contiguous plaintext together for multiline credentials and PEMs.
+    if looks_like_json(stripped) == false && regex_match(source_text, "(?m)^[[:space:]]*\\{") == false { return redact_plain_text(source_text) }
+    source_text = regex_replace(source_text, "(?s)-----BEGIN [A-Z ]*PRIVATE KEY-----.*?(?:-----END [A-Z ]*PRIVATE KEY-----|$)", "[REDACTED_PRIVATE_KEY]")
+    # Logs may prepend human-readable diagnostics to a JSON result. Invalid or
+    # truncated JSON-looking lines are suppressed rather than partially leaked.
+    redacted_lines := []
+    for source_line in split(source_text, "\n") {
+        candidate := trim(source_line)
+        if looks_like_json(candidate) {
+            if len(candidate) > 1048576 { redacted_lines = push(redacted_lines, "[REDACTED_OVERSIZED_JSON]"); continue }
+            try { document := parse_json(candidate); sanitized := redact_value(document, 0, {}); encoded := to_json(sanitized); redacted_lines = push(redacted_lines, encoded); continue } except err {}
+            redacted_lines = push(redacted_lines, "[REDACTED_INVALID_JSON]")
+            return join(redacted_lines, "\n")
+        } else { redacted_lines = push(redacted_lines, redact_plain_text(source_line)) }
+    }
+    return join(redacted_lines, "\n")
+}
+
+export redact_text := redact_text
