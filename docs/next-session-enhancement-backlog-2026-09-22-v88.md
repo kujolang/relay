@@ -40,9 +40,11 @@ artifacts and were not deleted as part of source cleanup.
   all immutable ecosystem revisions match `release/dependencies.json`. Completed
   for frozen candidate `e48bc56`; [platform receipts](v88-execution-status.md)
   retain three passing gates, archive checks and exact dependency manifests.
-- [ ] Obtain explicit owner approval for credentials/provider/model and run
+- [x] Obtain explicit owner approval for credentials/provider/model and run
   `scripts/live_provider_verification.sh` through Watchdog. Fixture and local
-  stub results cannot establish external provider compatibility.
+  stub results cannot establish external provider compatibility. Completed with
+  owner-approved Ollama `glm-5.3-flash` and pinned Watchdog/SDK revisions; see
+  [final live proof and conditions](v88-execution-status.md#final-approved-pinned-provider-tool-proof).
 - [x] Rerun Workcell success/failure proof on the final candidate. If Docker or
   the host is unavailable, retain a blocker receipt and closest local proof;
   never carry an old commit's receipt forward as current evidence. The permitted

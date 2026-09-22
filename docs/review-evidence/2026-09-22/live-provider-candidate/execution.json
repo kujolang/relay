@@ -1,0 +1,26 @@
+{
+  "relay_commit": "e48bc56c71fdcae5b8e852419672836f00edb99f",
+  "watchdog_revision": "7c46cd0bf1680d037c24506be4ed0a2405a9841f",
+  "watchdog_entry_sha256": "03f43ad906d633bf4becf583cfb3353604e6aa667a18dd7e2c1f741ebabd74a0",
+  "runtime_binary_sha256": "40d12094c82b0cfb99134cb6c7d5eea4793c9c5fa2c384f2cea6cfdc4a15f9df",
+  "script_exit": 0,
+  "secret_scan_passed": true,
+  "isolated_watchdog": true,
+  "transport": {
+    "dns_workaround": "local CONNECT tunnel; only ollama.com:443 permitted",
+    "tls_verification": "unchanged end-to-end pinned reqwest default",
+    "resolved_ipv4": "34.36.133.15",
+    "helper_sha256": "ed6edfc523feb227aee3d4cd5dd261e862ad6319c26cddf564688fc9ffa2be88"
+  },
+  "provider": "Ollama",
+  "model": "glm-5.3-flash",
+  "mission_budgets": {
+    "max_steps": 2,
+    "max_repairs": 0,
+    "max_tokens": 4000,
+    "max_tool_calls": 2,
+    "max_tool_turns": 2,
+    "max_output_bytes": 1048576,
+    "max_write_bytes": 1048576
+  }
+}

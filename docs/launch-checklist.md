@@ -15,20 +15,20 @@ This checklist separates repository-controlled preparation from exact-candidate,
 
 ## Exact-candidate verification
 
-- [ ] Focused commands and aggregate acceptance pass with Kujo `9b77dce592047121cb71066629836ad89252f3ce` for the final candidate commit.
-- [ ] Kennel validation passes for the final candidate commit.
-- [ ] ShipCheck gate exits `0` with 16/16 checks passing for the final candidate commit.
-- [ ] Two artifact builds from the same commit are equivalent and the archive-install smoke passes.
-- [ ] macOS platform job passes for the final candidate.
-- [ ] Linux platform job passes for the final candidate.
-- [ ] Workcell success and intentional workload-failure paths are rerun against the exact final candidate; both manifests verify and the run IDs/receipts are retained.
+- [x] Focused commands and aggregate acceptance pass with Kujo `9b77dce592047121cb71066629836ad89252f3ce` for the final candidate commit.
+- [x] Kennel validation passes for the final candidate commit.
+- [x] ShipCheck gate exits `0` with 16/16 checks passing for the final candidate commit.
+- [x] Two artifact builds from the same commit are equivalent and the archive-install smoke passes.
+- [x] macOS platform job passes for the final candidate.
+- [x] Linux platform job passes for the final candidate.
+- [x] Workcell success and intentional workload-failure paths are rerun against the exact final candidate; both manifests verify and the run IDs/receipts are retained.
 
 ## Approval-gated live provider proof
 
-- [ ] Release owner explicitly approves the configured credentials and provider/model.
-- [ ] Bounded external chat routes through Watchdog with request correlation and matched usage.
-- [ ] Bounded provider-generated tool mission routes through Watchdog and produces verified tool, run, and export evidence.
-- [ ] Evidence is redacted and records exact Relay, Kujo, Watchdog, AI SDK, Agents SDK, provider, and model identities without credentials.
+- [x] Release owner explicitly approves the configured credentials and provider/model.
+- [x] Bounded external chat routes through Watchdog with request correlation and matched usage.
+- [x] Bounded provider-generated tool mission routes through Watchdog and produces verified tool, run, and export evidence.
+- [x] Evidence is redacted and records exact Relay, Kujo, Watchdog, AI SDK, Agents SDK, provider, and model identities without credentials.
 
 Until these items pass, external provider compatibility is an explicit release blocker. Local Watchdog with a stub provider is useful regression evidence but is not a substitute.
 
@@ -37,7 +37,7 @@ Until these items pass, external provider compatibility is an explicit release b
 - [x] GitHub-hosted Linux, macOS x86_64, and macOS arm64 runners start successfully for the candidate branch.
 - [x] Required pinned ecosystem sources are publicly readable by the least-privilege GitHub token, including `kujolang/kujo-agents` revision `f0c95b66fbc74057481ef228961eb6e69ff8886a`; CI does not require a private cross-repository token.
 - [x] `main` requires the Linux, macOS x86_64, macOS arm64, and artifact-guard checks; administrators are included, force pushes and deletion are blocked, and the approval-gated `release` environment is configured.
-- [ ] The final candidate CI and release-preparation workflow runs are retained and reviewed.
+- [x] The final candidate CI and release-preparation workflow runs are retained and reviewed.
 
 ## Release-owner actions
 
@@ -60,3 +60,12 @@ No tag, package publication, signing, notarization, deployment, or public releas
 - Unrestricted shell or autonomous production access.
 
 These are outside the scoped local v1 contract and do not become implemented through documentation or integrity hashes.
+
+## Reviewed candidate evidence — 2026-09-22
+
+The checked verification items apply to `e48bc56c71fdcae5b8e852419672836f00edb99f`.
+[Execution status](v88-execution-status.md) retains all three platform gates,
+Workcell success/failure, reproducibility, exact pins and the approved live
+Ollama `glm-5.3-flash` chat/tool proof, including its DNS transport workaround.
+Subsequent commits retain documentation and evidence; publication remains an
+unchecked release-owner action. Historical blocked manifests are not rewritten.

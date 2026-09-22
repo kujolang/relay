@@ -1,0 +1,21 @@
+{
+  "format": "relay-live-provider-proof-v1",
+  "relay_version": "1.1.0",
+  "relay_commit": "e48bc56c71fdcae5b8e852419672836f00edb99f",
+  "kujo_revision": "9b77dce592047121cb71066629836ad89252f3ce",
+  "watchdog_revision": "7c46cd0bf1680d037c24506be4ed0a2405a9841f",
+  "ai_sdk_revision": "d3c6def0f7844f8b42bd92d3b176e80283af8e79",
+  "agents_sdk_revision": "e92a61ec1df21c89ae26f411838b4669405a0765",
+  "provider": "openai-compatible",
+  "model": "glm-5.3-flash",
+  "watchdog_upstream_profile": "",
+  "correlation_id": "relay-pinned-live-1790100827",
+  "run_id": "relay-provider-tools-mission-1790100834107-648860",
+  "watchdog_bypassed": false,
+  "chat_verified": true,
+  "usage_reconciled": true,
+  "tool_results_verified": true,
+  "run_verified": true,
+  "export_verified": true,
+  "secrets_recorded": false
+}

@@ -1,0 +1,47 @@
+{
+  "source": "pinned Watchdog authenticated requests API",
+  "requests": [
+    {
+      "id": 3,
+      "request_id": "chatcmpl-901",
+      "correlation_id": "relay-provider-tools-mission-1790100834107-648860",
+      "model": "glm-5.3-flash",
+      "provider": "default",
+      "status": "success",
+      "input_tokens": 312,
+      "output_tokens": 639,
+      "total_tokens": 951,
+      "error_code": "",
+      "error_message": ""
+    },
+    {
+      "id": 2,
+      "request_id": "chatcmpl-368",
+      "correlation_id": "relay-provider-tools-mission-1790100834107-648860",
+      "model": "glm-5.3-flash",
+      "provider": "default",
+      "status": "success",
+      "input_tokens": 239,
+      "output_tokens": 673,
+      "total_tokens": 912,
+      "error_code": "",
+      "error_message": ""
+    },
+    {
+      "id": 1,
+      "request_id": "chatcmpl-165",
+      "correlation_id": "relay-pinned-live-1790100827",
+      "model": "glm-5.3-flash",
+      "provider": "default",
+      "status": "success",
+      "input_tokens": 19,
+      "output_tokens": 700,
+      "total_tokens": 719,
+      "error_code": "",
+      "error_message": ""
+    }
+  ],
+  "mission_usage_sum": 1863,
+  "chat_usage": 719,
+  "matched": true
+}

@@ -1,0 +1,1 @@
+{"contract_version":"relay-tool-result-bundle-v1","results":[{"provider_call_id":"call_y2fk0prn","result":{"error":{"kind":"","message":""},"ok":true,"output":{"ok":true,"path":"mission-plan.md","tool":"write_file"},"tool_name":"relay.write_file"},"tool_name":"relay.write_file","turn":1}],"run_id":"relay-provider-tools-mission-1790100834107-648860"}

@@ -2,16 +2,15 @@
 
 Objective: complete every checkbox in the
 [v88 next-session list](next-session-enhancement-backlog-2026-09-22-v88.md).
-All authorized implementation and offline/container verification work is complete.
-G2 is partially verified: owner-approved live chat passed; exact pinned
-Watchdog/provider-tool proof remains outstanding.
-This is not final release approval.
+All eleven requested items are verified for the scopes recorded below.
+The owner-approved pinned live chat/tool proof now passes. This completes the
+engineering backlog, not publication approval or universal enterprise certification.
 Historical receipts must not be promoted to the eventual final candidate.
 
 | ID | Required outcome | Current evidence / remaining work |
 | --- | --- | --- |
 | G1 | Final candidate acceptance and reproducibility on Linux, macOS Intel, macOS ARM with immutable dependencies | Completed for frozen candidate `e48bc56`: all three platform jobs passed full gates, deterministic two-build artifacts, clean archive installs and representative benchmarks. Manifest pins and downloaded checksums verified. |
-| G2 | Explicitly approved bounded external provider/model proof through Watchdog | Owner-approved chat passed through existing Watchdog/default Ollama route using `glm-5.3-flash`: correlation and all 127 tokens matched. [Receipt](review-evidence/2026-09-22/approved-live-chat.json). Exact pinned deployment/tool-mission proof remains outstanding. |
+| G2 | Explicitly approved bounded external provider/model proof through Watchdog | Completed for `e48bc56`, pinned Kujo/Watchdog/SDK revisions and Ollama `glm-5.3-flash`. Chat plus two mission turns reconciled with Watchdog; one allowed write tool, run integrity and complete export passed. [Proof](review-evidence/2026-09-22/live-provider-candidate/proof.json). |
 | G3 | Final-candidate Workcell success/failure proof, or permitted host blocker plus closest proof | Completed remotely at `e48bc56`, job `106860615852`: successful workload and intentional exit 17 both have valid receipts and complete cleanup. [Proof](review-evidence/2026-09-22/workcell-candidate/proof.json). Local host blocker retained as historical context. |
 | G4 | Quiescent-host five-sample performance measurements; diagnose breaches without loosening budgets | Completed at `ddf690f`: six dedicated Linux profiles, five samples per command/cache mode, all unchanged budgets passed. See [controlled measurements](controlled-store-performance.md). |
 | G5 | Operator-owned identity/role/tenant/action/approval mappings; forged claims, replay, expiry and cross-tenant tests | Implemented in `5c5a909`; operator-owned v2 policy, per-identity credentials, registered resources, exact actions, bound approval and persistent replay tests pass. Full pinned gate: 37 smokes and 28 schemas. |
@@ -171,3 +170,39 @@ revision was not independently established, and no provider-tool mission was run
 The earlier approval/configuration blocker description above is historical; chat
 approval and a working route are now established. Remaining work is bounded
 provider-tool verification against an independently verified pinned deployment.
+
+## Final approved pinned provider/tool proof
+
+The owner subsequently approved the bounded tool mission. The committed guarded
+script passed unchanged at frozen candidate `e48bc56` using clean ordinary clones
+of all pinned dependencies and a separately launched pinned Watchdog instance.
+The existing shared Watchdog instance was unchanged. The isolated instance and
+temporary transport helper were shut down after verification.
+
+[Execution receipt](review-evidence/2026-09-22/live-provider-candidate/execution.json)
+records runtime and entrypoint hashes, exact revisions, budgets and the zero-match
+configured-secret scan. Host DNS resolution failed for the pinned HTTP client;
+a temporary loopback CONNECT helper resolved only `ollama.com:443` via DNS and
+forwarded encrypted bytes. TLS certificate verification remained enabled end to
+end. The [helper source](review-evidence/2026-09-22/live-provider-candidate/dns-connect-helper.py)
+is retained and hash-bound; this environment workaround is part of the evidence,
+not a Relay runtime change or a direct-provider bypass.
+
+[Watchdog API rows](review-evidence/2026-09-22/live-provider-candidate/watchdog-requests.json)
+independently show three successful correlated requests: 719 tokens for chat,
+and 1,863 total across two mission turns, within the unchanged 4,000-token budget.
+The model called `relay.write_file` once, creating
+[mission-plan.md](review-evidence/2026-09-22/live-provider-candidate/mission-plan.md)
+in the disposable workspace. The [tool bundle](review-evidence/2026-09-22/live-provider-candidate/tool-results.json),
+[run verification](review-evidence/2026-09-22/live-provider-candidate/verify.json)
+and [complete export](review-evidence/2026-09-22/live-provider-candidate/export.json)
+passed. [Mission definition](review-evidence/2026-09-22/live-provider-candidate/mission-definition.json)
+records the allowlist and approval; [proof](review-evidence/2026-09-22/live-provider-candidate/proof.json)
+binds Relay, Kujo, Watchdog and both SDK revisions. Earlier pending/blocked
+snapshots above remain historical and are superseded by this result.
+
+This proves the selected Ollama model and bounded tool path under the recorded
+conditions. It does not certify other providers/models, eliminate the documented
+local-first boundaries, or authorize a tag, deployment or public release.
+
+The [completed candidate manifest](review-evidence/2026-09-22/live-provider-candidate/completed-candidate-manifest.json) records all verified gates as passed. Its rebuilt archive checksums passed, and the uncompressed tar matches the three platform artifacts. The earlier blocked manifest remains historical evidence.
