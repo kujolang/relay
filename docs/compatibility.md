@@ -19,6 +19,7 @@ Relay uses semantic versioning for the product and independent identifiers for m
 | Provider tool results | `relay-tool-result-bundle-v1` | run identity, bounded result list, tool-call correlation, and state digest binding remain stable |
 | PackWrite manifest | `relay-packwrite-manifest-v1` | recursive packet coverage and digest meaning remain stable |
 | Agent capability record | `relay-agent-capability-v1` | local identity, expiry, call-budget, locking, revocation, and replay semantics remain stable |
+| Machine authorization | `relay-machine-access-v2` | v1 caller-selected authority is rejected; explicit operator policy and versioned requests required |
 | JSON Schema IDs | `https://kujo.dev/relay/schemas/*.schema.json` | IDs remain stable for compatible additive revisions; incompatible schemas receive new IDs/files |
 
 ## CLI and JSON evolution
@@ -34,3 +35,17 @@ Relay verifies contract identity, run identity, bounds, integrity, and required 
 Mission `0.1.0` and `1.0.0` currently have the same execution meaning. New files should use `1.0.0`; existing `0.1.0` files can be migrated by changing only the top-level `version` after validating against [`mission.schema.json`](../schemas/mission.schema.json). The committed legacy and unsupported fixtures provide regression coverage.
 
 An incompatible future change requires a new contract identifier, changelog entry, updated schema, fixtures for old and new forms, a documented migration, and explicit rejection of unsupported versions.
+
+## Machine authorization security migration
+
+The optional v1 trusted-caller primitive allowed callers to select roles, tenants,
+approval and arbitrary action names. It is replaced by the explicit
+[machine v2 policy and request](machine-authorization.md). There is no unsafe v1
+fallback: `RELAY_MACHINE_ACCESS_SECRET` alone cannot enable authorization.
+Configure per-identity credentials, resource ownership, exact grants, and
+operator approvals; add the v2 request contract, resource, unique request ID and
+bounded expiry. Existing CLI command names and success/error exit meanings remain.
+The old generic result schema remains available for historical records; new
+request, policy and result schemas have distinct v2 file names and identifiers.
+Historical `machine-audit.jsonl` is retained but never imported as replay state;
+v2 writes `machine-audit-v2.jsonl`. Other run and export contracts are unchanged.

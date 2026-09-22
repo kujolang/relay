@@ -36,7 +36,10 @@ See [`docs/compatibility.md`](../docs/compatibility.md).
 | `signed-export.schema.json` | separate HMAC-authenticated `runs export --signed` wrapper |
 | `aggregate-metrics.schema.json` | bounded `runs metrics` summary |
 | `failure-handoff.schema.json` | redacted, confirmed failed-run handoff |
-| `machine-access.schema.json` | authenticated machine authorization result |
+| `machine-access.schema.json` | historical generic machine authorization result |
+| `machine-access-v2.schema.json` | operator-policy machine authorization result |
+| `machine-request-v2.schema.json` | versioned identity/resource/action/expiry request |
+| `machine-policy-v2.schema.json` | operator-owned identities, resource tenants, grants and approvals |
 | `event.schema.json` | AgentEvent-compatible `events.jsonl` records |
 | `event-bundle.schema.json` | verified `runs events` response, including paged windows |
 | `run-bundle.schema.json` | validated `runs list` response, including paged windows |

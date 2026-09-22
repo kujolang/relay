@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kujo.dev/relay/schemas/machine-access-v2.schema.json",
+  "title": "Relay machine authorization result v2",
+  "type": "object",
+  "required": [
+    "ok"
+  ],
+  "properties": {
+    "ok": {
+      "type": "boolean"
+    },
+    "authorized": {
+      "type": "boolean"
+    },
+    "contract_version": {
+      "const": "relay-machine-access-v2"
+    },
+    "identity": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+    },
+    "tenant": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+    },
+    "resource": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+    },
+    "request_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+    },
+    "role": {
+      "enum": [
+        "reader",
+        "operator",
+        "approver"
+      ]
+    },
+    "action": {
+      "enum": [
+        "runs.read.list",
+        "runs.read.show",
+        "runs.read.events",
+        "runs.read.export",
+        "runs.read.verify",
+        "runs.cancel",
+        "runs.cleanup",
+        "missions.run"
+      ]
+    },
+    "error": {
+      "type": "string"
+    }
+  }
+}

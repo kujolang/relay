@@ -1,0 +1,148 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kujo.dev/relay/schemas/machine-policy-v2.schema.json",
+  "title": "Relay operator-owned machine policy v2",
+  "type": "object",
+  "required": [
+    "contract_version",
+    "identities",
+    "resources",
+    "approvals"
+  ],
+  "properties": {
+    "contract_version": {
+      "const": "relay-machine-policy-v2"
+    },
+    "identities": {
+      "type": "object",
+      "minProperties": 1,
+      "maxProperties": 128,
+      "propertyNames": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 128,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+      },
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "role",
+          "tenant",
+          "secret_sha256",
+          "actions"
+        ],
+        "properties": {
+          "role": {
+            "enum": [
+              "reader",
+              "operator",
+              "approver"
+            ]
+          },
+          "tenant": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+          },
+          "secret_sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "actions": {
+            "type": "array",
+            "maxItems": 8,
+            "items": {
+              "enum": [
+                "runs.read.list",
+                "runs.read.show",
+                "runs.read.events",
+                "runs.read.export",
+                "runs.read.verify",
+                "runs.cancel",
+                "runs.cleanup",
+                "missions.run"
+              ]
+            }
+          }
+        }
+      }
+    },
+    "resources": {
+      "type": "object",
+      "maxProperties": 256,
+      "propertyNames": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 128,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+      },
+      "additionalProperties": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 128,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+      }
+    },
+    "approvals": {
+      "type": "array",
+      "maxItems": 128,
+      "items": {
+        "type": "object",
+        "required": [
+          "identity",
+          "tenant",
+          "action",
+          "resource",
+          "request_id",
+          "expires_at_ms"
+        ],
+        "properties": {
+          "identity": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+          },
+          "tenant": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+          },
+          "resource": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+          },
+          "request_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+          },
+          "action": {
+            "enum": [
+              "runs.read.list",
+              "runs.read.show",
+              "runs.read.events",
+              "runs.read.export",
+              "runs.read.verify",
+              "runs.cancel",
+              "runs.cleanup",
+              "missions.run"
+            ]
+          },
+          "expires_at_ms": {
+            "type": "integer"
+          },
+          "contract_version": {
+            "const": "relay-machine-request-v2"
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  }
+}

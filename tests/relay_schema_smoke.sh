@@ -19,6 +19,9 @@ schemas=(
   aggregate-metrics
   failure-handoff
   machine-access
+  machine-access-v2
+  machine-request-v2
+  machine-policy-v2
   event
   event-bundle
   run-bundle

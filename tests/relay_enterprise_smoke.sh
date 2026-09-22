@@ -22,16 +22,7 @@ jq -e '.ok == false and .compatible == false' <<<"$unsupported" >/dev/null
 
 status="$($KUJO run "$ROOT/main.kujo" -- machine status --json)"
 jq -e '.ok and .enabled == false and .default == "disabled"' <<<"$status" >/dev/null
-request='{"identity":"ci-reader","role":"reader","tenant":"fixture-tenant","action":"runs.read.list","approval":false}'
-set +e
-disabled="$(RELAY_MACHINE_REQUEST="$request" RELAY_MACHINE_REQUEST_SECRET=fixture-secret RELAY_MACHINE_ACCESS_SECRET=fixture-secret $KUJO run "$ROOT/main.kujo" -- machine authorize --json 2>&1)"
-disabled_rc=$?
-set -e
-test "$disabled_rc" -ne 0
-jq -e '.ok == false' <<<"$disabled" >/dev/null
-authorized="$(RELAY_MACHINE_ACCESS_ENABLED=true RELAY_MACHINE_REQUEST="$request" RELAY_MACHINE_REQUEST_SECRET=fixture-secret RELAY_MACHINE_ACCESS_SECRET=fixture-secret $KUJO run "$ROOT/main.kujo" -- machine authorize --json)"
-jq -e '.ok and .authorized and .role == "reader" and .tenant == "fixture-tenant"' <<<"$authorized" >/dev/null
-jq -e '.contract_version == "relay-machine-access-v1" and .allowed == true and (.integrity_sha256 | length == 64)' "$RELAY_STATE_ROOT/machine-audit.jsonl" >/dev/null
+bash "$ROOT/tests/relay_machine_access_smoke.sh"
 
 WORK="$TMP_ROOT/work"
 mkdir -p "$WORK"

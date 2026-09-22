@@ -61,3 +61,12 @@ This release includes all changes merged after `1.0.0` through the release candi
 
 - Hosted orchestration, authenticated multi-tenant operation, durable multi-host storage, unrestricted shell or production access, universal enterprise certification, and provider-independent production certification.
 - External live-provider certification remains approval-gated and must be completed against the exact release candidate before public release.
+
+### Machine authorization v2 security boundary
+
+- Replace caller-selected roles, tenants and approvals with bounded operator-owned
+  policy, per-identity credential digests, registered resources and exact actions.
+- Require versioned requests, five-minute maximum expiry and persistent single-use
+  request IDs; serialize atomic audit writes and reject corrupt/full audit state.
+- Reject v1 shared-secret authority explicitly. See the
+  [migration guide](docs/machine-authorization.md); CLI command names are unchanged.

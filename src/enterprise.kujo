@@ -1,9 +1,10 @@
+from src.machine_access import MACHINE_ACCESS_CONTRACT, machine_access_status, machine_audit_input, authorize_machine_request
 from src.common import CONTROL_RECORD_MAX_BYTES, JSON_DOCUMENT_MAX_BYTES, dict_get_or, env_or, env_bool, string_or, bool_or, int_or, safe_json, read_json_limited, write_json, append_jsonl_bounded, redact_text, now_iso, path_is_symlink_safe, ensure_safe_directory
 from src.contracts import state_integrity_valid
 
 export SPEC_IMPORT_CONTRACT := "relay-spec-import-v1"
 export DISPATCH_IMPORT_CONTRACT := "relay-dispatch-import-v1"
-export MACHINE_ACCESS_CONTRACT := "relay-machine-access-v1"
+export MACHINE_ACCESS_CONTRACT := MACHINE_ACCESS_CONTRACT
 export FAILURE_HANDOFF_CONTRACT := "relay-failure-handoff-v1"
 export SIGNED_EXPORT_CONTRACT := "relay-signed-export-v1"
 
@@ -22,40 +23,6 @@ func negotiate_contract(path) {
     payload := dict_get_or(value, "payload", null)
     if type(payload) != "dict" { return {"ok": false, "compatible": false, "error": "contract payload must be an object"} }
     return {"ok": true, "compatible": true, "contract_version": import_contract, "kind": kind, "negotiated_version": version, "payload": payload}
-}
-
-func machine_access_status() {
-    enabled := env_bool("RELAY_MACHINE_ACCESS_ENABLED", false)
-    secret_configured := env_or("RELAY_MACHINE_ACCESS_SECRET", "") != ""
-    return {"ok": true, "contract_version": MACHINE_ACCESS_CONTRACT, "enabled": enabled, "default": "disabled", "secret_configured": secret_configured, "roles": ["reader", "operator", "approver"], "audit": "bounded sealed JSONL"}
-}
-
-func machine_audit_input(item) {
-    return to_string(dict_get_or(item, "contract_version", "")) + "|" + to_string(dict_get_or(item, "identity", "")) + "|" + to_string(dict_get_or(item, "role", "")) + "|" + to_string(dict_get_or(item, "tenant", "")) + "|" + to_string(dict_get_or(item, "action", "")) + "|" + to_string(dict_get_or(item, "approval", false)) + "|" + to_string(dict_get_or(item, "allowed", false)) + "|" + to_string(dict_get_or(item, "created_at", ""))
-}
-
-func authorize_machine_request(state_root, request, supplied_secret) {
-    if env_bool("RELAY_MACHINE_ACCESS_ENABLED", false) == false { return {"ok": false, "error": "machine access is disabled"} }
-    configured := env_or("RELAY_MACHINE_ACCESS_SECRET", "")
-    if configured == "" || sha256(to_string(supplied_secret)) != sha256(configured) { return {"ok": false, "error": "machine authentication failed"} }
-    if type(request) != "dict" { return {"ok": false, "error": "machine request must be an object"} }
-    identity := string_or(dict_get_or(request, "identity", ""), "")
-    role := string_or(dict_get_or(request, "role", ""), "")
-    tenant := string_or(dict_get_or(request, "tenant", ""), "")
-    action := string_or(dict_get_or(request, "action", ""), "")
-    approval := bool_or(dict_get_or(request, "approval", false), false)
-    if identity == "" || tenant == "" || action == "" || index_of(["reader", "operator", "approver"], role) < 0 { return {"ok": false, "error": "identity, recognized role, tenant, and action are required"} }
-    mut allowed := false
-    if starts_with(action, "runs.read") { allowed = true }
-    else if role == "operator" && approval { allowed = true }
-    else if role == "approver" && approval { allowed = true }
-    item := {"contract_version": MACHINE_ACCESS_CONTRACT, "identity": identity, "role": role, "tenant": tenant, "action": action, "approval": approval, "allowed": allowed, "created_at": now_iso()}
-    item["integrity_sha256"] := sha256(machine_audit_input(item))
-    audit_path := state_root + "/machine-audit.jsonl"
-    if ensure_safe_directory(state_root) == false { return {"ok": false, "error": "machine audit root could not be created safely"} }
-    if append_jsonl_bounded(audit_path, item, 4194304) == false { return {"ok": false, "error": "machine audit evidence could not be persisted"} }
-    if allowed == false { return {"ok": false, "authorized": false, "audit": item, "error": "role or approval does not authorize action"} }
-    return {"ok": true, "authorized": true, "identity": identity, "role": role, "tenant": tenant, "action": action, "audit": item}
 }
 
 func failure_handoff(run_dir, run_id, output_path, confirmed) {

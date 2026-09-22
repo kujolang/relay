@@ -1,0 +1,112 @@
+from src.common import CONTROL_RECORD_MAX_BYTES, dict_get_or, env_or, env_bool, read_json_limited, safe_json, now_iso, path_is_symlink_safe, path_has_symlink_component, ensure_safe_directory, create_exclusive_dir, write_text_atomic
+
+export MACHINE_ACCESS_CONTRACT := "relay-machine-access-v2"
+
+func identifier(value) {
+    return type(value) == "string" && len(value) > 0 && len(value) <= 128 && regex_match(value, "^[A-Za-z0-9][A-Za-z0-9_.:-]*$")
+}
+
+func known_actions() { return ["runs.read.list", "runs.read.show", "runs.read.events", "runs.read.export", "runs.read.verify", "runs.cancel", "runs.cleanup", "missions.run"] }
+func read_action(action) { return index_of(["runs.read.list", "runs.read.show", "runs.read.events", "runs.read.export", "runs.read.verify"], action) >= 0 }
+
+func load_policy() {
+    policy_path := env_or("RELAY_MACHINE_POLICY_PATH", "")
+    if policy_path == "" || path_has_symlink_component(policy_path) || path_is_symlink_safe(policy_path) { return null }
+    policy := read_json_limited(policy_path, null, CONTROL_RECORD_MAX_BYTES)
+    if type(policy) != "dict" || dict_get_or(policy, "contract_version", "") != "relay-machine-policy-v2" { return null }
+    identities := dict_get_or(policy, "identities", null)
+    approvals := dict_get_or(policy, "approvals", null)
+    resources := dict_get_or(policy, "resources", null)
+    if type(resources) != "dict" || len(keys(resources)) > 256 { return null }
+    for resource in keys(resources) { if identifier(resource) == false || identifier(resources[resource]) == false { return null } }
+    if type(identities) != "dict" || len(keys(identities)) == 0 || len(keys(identities)) > 128 || type(approvals) != "array" || len(approvals) > 128 { return null }
+    for name in keys(identities) {
+        entry := identities[name]
+        if identifier(name) == false || type(entry) != "dict" { return null }
+        if index_of(["reader", "operator", "approver"], dict_get_or(entry, "role", "")) < 0 || identifier(dict_get_or(entry, "tenant", null)) == false { return null }
+        digest := dict_get_or(entry, "secret_sha256", null)
+        grants := dict_get_or(entry, "actions", null)
+        if type(digest) != "string" || regex_match(digest, "^[0-9a-f]{64}$") == false || type(grants) != "array" || len(grants) > 8 { return null }
+        for grant in grants { if type(grant) != "string" || index_of(known_actions(), grant) < 0 { return null } }
+    }
+    for approval in approvals {
+        if type(approval) != "dict" { return null }
+        for field in ["identity", "tenant", "request_id", "resource"] { if identifier(dict_get_or(approval, field, null)) == false { return null } }
+        if index_of(known_actions(), dict_get_or(approval, "action", "")) < 0 || type(dict_get_or(approval, "expires_at_ms", null)) != "int" { return null }
+    }
+    return policy
+}
+
+func machine_access_status() {
+    policy := load_policy()
+    return {"ok": true, "contract_version": MACHINE_ACCESS_CONTRACT, "enabled": env_bool("RELAY_MACHINE_ACCESS_ENABLED", false), "default": "disabled", "policy_configured": policy != null, "roles": ["reader", "operator", "approver"], "actions": known_actions(), "audit": "bounded atomic local JSONL; no automatic replay eviction"}
+}
+
+func machine_audit_input(item) {
+    # Canonical JSON avoids delimiter ambiguity and binds every decision field.
+    return safe_json({"contract_version": dict_get_or(item, "contract_version", ""), "identity": dict_get_or(item, "identity", ""), "role": dict_get_or(item, "role", ""), "tenant": dict_get_or(item, "tenant", ""), "action": dict_get_or(item, "action", ""), "resource": dict_get_or(item, "resource", ""), "request_id": dict_get_or(item, "request_id", ""), "expires_at_ms": dict_get_or(item, "expires_at_ms", 0), "approval": dict_get_or(item, "approval", false), "allowed": dict_get_or(item, "allowed", false), "created_at": dict_get_or(item, "created_at", "")})
+}
+
+func record_decision(state_root, item) {
+    audit_path := state_root + "/machine-audit-v2.jsonl"
+    if path_is_symlink_safe(audit_path) { return {"ok": false, "error": "machine audit path is unsafe"} }
+    previous := ""
+    if path_exists(audit_path) {
+        if path_is_file(audit_path) == false || file_size(audit_path) > 1048576 { return {"ok": false, "error": "machine audit unavailable or full"} }
+        try { previous = read_file(audit_path) } except err { return {"ok": false, "error": "machine audit read failed"} }
+        if len(previous) > 0 && ends_with(previous, "\n") == false { return {"ok": false, "error": "machine audit is incomplete"} }
+        for line in split(previous, "\n") {
+            if line == "" { continue }
+            prior := null
+            try { prior = parse_json(line) } except err { return {"ok": false, "error": "machine audit is corrupt"} }
+            if type(prior) != "dict" || dict_get_or(prior, "contract_version", "") != MACHINE_ACCESS_CONTRACT || dict_get_or(prior, "integrity_sha256", "") != sha256(machine_audit_input(prior)) { return {"ok": false, "error": "machine audit integrity failed"} }
+            if dict_get_or(prior, "identity", "") == item["identity"] && dict_get_or(prior, "request_id", "") == item["request_id"] { return {"ok": false, "error": "machine request replay denied"} }
+        }
+    }
+    if item["expires_at_ms"] <= current_timestamp() { return {"ok": false, "error": "request expired before audit commit"} }
+    item["integrity_sha256"] := sha256(machine_audit_input(item))
+    output := previous + safe_json(item) + "\n"
+    if len(output) > 1048576 || write_text_atomic(audit_path, output) == false { return {"ok": false, "error": "machine audit could not be persisted"} }
+    if item["allowed"] == false { return {"ok": false, "authorized": false, "audit": item, "error": "operator policy does not authorize request"} }
+    return {"ok": true, "authorized": true, "contract_version": MACHINE_ACCESS_CONTRACT, "identity": item["identity"], "role": item["role"], "tenant": item["tenant"], "action": item["action"], "resource": item["resource"], "request_id": item["request_id"], "audit": item}
+}
+
+func authorize_machine_request(state_root, request, supplied_secret) {
+    if env_bool("RELAY_MACHINE_ACCESS_ENABLED", false) == false { return {"ok": false, "error": "machine access is disabled"} }
+    policy := load_policy()
+    if policy == null { return {"ok": false, "error": "valid operator-owned RELAY_MACHINE_POLICY_PATH is required; v1 shared-secret requests are unsupported"} }
+    if type(request) != "dict" { return {"ok": false, "error": "machine request must be an object"} }
+    if dict_get_or(request, "contract_version", "") != "relay-machine-request-v2" { return {"ok": false, "error": "unsupported machine request contract"} }
+    for field in keys(request) { if index_of(["contract_version", "identity", "tenant", "action", "resource", "request_id", "expires_at_ms"], field) < 0 { return {"ok": false, "error": "unsupported request field; role and approval are operator-owned"} } }
+    for field in ["identity", "tenant", "action", "resource", "request_id"] { if identifier(dict_get_or(request, field, null)) == false { return {"ok": false, "error": "invalid machine request identifier"} } }
+    identity := request["identity"]
+    entry := dict_get_or(policy["identities"], identity, null)
+    if entry == null || type(supplied_secret) != "string" || len(supplied_secret) < 16 || len(supplied_secret) > 4096 { return {"ok": false, "error": "machine authentication failed"} }
+    if sha256(supplied_secret) != entry["secret_sha256"] { return {"ok": false, "error": "machine authentication failed"} }
+    expires := dict_get_or(request, "expires_at_ms", null)
+    timestamp := current_timestamp()
+    if type(expires) != "int" { return {"ok": false, "error": "request expiry must be an integer timestamp"} }
+    if expires <= timestamp || expires > timestamp + 300000 { return {"ok": false, "error": "request expired or lifetime exceeds five minutes"} }
+    action := request["action"]
+    allowed := request["tenant"] == entry["tenant"] && dict_get_or(policy["resources"], request["resource"], "") == entry["tenant"] && index_of(known_actions(), action) >= 0 && index_of(entry["actions"], action) >= 0
+    approved := false
+    if read_action(action) == false {
+        if entry["role"] != "operator" { allowed = false }
+        for approval in policy["approvals"] {
+            if approval["identity"] == identity && approval["tenant"] == entry["tenant"] && approval["action"] == action && approval["resource"] == request["resource"] && approval["request_id"] == request["request_id"] && approval["expires_at_ms"] == expires { approved = true }
+        }
+        if approved == false { allowed = false }
+    }
+    item := {"contract_version": MACHINE_ACCESS_CONTRACT, "identity": identity, "role": entry["role"], "tenant": entry["tenant"], "action": action, "resource": request["resource"], "request_id": request["request_id"], "expires_at_ms": expires, "approval": approved, "allowed": allowed, "created_at": now_iso()}
+    if path_has_symlink_component(state_root) || ensure_safe_directory(state_root) == false { return {"ok": false, "error": "machine audit root is unsafe"} }
+    lock := state_root + "/machine-access.lock"
+    if create_exclusive_dir(lock) == false { return {"ok": false, "error": "machine access busy; lock requires operator recovery after a crash"} }
+    result := {"ok": false, "error": "machine audit failed"}
+    try { result = record_decision(state_root, item) } except err {}
+    os_rmdir(lock)
+    return result
+}
+
+export machine_access_status := machine_access_status
+export machine_audit_input := machine_audit_input
+export authorize_machine_request := authorize_machine_request

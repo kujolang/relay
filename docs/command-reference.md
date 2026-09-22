@@ -16,7 +16,8 @@ This document defines the stable Relay 1.x CLI. Relay commands return process ex
 | `RELAY_STATE_ROOT` | Local state/evidence root | `<RELAY_ROOT>/.relay` |
 | `RELAY_STORE_BACKEND` | Validated run-index cache backend: `json` or migrated transactional `sqlite` | `json` |
 | `RELAY_MACHINE_ACCESS_ENABLED` | Enable the authenticated machine authorization boundary | `false` |
-| `RELAY_MACHINE_ACCESS_SECRET` / `RELAY_MACHINE_REQUEST_SECRET` | Operator secret and per-invocation supplied secret | unset |
+| `RELAY_MACHINE_POLICY_PATH` | Operator-owned v2 identity/resource/action/approval policy, at most 64 KiB | unset |
+| `RELAY_MACHINE_REQUEST_SECRET` | Per-invocation identity credential matching the policy digest | unset |
 | `RELAY_MACHINE_REQUEST` | Bounded identity/role/tenant/action/approval JSON request | unset |
 | `RELAY_SIGNING_KEYS` | JSON key-id to HMAC secret map for rotation and verification | unset |
 | `RELAY_SIGNING_KEY` | Single-key compatibility fallback | unset |
@@ -200,12 +201,14 @@ child environment; each worker call consumes one allowance, replayed or delayed
 calls fail closed, and the record is revoked when the worker exits. This closes
 local replay within the capability lifetime but is not an authenticated remote
 authorization system.
-Interactive approvals are not enabled. The machine authorization boundary is
-disabled by default and currently exposes authorization/audit mapping rather
-than a network listener: the caller supplies bounded request JSON and a secret,
-and Relay maps identity, role, tenant, action, and explicit approval to a
-sealed audit record. It is suitable for a trusted wrapper or MCP transport,
-not a claim of hosted multi-tenant service operation.
+Interactive approvals are not enabled. Machine authorization is disabled by
+default and exposes a local decision/audit command, not a network listener.
+The [v2 operator policy](machine-authorization.md) supplies roles, tenants,
+resource ownership, exact action grants and request-bound approvals. The caller
+supplies a versioned bounded request and an identity credential. Unknown actions,
+caller role/approval fields, expired requests and replay fail closed. A trusted
+wrapper must enforce the returned tenant/resource decision at its execution
+boundary; this command does not dispatch the requested operation.
 Worker model output, tool output, and worker error text are redacted before the
 summary crosses the bridge; this is a local fail-closed filter, not a
 substitute for provider-native classification or the deferred Redact

@@ -14,17 +14,14 @@ silently reinterpret a full upstream workflow.
 
 ## Machine authorization
 
-Machine access defaults to disabled. A trusted transport may set
-`RELAY_MACHINE_ACCESS_ENABLED=true`, provide an operator-owned
-`RELAY_MACHINE_ACCESS_SECRET`, and invoke `relay machine authorize` with a
-bounded `RELAY_MACHINE_REQUEST`. Relay requires identity, recognized role,
-tenant, action, and explicit approval for operator actions. Every accepted or
-denied authenticated request is appended to a bounded, integrity-sealed local
-audit log. This is an authorization primitive, not a network server, SSO
-implementation, or multi-tenant isolation claim. The caller supplies role,
-tenant, identity, and approval; the shared secret authenticates that trusted
-caller, not an independent end user. A future transport must derive these
-claims from operator-managed policy and enforce the resulting decision.
+Machine access defaults to disabled. Version 2 requires an operator-owned
+`RELAY_MACHINE_POLICY_PATH` and per-identity credentials; the previous shared
+secret and caller-selected role/approval no longer grant authority. The policy
+maps identities to roles, tenants and exact action grants, and registers each
+resource's tenant. Mutations require an operator role and an operator-owned
+approval bound to identity, tenant, action, resource, request ID and expiry.
+See [machine authorization v2](machine-authorization.md) for configuration,
+migration, replay persistence and the local trust boundary.
 
 ## Failed-run handoff
 

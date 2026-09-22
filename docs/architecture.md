@@ -49,6 +49,7 @@ The index is a cache. Per-run state and evidence remain authoritative.
 | `src/adapters.kujo` | Trusted dependency paths, bounded subprocess calls, provider/tool normalization | Mission policy |
 | `src/capabilities.kujo` | Agent-tool capability issuance, locking, consumption, revocation, and repair posture | General filesystem/process helpers |
 | `src/common.kujo` | Shared value, JSON, path, process, atomic-write, and redaction entry point | Domain lifecycle state |
+| `src/machine_access.kujo` | Operator-owned local authorization policy and replay/audit persistence | Network transport and action execution |
 | `src/redaction.kujo` | Structured and quoted credential filtering; buffered stream fragment normalization | Provider transport and domain lifecycle state |
 | `src/contracts.kujo` | Versioned state/event/receipt constructors and integrity inputs | Persistence |
 | `src/store.kujo` | Safe run discovery, cache validation, locking, rebuild, backend selection | Authoritative run behavior |
