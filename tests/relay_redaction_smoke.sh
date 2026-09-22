@@ -27,6 +27,7 @@ deep={'message':'password="alpha omega"'}
 for _ in range(70): deep={'nested':deep}
 cases.append(json.dumps(deep))
 cases.append('password="alpha\nmultiline omega" diagnostic=preserved\n'+json.dumps({'safe':'preserved'}))
+cases.append('MY_SECRET_VALUE="alpha whitespace omega" diagnostic=preserved')
 json.dump(cases,open(sys.argv[1],'w'))
 PY
 RELAY_REDACTION_CASES="$TMP_ROOT/cases.json" "$KUJO" run "$ROOT/tests/relay_redaction_fixture.kujo" --interpreter > "$TMP_ROOT/results.json"

@@ -3,10 +3,10 @@ func redact_plain_text(value) {
     text := to_string(value)
     if regex_match(text, "(?i)(key|token|secret|password|authorization|bearer|sk-|akia|github_pat_|gh[pousr]_|xox[baprs]-)") == false { return text }
     text := regex_replace(text, "(?s)-----BEGIN [A-Z ]*PRIVATE KEY-----.*?(?:-----END [A-Z ]*PRIVATE KEY-----|$)", "[REDACTED_PRIVATE_KEY]")
-    text := regex_replace(text, "(?i)((?:[A-Za-z0-9_-]*(?:token|key|secret|password)|authorization)[\"']?[[:space:]]*[:=][[:space:]]*)\"(?:\\\\.|[^\"\\\\])*(?:\"|$)", "$1\"[REDACTED_CREDENTIAL]\"")
-    text := regex_replace(text, "(?i)((?:[A-Za-z0-9_-]*(?:token|key|secret|password)|authorization)[\"']?[[:space:]]*[:=][[:space:]]*)'(?:\\\\.|[^'\\\\])*(?:'|$)", "$1'[REDACTED_CREDENTIAL]'")
+    text := regex_replace(text, "(?i)((?:[A-Za-z0-9_-]*(?:token|key|secret|password)[A-Za-z0-9_-]*|authorization)[\"']?[[:space:]]*[:=][[:space:]]*)\"(?:\\\\.|[^\"\\\\])*(?:\"|$)", "$1\"[REDACTED_CREDENTIAL]\"")
+    text := regex_replace(text, "(?i)((?:[A-Za-z0-9_-]*(?:token|key|secret|password)[A-Za-z0-9_-]*|authorization)[\"']?[[:space:]]*[:=][[:space:]]*)'(?:\\\\.|[^'\\\\])*(?:'|$)", "$1'[REDACTED_CREDENTIAL]'")
     text := regex_replace(text, "(?i)Bearer[[:space:]]+[^[:space:]\"',}]+", "Bearer [REDACTED]")
-    text := regex_replace(text, "(?i)((?:[A-Za-z0-9_-]*(?:token|key|secret|password)|authorization)[\"']?[ \\t]*[:=][ \\t]*)[^[:space:]\"'][^[:space:],}]*", "$1[REDACTED_CREDENTIAL]")
+    text := regex_replace(text, "(?i)((?:[A-Za-z0-9_-]*(?:token|key|secret|password)[A-Za-z0-9_-]*|authorization)[\"']?[ \\t]*[:=][ \\t]*)[^[:space:]\"'][^[:space:],}]*", "$1[REDACTED_CREDENTIAL]")
     text := regex_replace(text, "(?im)(authorization[[:space:]]*[:=][[:space:]]*)[^\\r\\n]+", "$1[REDACTED]")
     text := regex_replace(text, "sk-[A-Za-z0-9_-]{8}[A-Za-z0-9_-]+", "sk-[REDACTED_KEY]")
     text := regex_replace(text, "AKIA[0-9A-Z]{16}", "AKIA[REDACTED_KEY]")
