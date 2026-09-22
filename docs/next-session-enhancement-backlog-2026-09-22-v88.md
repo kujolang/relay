@@ -50,7 +50,7 @@ release gate, and explicit deployment scope. These continue the v87 P0 gates.
 
 ## P1 — Strengthen boundaries before extending the product
 
-- [ ] Recheck performance budgets on a quiescent host with the same pinned
+- [x] Recheck performance budgets on a quiescent host with the same pinned
   runtime and five samples. The [small-profile comparison](review-evidence/2026-09-22/performance-comparison.json)
   shows both pre-session `01c44da` and candidate `5867ddd` exceeding export,
   verify, and watch limits. Candidate p95 values were 6790/7044/5282 ms against
@@ -58,7 +58,7 @@ release gate, and explicit deployment scope. These continue the v87 P0 gates.
   7659/6849/6843 ms. These were contended-host measurements, not proof of a
   regression or speedup. Complete medium/large profiles on a quiet host,
   isolate bottlenecks, and preserve the existing budgets until evidence
-  justifies a reviewed change.
+  justifies a reviewed change. Completed: [controlled five-sample results](controlled-store-performance.md) pass all six profiles without budget changes.
 
 - [x] Define operator-owned machine identity/role/tenant mappings before adding
   socket or MCP transport. `src/enterprise.kujo::authorize_machine_request`
@@ -88,11 +88,13 @@ release gate, and explicit deployment scope. These continue the v87 P0 gates.
 
 ## P2 — Measure scale and improve adoption
 
-- [ ] Collect fresh five-sample small/medium/large results after the percentile
+- [x] Collect fresh five-sample small/medium/large results after the percentile
   correction. `run_directories_match_index` reparses all authoritative states
   on a cache hit; aggregate metrics reads them again. Profile this cost before
   designing an invalidation strategy. Preserve tamper detection and bounded
-  reads; compare cold/warm latency and memory on both backends.
+  reads; compare cold/warm latency and memory on both backends. Completed in the
+  [controlled report](controlled-store-performance.md), including phase costs
+  and successful authoritative tamper detection on both backends.
 - [x] Design streaming tracked-file discovery beyond the current 16 MiB envelope
   and versioned chunked evidence beyond the 1 MiB JSON ceiling. Acceptance must
   cover stable cursors, concurrent repository changes, cancellation, and bounds.

@@ -75,3 +75,9 @@ No result qualifies as complete without that check. Non-quiet local smoke runs
 can omit `--require-quiet`; their `quiet_verified: false` receipt is tooling
 validation, not performance certification. Fewer than five samples likewise do
 not satisfy the representative release requirement.
+
+## Controlled candidate measurements
+
+The [2026-09-22 report](controlled-store-performance.md) retains five-sample
+cold/warm latency, peak child RSS, scan costs and tamper checks for both backends
+at all three sizes. All six dedicated Linux profiles passed unchanged budgets.

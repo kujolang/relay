@@ -1,0 +1,628 @@
+{
+  "format": "relay-cold-warm-profile-v1",
+  "source_commit": "ddf690f740ce9647e1be5a062935c3f0e38f03af",
+  "runtime_revision": "9b77dce592047121cb71066629836ad89252f3ce",
+  "runtime_sha256": "804f9f40f049b46fd3bbf41bbae1c881e3161c4b912be1840f707e2ba3fbe063",
+  "profiler_sha256": "6a6f06b3c54a4c824519a04671e1c1e317076a3d0e7269c562359112fbbb141b",
+  "phase_source_sha256": "d78b76dac65ab3a69933fd1b3a0342b9b5b85ae50d43887a81a3af9e2852c888",
+  "platform": "linux-x86_64",
+  "profile": "small",
+  "backend": "sqlite",
+  "iterations": 5,
+  "dataset": {
+    "name": "small",
+    "runs": 10,
+    "events_per_target_run": 25,
+    "artifact_bytes_per_target_run": 65536
+  },
+  "cache_definition": "cold: both persisted caches absent before every command; warm: selected index primed; OS page caches are not flushed",
+  "rss_definition": "per-invocation RUSAGE_CHILDREN high-water RSS, normalized to bytes; worker starts fresh for each command",
+  "quiet_definition": "Linux CPU idle >=90% over 250ms immediately before every measured command/phase; dedicated hosted runner when recorded",
+  "runner_environment": "github-hosted",
+  "cpu_count": 4,
+  "github_run_id": "35757360380",
+  "modes": {
+    "cold": {
+      "commands": {
+        "runs_list": {
+          "samples": [
+            {
+              "elapsed_ms": 198.97388,
+              "peak_rss_bytes": 31850496,
+              "returncode": 0,
+              "quiet_before": {
+                "available": true,
+                "idle_percent": 93.0,
+                "quiet": true
+              }
+            },
+            {
+              "elapsed_ms": 194.209639,
+              "peak_rss_bytes": 31899648,
+              "returncode": 0,
+              "quiet_before": {
+                "available": true,
+                "idle_percent": 100.0,
+                "quiet": true
+              }
+            },
+            {
+              "elapsed_ms": 191.501217,
+              "peak_rss_bytes": 32292864,
+              "returncode": 0,
+              "quiet_before": {
+                "available": true,
+                "idle_percent": 97.0,
+                "quiet": true
+              }
+            },
+            {
+              "elapsed_ms": 191.738351,
+              "peak_rss_bytes": 32186368,
+              "returncode": 0,
+              "quiet_before": {
+                "available": true,
+                "idle_percent": 100.0,
+                "quiet": true
+              }
+            },
+            {
+              "elapsed_ms": 192.12771,
+              "peak_rss_bytes": 32014336,
+              "returncode": 0,
+              "quiet_before": {
+                "available": true,
+                "idle_percent": 100.0,
+                "quiet": true
+              }
+            }
+          ],
+          "median_ms": 192.12771,
+          "p95_ms": 198.97388,
+          "median_peak_rss_bytes": 32014336,
+          "max_peak_rss_bytes": 32292864
+        },
+        "runs_verify": {
+          "samples": [
+            {
+              "elapsed_ms": 348.225327,
+              "peak_rss_bytes": 32464896,
+              "returncode": 0,
+              "quiet_before": {
+                "available": true,
+                "idle_percent": 98.0,
+                "quiet": true
+              }
+            },
+            {
+              "elapsed_ms": 346.530012,
+              "peak_rss_bytes": 32493568,
+              "returncode": 0,
+              "quiet_before": {
+                "available": true,
+                "idle_percent": 100.0,
+                "quiet": true
+              }
+            },
+            {
+              "elapsed_ms": 345.689298,
+              "peak_rss_bytes": 32260096,
+              "returncode": 0,
+              "quiet_before": {
+                "available": true,
+                "idle_percent": 100.0,
+                "quiet": true
+              }
+            },
+            {
+              "elapsed_ms": 346.255809,
+              "peak_rss_bytes": 32452608,
+              "returncode": 0,
+              "quiet_before": {
+                "available": true,
+                "idle_percent": 100.0,
+                "quiet": true
+              }
+            },
+            {
+              "elapsed_ms": 345.910627,
+              "peak_rss_bytes": 32546816,
+              "returncode": 0,
+              "quiet_before": {
+                "available": true,
+                "idle_percent": 100.0,
+                "quiet": true
+              }
+            }
+          ],
+          "median_ms": 346.255809,
+          "p95_ms": 348.225327,
+          "median_peak_rss_bytes": 32464896,
+          "max_peak_rss_bytes": 32546816
+        },
+        "runs_watch_completed": {
+          "samples": [
+            {
+              "elapsed_ms": 339.035512,
+              "peak_rss_bytes": 32423936,
+              "returncode": 0,
+              "quiet_before": {
+                "available": true,
+                "idle_percent": 100.0,
+                "quiet": true
+              }
+            },
+            {
+              "elapsed_ms": 336.564679,
+              "peak_rss_bytes": 32567296,
+              "returncode": 0,
+              "quiet_before": {
+                "available": true,
+                "idle_percent": 100.0,
+                "quiet": true
+              }
+            },
+            {
+              "elapsed_ms": 339.599721,
+              "peak_rss_bytes": 32145408,
+              "returncode": 0,
+              "quiet_before": {
+                "available": true,
+                "idle_percent": 100.0,
+                "quiet": true
+              }
+            },
+            {
+              "elapsed_ms": 339.624871,
+              "peak_rss_bytes": 32518144,
+              "returncode": 0,
+              "quiet_before": {
+                "available": true,
+                "idle_percent": 100.0,
+                "quiet": true
+              }
+            },
+            {
+              "elapsed_ms": 338.132494,
+              "peak_rss_bytes": 32169984,
+              "returncode": 0,
+              "quiet_before": {
+                "available": true,
+                "idle_percent": 100.0,
+                "quiet": true
+              }
+            }
+          ],
+          "median_ms": 339.035512,
+          "p95_ms": 339.624871,
+          "median_peak_rss_bytes": 32423936,
+          "max_peak_rss_bytes": 32567296
+        },
+        "runs_export": {
+          "samples": [
+            {
+              "elapsed_ms": 346.170334,
+              "peak_rss_bytes": 32489472,
+              "returncode": 0,
+              "quiet_before": {
+                "available": true,
+                "idle_percent": 100.0,
+                "quiet": true
+              }
+            },
+            {
+              "elapsed_ms": 342.679085,
+              "peak_rss_bytes": 32358400,
+              "returncode": 0,
+              "quiet_before": {
+                "available": true,
+                "idle_percent": 100.0,
+                "quiet": true
+              }
+            },
+            {
+              "elapsed_ms": 346.950651,
+              "peak_rss_bytes": 32452608,
+              "returncode": 0,
+              "quiet_before": {
+                "available": true,
+                "idle_percent": 100.0,
+                "quiet": true
+              }
+            },
+            {
+              "elapsed_ms": 345.794331,
+              "peak_rss_bytes": 32542720,
+              "returncode": 0,
+              "quiet_before": {
+                "available": true,
+                "idle_percent": 100.0,
+                "quiet": true
+              }
+            },
+            {
+              "elapsed_ms": 346.720249,
+              "peak_rss_bytes": 32428032,
+              "returncode": 0,
+              "quiet_before": {
+                "available": true,
+                "idle_percent": 100.0,
+                "quiet": true
+              }
+            }
+          ],
+          "median_ms": 346.170334,
+          "p95_ms": 346.950651,
+          "median_peak_rss_bytes": 32452608,
+          "max_peak_rss_bytes": 32542720
+        }
+      },
+      "phases": [
+        {
+          "aggregate_state_scan_ms": 69,
+          "index_load_ms": 150,
+          "index_source": "rebuild",
+          "ok": true,
+          "records": 10,
+          "quiet_before": {
+            "available": true,
+            "idle_percent": 100.0,
+            "quiet": true
+          }
+        },
+        {
+          "aggregate_state_scan_ms": 70,
+          "index_load_ms": 145,
+          "index_source": "rebuild",
+          "ok": true,
+          "records": 10,
+          "quiet_before": {
+            "available": true,
+            "idle_percent": 100.0,
+            "quiet": true
+          }
+        },
+        {
+          "aggregate_state_scan_ms": 70,
+          "index_load_ms": 149,
+          "index_source": "rebuild",
+          "ok": true,
+          "records": 10,
+          "quiet_before": {
+            "available": true,
+            "idle_percent": 100.0,
+            "quiet": true
+          }
+        },
+        {
+          "aggregate_state_scan_ms": 71,
+          "index_load_ms": 151,
+          "index_source": "rebuild",
+          "ok": true,
+          "records": 10,
+          "quiet_before": {
+            "available": true,
+            "idle_percent": 100.0,
+            "quiet": true
+          }
+        },
+        {
+          "aggregate_state_scan_ms": 70,
+          "index_load_ms": 152,
+          "index_source": "rebuild",
+          "ok": true,
+          "records": 10,
+          "quiet_before": {
+            "available": true,
+            "idle_percent": 100.0,
+            "quiet": true
+          }
+        }
+      ]
+    },
+    "warm": {
+      "commands": {
+        "runs_list": {
+          "samples": [
+            {
+              "elapsed_ms": 139.641566,
+              "peak_rss_bytes": 31657984,
+              "returncode": 0,
+              "quiet_before": {
+                "available": true,
+                "idle_percent": 100.0,
+                "quiet": true
+              }
+            },
+            {
+              "elapsed_ms": 147.481484,
+              "peak_rss_bytes": 31449088,
+              "returncode": 0,
+              "quiet_before": {
+                "available": true,
+                "idle_percent": 100.0,
+                "quiet": true
+              }
+            },
+            {
+              "elapsed_ms": 138.475927,
+              "peak_rss_bytes": 31555584,
+              "returncode": 0,
+              "quiet_before": {
+                "available": true,
+                "idle_percent": 100.0,
+                "quiet": true
+              }
+            },
+            {
+              "elapsed_ms": 139.389768,
+              "peak_rss_bytes": 31715328,
+              "returncode": 0,
+              "quiet_before": {
+                "available": true,
+                "idle_percent": 100.0,
+                "quiet": true
+              }
+            },
+            {
+              "elapsed_ms": 139.695871,
+              "peak_rss_bytes": 31424512,
+              "returncode": 0,
+              "quiet_before": {
+                "available": true,
+                "idle_percent": 100.0,
+                "quiet": true
+              }
+            }
+          ],
+          "median_ms": 139.641566,
+          "p95_ms": 147.481484,
+          "median_peak_rss_bytes": 31555584,
+          "max_peak_rss_bytes": 31715328
+        },
+        "runs_verify": {
+          "samples": [
+            {
+              "elapsed_ms": 292.947208,
+              "peak_rss_bytes": 31895552,
+              "returncode": 0,
+              "quiet_before": {
+                "available": true,
+                "idle_percent": 100.0,
+                "quiet": true
+              }
+            },
+            {
+              "elapsed_ms": 294.851713,
+              "peak_rss_bytes": 31956992,
+              "returncode": 0,
+              "quiet_before": {
+                "available": true,
+                "idle_percent": 100.0,
+                "quiet": true
+              }
+            },
+            {
+              "elapsed_ms": 288.840692,
+              "peak_rss_bytes": 31678464,
+              "returncode": 0,
+              "quiet_before": {
+                "available": true,
+                "idle_percent": 100.0,
+                "quiet": true
+              }
+            },
+            {
+              "elapsed_ms": 289.610654,
+              "peak_rss_bytes": 31662080,
+              "returncode": 0,
+              "quiet_before": {
+                "available": true,
+                "idle_percent": 100.0,
+                "quiet": true
+              }
+            },
+            {
+              "elapsed_ms": 293.965625,
+              "peak_rss_bytes": 31891456,
+              "returncode": 0,
+              "quiet_before": {
+                "available": true,
+                "idle_percent": 100.0,
+                "quiet": true
+              }
+            }
+          ],
+          "median_ms": 292.947208,
+          "p95_ms": 294.851713,
+          "median_peak_rss_bytes": 31891456,
+          "max_peak_rss_bytes": 31956992
+        },
+        "runs_watch_completed": {
+          "samples": [
+            {
+              "elapsed_ms": 284.492228,
+              "peak_rss_bytes": 31797248,
+              "returncode": 0,
+              "quiet_before": {
+                "available": true,
+                "idle_percent": 100.0,
+                "quiet": true
+              }
+            },
+            {
+              "elapsed_ms": 285.013905,
+              "peak_rss_bytes": 31662080,
+              "returncode": 0,
+              "quiet_before": {
+                "available": true,
+                "idle_percent": 100.0,
+                "quiet": true
+              }
+            },
+            {
+              "elapsed_ms": 283.52092,
+              "peak_rss_bytes": 31723520,
+              "returncode": 0,
+              "quiet_before": {
+                "available": true,
+                "idle_percent": 100.0,
+                "quiet": true
+              }
+            },
+            {
+              "elapsed_ms": 285.630292,
+              "peak_rss_bytes": 32083968,
+              "returncode": 0,
+              "quiet_before": {
+                "available": true,
+                "idle_percent": 100.0,
+                "quiet": true
+              }
+            },
+            {
+              "elapsed_ms": 287.12776,
+              "peak_rss_bytes": 31764480,
+              "returncode": 0,
+              "quiet_before": {
+                "available": true,
+                "idle_percent": 100.0,
+                "quiet": true
+              }
+            }
+          ],
+          "median_ms": 285.013905,
+          "p95_ms": 287.12776,
+          "median_peak_rss_bytes": 31764480,
+          "max_peak_rss_bytes": 32083968
+        },
+        "runs_export": {
+          "samples": [
+            {
+              "elapsed_ms": 288.475242,
+              "peak_rss_bytes": 31965184,
+              "returncode": 0,
+              "quiet_before": {
+                "available": true,
+                "idle_percent": 100.0,
+                "quiet": true
+              }
+            },
+            {
+              "elapsed_ms": 289.475218,
+              "peak_rss_bytes": 32022528,
+              "returncode": 0,
+              "quiet_before": {
+                "available": true,
+                "idle_percent": 98.04,
+                "quiet": true
+              }
+            },
+            {
+              "elapsed_ms": 290.393538,
+              "peak_rss_bytes": 31977472,
+              "returncode": 0,
+              "quiet_before": {
+                "available": true,
+                "idle_percent": 100.0,
+                "quiet": true
+              }
+            },
+            {
+              "elapsed_ms": 292.368279,
+              "peak_rss_bytes": 32071680,
+              "returncode": 0,
+              "quiet_before": {
+                "available": true,
+                "idle_percent": 100.0,
+                "quiet": true
+              }
+            },
+            {
+              "elapsed_ms": 292.126108,
+              "peak_rss_bytes": 31801344,
+              "returncode": 0,
+              "quiet_before": {
+                "available": true,
+                "idle_percent": 100.0,
+                "quiet": true
+              }
+            }
+          ],
+          "median_ms": 290.393538,
+          "p95_ms": 292.368279,
+          "median_peak_rss_bytes": 31977472,
+          "max_peak_rss_bytes": 32071680
+        }
+      },
+      "phases": [
+        {
+          "aggregate_state_scan_ms": 70,
+          "index_load_ms": 101,
+          "index_source": "sqlite",
+          "ok": true,
+          "records": 10,
+          "quiet_before": {
+            "available": true,
+            "idle_percent": 100.0,
+            "quiet": true
+          }
+        },
+        {
+          "aggregate_state_scan_ms": 69,
+          "index_load_ms": 94,
+          "index_source": "sqlite",
+          "ok": true,
+          "records": 10,
+          "quiet_before": {
+            "available": true,
+            "idle_percent": 100.0,
+            "quiet": true
+          }
+        },
+        {
+          "aggregate_state_scan_ms": 70,
+          "index_load_ms": 99,
+          "index_source": "sqlite",
+          "ok": true,
+          "records": 10,
+          "quiet_before": {
+            "available": true,
+            "idle_percent": 100.0,
+            "quiet": true
+          }
+        },
+        {
+          "aggregate_state_scan_ms": 69,
+          "index_load_ms": 95,
+          "index_source": "sqlite",
+          "ok": true,
+          "records": 10,
+          "quiet_before": {
+            "available": true,
+            "idle_percent": 100.0,
+            "quiet": true
+          }
+        },
+        {
+          "aggregate_state_scan_ms": 70,
+          "index_load_ms": 100,
+          "index_source": "sqlite",
+          "ok": true,
+          "records": 10,
+          "quiet_before": {
+            "available": true,
+            "idle_percent": 100.0,
+            "quiet": true
+          }
+        }
+      ]
+    }
+  },
+  "budget_breaches": [],
+  "measurement_complete": true,
+  "ok": true,
+  "tamper_detected_on_warm_cache": true,
+  "restored_state_accepted": true,
+  "quiet_verified": true
+}
