@@ -1,0 +1,16 @@
+<!doctype html><meta charset="utf-8"><title>Relay verified fixture transcript</title><style>body{margin:0;background:#111;color:#eee;font:17px ui-monospace,monospace;padding:48px}main{max-width:1120px;margin:auto}small{color:#aaa;letter-spacing:2px}h1{font:600 42px system-ui;margin:16px 0 30px}section{padding:20px 24px;background:#1c1c1c;border:1px solid #444;margin:14px 0;border-radius:8px}.command{color:#aaa}pre{white-space:pre-wrap;overflow-wrap:anywhere;font:16px/1.45 ui-monospace,monospace;margin-bottom:0}footer{font:14px/1.6 system-ui;color:#aaa;margin-top:26px}</style><main><small>RELAY / FIRST VERIFIED RUN</small><h1>One mission. Verifiable evidence.</h1><section><div class="command">$ relay missions run mission.json --fixture --json</div><pre>{
+  &quot;ok&quot;: true,
+  &quot;status&quot;: &quot;completed&quot;
+}</pre></section><section><div class="command">$ relay runs verify $RUN_ID --json</div><pre>{
+  &quot;ok&quot;: true,
+  &quot;integrity_valid&quot;: true,
+  &quot;state_valid&quot;: true,
+  &quot;receipts_valid&quot;: true,
+  &quot;events_valid&quot;: true,
+  &quot;packet_manifest_valid&quot;: true
+}</pre></section><section><div class="command">$ relay runs verify-signature verified-export.json --json</div><pre>{
+  &quot;key_id&quot;: &quot;walkthrough&quot;,
+  &quot;ok&quot;: true,
+  &quot;payload_sha256&quot;: &quot;4b7d7199300e9f520a8436dfc3dc86673ee6b412d596fe1bc3ab08dec8a4c2ca&quot;,
+  &quot;signature_valid&quot;: true
+}</pre></section><footer>Generated transcript screenshot · actual offline fixture results<br>Source 76b5e64497c9 · Kujo 9b77dce59204<br>Selected fields shown. Full normalized command results: transcript.json</footer></main>

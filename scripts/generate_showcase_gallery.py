@@ -3,6 +3,7 @@ from pathlib import Path
 
 root = Path(__file__).resolve().parents[1]
 items = [
+    ("First verified run", "docs/walkthrough/receipt.json", "docs/first-verified-run.md", "python3 scripts/fixture_walkthrough.py --output /tmp/relay-first-run"),
     ("Bounded fixture mission", "examples/fixture-mission.json", "schemas/mission.schema.json", "relay missions run examples/fixture-mission.json --fixture --json"),
     ("Provider-generated tools", "examples/provider-tools-mission.json", "schemas/tool-result-bundle.schema.json", "relay missions run examples/provider-tools-mission.json --json"),
     ("Transactional local index", "tests/relay_sqlite_store_smoke.sh", "docs/store-migration.md", "relay runs migrate-store --backend sqlite --confirm --json"),

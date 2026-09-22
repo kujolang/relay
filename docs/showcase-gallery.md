@@ -5,6 +5,7 @@ local-real, fixture, and blocked evidence retain their explicit labels.
 
 | Capability | Evidence | Contract or guide | Try it |
 | --- | --- | --- | --- |
+| First verified run | [docs/walkthrough/receipt.json](../docs/walkthrough/receipt.json) | [docs/first-verified-run.md](../docs/first-verified-run.md) | `python3 scripts/fixture_walkthrough.py --output /tmp/relay-first-run` |
 | Bounded fixture mission | [examples/fixture-mission.json](../examples/fixture-mission.json) | [schemas/mission.schema.json](../schemas/mission.schema.json) | `relay missions run examples/fixture-mission.json --fixture --json` |
 | Provider-generated tools | [examples/provider-tools-mission.json](../examples/provider-tools-mission.json) | [schemas/tool-result-bundle.schema.json](../schemas/tool-result-bundle.schema.json) | `relay missions run examples/provider-tools-mission.json --json` |
 | Transactional local index | [tests/relay_sqlite_store_smoke.sh](../tests/relay_sqlite_store_smoke.sh) | [docs/store-migration.md](../docs/store-migration.md) | `relay runs migrate-store --backend sqlite --confirm --json` |

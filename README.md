@@ -56,6 +56,10 @@ Runtime implementation lives in `src/`. The September review found no duplicate 
 
 ## Quick start
 
+Follow the [first verified run walkthrough](docs/first-verified-run.md) for pinned
+installation, an isolated fixture mission, screenshots and a portable verified
+export. It ends with a path into the Kujo source and learning material.
+
 Fixture mode is deterministic and makes no provider request:
 
 ```bash

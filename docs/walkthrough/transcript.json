@@ -1,0 +1,1360 @@
+[
+  {
+    "step": "Installed archive",
+    "command": "relay --version",
+    "result": "relay 1.1.0"
+  },
+  {
+    "step": "Check dependencies",
+    "command": "relay doctor --json",
+    "result": {
+      "checks": [
+        {
+          "exists": true,
+          "expected_type": true,
+          "name": "kujo runtime",
+          "ok": true,
+          "path": "$PINNED_DEPENDENCIES/kujo/target/release/kujo",
+          "required": true,
+          "safe": true,
+          "symlink": false,
+          "symlink_component": false
+        },
+        {
+          "exists": true,
+          "expected_type": true,
+          "name": "Relay entrypoint",
+          "ok": true,
+          "path": "$DEMO/relay/main.kujo",
+          "required": true,
+          "safe": true,
+          "symlink": false,
+          "symlink_component": false
+        },
+        {
+          "exists": true,
+          "expected_type": true,
+          "name": "Relay source tree",
+          "ok": true,
+          "path": "$DEMO/relay/src",
+          "required": true,
+          "safe": true,
+          "symlink": false,
+          "symlink_component": false
+        },
+        {
+          "name": "Relay evidence store",
+          "ok": true,
+          "path": "$DEMO/state",
+          "reason": "state root and runs directory must not be symbolic links",
+          "required": true,
+          "safe": true
+        },
+        {
+          "entries": 0,
+          "error": "",
+          "exceeded": false,
+          "invalid": 0,
+          "limit": 4096,
+          "name": "Relay run store posture",
+          "ok": true,
+          "present": false,
+          "required": true,
+          "safe": true,
+          "valid": 0
+        },
+        {
+          "backend": "json",
+          "configured": false,
+          "contract_version": "relay-run-index-sqlite-v1",
+          "error": "",
+          "name": "Relay transactional store",
+          "ok": true,
+          "records": 0,
+          "required": false,
+          "safe": true
+        },
+        {
+          "cleaned": 0,
+          "error": "",
+          "invalid": 0,
+          "locked": 0,
+          "name": "Agents SDK capability registry",
+          "ok": true,
+          "records": 0,
+          "repair": false,
+          "required": true,
+          "safe": true,
+          "stale": 0
+        },
+        {
+          "exists": true,
+          "expected_type": true,
+          "name": "Relay launcher",
+          "ok": true,
+          "path": "$DEMO/relay/bin/relay",
+          "required": false,
+          "safe": true,
+          "symlink": false,
+          "symlink_component": false
+        },
+        {
+          "exists": true,
+          "expected_type": true,
+          "name": "AI SDK checkout",
+          "ok": true,
+          "path": "$PINNED_DEPENDENCIES/ai-sdk",
+          "required": true,
+          "safe": true,
+          "symlink": false,
+          "symlink_component": false
+        },
+        {
+          "exists": true,
+          "expected_type": true,
+          "name": "Agents SDK checkout",
+          "ok": true,
+          "path": "$PINNED_DEPENDENCIES/agents-sdk",
+          "required": true,
+          "safe": true,
+          "symlink": false,
+          "symlink_component": false
+        },
+        {
+          "exists": true,
+          "expected_type": true,
+          "name": "PackWrite binary",
+          "ok": true,
+          "path": "$PINNED_DEPENDENCIES/packwrite/bin/packwrite",
+          "required": true,
+          "safe": true,
+          "symlink": false,
+          "symlink_component": false
+        },
+        {
+          "exists": true,
+          "expected_type": true,
+          "name": "RunLedger binary",
+          "ok": true,
+          "path": "$PINNED_DEPENDENCIES/runledger/bin/runledger",
+          "required": true,
+          "safe": true,
+          "symlink": false,
+          "symlink_component": false
+        },
+        {
+          "exists": true,
+          "expected_type": true,
+          "name": "ChangeBucket binary",
+          "ok": true,
+          "path": "$PINNED_DEPENDENCIES/changebucket/bin/changebucket",
+          "required": true,
+          "safe": true,
+          "symlink": false,
+          "symlink_component": false
+        },
+        {
+          "exists": true,
+          "expected_type": true,
+          "name": "Eval entrypoint",
+          "ok": true,
+          "path": "$PINNED_DEPENDENCIES/eval/main.kujo",
+          "required": true,
+          "safe": true,
+          "symlink": false,
+          "symlink_component": false
+        },
+        {
+          "exists": false,
+          "expected_type": false,
+          "name": "Capsule binary",
+          "ok": false,
+          "path": "$DEMO/relay/../benchmarks-capsule/bin/capsule",
+          "required": false,
+          "safe": false,
+          "symlink": false,
+          "symlink_component": false
+        },
+        {
+          "duration_ms": 72,
+          "error": "",
+          "name": "Kujo runtime version",
+          "ok": true,
+          "path": "$PINNED_DEPENDENCIES/kujo/target/release/kujo",
+          "required": true,
+          "safe": true,
+          "version": "kujo 1.0.0"
+        },
+        {
+          "duration_ms": 146,
+          "error": "",
+          "name": "PackWrite version",
+          "ok": true,
+          "path": "$PINNED_DEPENDENCIES/packwrite/bin/packwrite",
+          "required": true,
+          "safe": true,
+          "version": "packwrite 1.0.0"
+        },
+        {
+          "duration_ms": 117,
+          "error": "",
+          "name": "RunLedger version",
+          "ok": true,
+          "path": "$PINNED_DEPENDENCIES/runledger/bin/runledger",
+          "required": true,
+          "safe": true,
+          "version": "runledger 1.0.0"
+        },
+        {
+          "duration_ms": 115,
+          "error": "",
+          "name": "ChangeBucket version",
+          "ok": true,
+          "path": "$PINNED_DEPENDENCIES/changebucket/bin/changebucket",
+          "required": true,
+          "safe": true,
+          "version": "changebucket 1.0.0"
+        },
+        {
+          "configured": false,
+          "matched": null,
+          "name": "Kujo runtime hash",
+          "ok": true,
+          "path": "$PINNED_DEPENDENCIES/kujo/target/release/kujo",
+          "required": false,
+          "safe": true
+        },
+        {
+          "configured": false,
+          "matched": null,
+          "name": "PackWrite hash",
+          "ok": true,
+          "path": "$PINNED_DEPENDENCIES/packwrite/bin/packwrite",
+          "required": false,
+          "safe": true
+        },
+        {
+          "configured": false,
+          "matched": null,
+          "name": "RunLedger hash",
+          "ok": true,
+          "path": "$PINNED_DEPENDENCIES/runledger/bin/runledger",
+          "required": false,
+          "safe": true
+        },
+        {
+          "configured": false,
+          "matched": null,
+          "name": "ChangeBucket hash",
+          "ok": true,
+          "path": "$PINNED_DEPENDENCIES/changebucket/bin/changebucket",
+          "required": false,
+          "safe": true
+        },
+        {
+          "missing": [],
+          "name": "Chain of Command registry",
+          "ok": true,
+          "required": true,
+          "safe": true
+        },
+        {
+          "name": "AI bridge source",
+          "ok": true,
+          "required": true,
+          "safe": true
+        },
+        {
+          "configured": false,
+          "name": "Watchdog route",
+          "ok": true,
+          "reason": "missing",
+          "required": false,
+          "safe": true,
+          "scheme": "",
+          "valid": false
+        },
+        {
+          "configured": false,
+          "name": "Watchdog upstream profile",
+          "ok": true,
+          "required": false,
+          "safe": true
+        },
+        {
+          "configured": false,
+          "environment": "OPENAI_API_KEY",
+          "name": "live provider credential",
+          "name_valid": true,
+          "ok": true,
+          "required": false,
+          "safe": true,
+          "upstream_profile_configured": false
+        }
+      ],
+      "mode": "fixture",
+      "ok": true,
+      "required_failures": 0
+    }
+  },
+  {
+    "step": "Validate agents",
+    "command": "relay agents validate --json",
+    "result": {
+      "count": 4,
+      "errors": [],
+      "ok": true
+    }
+  },
+  {
+    "step": "Fixture chat",
+    "command": "relay chat Summarize the mission boundary --fixture --json",
+    "result": {
+      "contract_version": "1.0.0",
+      "finish_reason": "stop",
+      "model": "fixture-model",
+      "normalized_at": 1790095171315,
+      "ok": true,
+      "output_text": "Standardized AI SDK responses reduce integration complexity and speed up development.",
+      "provider": "openai-compatible",
+      "raw": {
+        "id": "chatcmpl-kujo-fixture-1",
+        "model": "fixture-model"
+      },
+      "relay_telemetry": {
+        "correlation_id": "relay-ai-1790095171119-169637",
+        "duration_ms": 140,
+        "model": "fixture-model",
+        "provider": "fixture",
+        "requested_max_tokens": 700,
+        "route": "direct_ai_sdk",
+        "stream_requested": 0,
+        "watchdog_auth_configured": false,
+        "watchdog_route": {
+          "configured": false,
+          "reason": "missing",
+          "scheme": "",
+          "valid": false
+        },
+        "watchdog_upstream_profile_configured": false
+      },
+      "request_id": "chatcmpl-kujo-fixture-1",
+      "status_code": 200,
+      "tool_calls": [],
+      "usage": {
+        "input_tokens": 12,
+        "output_tokens": 8,
+        "total_tokens": 20
+      }
+    }
+  },
+  {
+    "step": "Run bounded mission",
+    "command": "relay missions run $DEMO/mission.json --fixture --json",
+    "result": {
+      "ok": true,
+      "run": {
+        "action_results": [
+          {
+            "ok": true,
+            "path": "RELAY_OUTPUT.txt",
+            "tool": "write_file"
+          },
+          {
+            "cancelled": false,
+            "command": "git status --short",
+            "duration_ms": 53,
+            "exit_code": 0,
+            "failure_class": "tool_failure",
+            "ok": true,
+            "output_truncated": false,
+            "stderr": "",
+            "stderr_truncated": false,
+            "stdout": "?? RELAY_OUTPUT.txt\n",
+            "stdout_truncated": false,
+            "timed_out": false,
+            "tool": "run_command"
+          }
+        ],
+        "agent_sdk": {
+          "ok": true,
+          "reason": "configured skip",
+          "skipped": true
+        },
+        "agent_sdk_tools": {
+          "ok": true,
+          "reason": "no mission agent_tools configured",
+          "skipped": true
+        },
+        "artifact_persistence": {
+          "changes": {
+            "ok": true,
+            "path": "$DEMO/state/runs/$RUN_ID/changes.json"
+          },
+          "evaluations": {
+            "ok": true,
+            "path": "$DEMO/state/runs/$RUN_ID/evaluations.json"
+          }
+        },
+        "artifacts": [
+          {
+            "integrity_sha256": "282f473a47446e49aa6b7f7742b9de348c3a9896ac2e5c0d07d18e9fb513590d",
+            "kind": "packwrite_agent_pack",
+            "manifest_integrity_sha256": "278a356c77f9bb9f055dc73d085e037b53405cf111af73a081914f07d8e1a351",
+            "manifest_path": "$DEMO/state/runs/$RUN_ID/packet-manifest.json",
+            "ok": true,
+            "path": "$DEMO/state/runs/$RUN_ID/agent",
+            "revision": 1
+          },
+          {
+            "integrity_sha256": "668245c81f7c2e22591da6fa85a0e801561c4f4f4b3ba526a2c33ffca1ead176",
+            "kind": "agent_response",
+            "path": "$DEMO/state/runs/$RUN_ID/agent-response.md"
+          }
+        ],
+        "attempt": 2,
+        "budgets": {
+          "max_output_bytes": 1048576,
+          "max_repairs": 1,
+          "max_steps": 8,
+          "max_tokens": 4000,
+          "max_tool_calls": 4,
+          "max_tool_turns": 2,
+          "max_write_bytes": 1048576,
+          "used_tokens": 20
+        },
+        "changes": {
+          "base": "HEAD",
+          "budget": {
+            "checked": false,
+            "failures": [],
+            "passed": true
+          },
+          "categories": {
+            "ci": [],
+            "config": [],
+            "dependency_manifests": [],
+            "docs": [],
+            "generated": [],
+            "lockfiles": [],
+            "other": [
+              "RELAY_OUTPUT.txt"
+            ],
+            "scripts": [],
+            "source": [],
+            "tests": []
+          },
+          "files": [
+            {
+              "additions": 1,
+              "binary": false,
+              "categories": [
+                "other"
+              ],
+              "churn": 1,
+              "deletions": 0,
+              "path": "RELAY_OUTPUT.txt",
+              "status": "added"
+            }
+          ],
+          "generated_at": "2026-09-22T16:39:37Z",
+          "head": "working tree",
+          "summary": {
+            "binary_files": 0,
+            "files_added": 1,
+            "files_changed": 1,
+            "files_deleted": 0,
+            "files_modified": 0,
+            "files_renamed": 0,
+            "lines_added": 1,
+            "lines_deleted": 0,
+            "risk_level": "low",
+            "total_churn": 1
+          }
+        },
+        "checkpoint": null,
+        "completion_candidate": {
+          "changes_ok": true,
+          "changes_receipt_id": "rcpt-1790095177067-971426-changes",
+          "evaluation_ok": true,
+          "evaluation_receipt_id": "rcpt-1790095178203-810354-evaluation"
+        },
+        "contract_version": "relay-run-v1",
+        "current_step": "",
+        "evaluations": [
+          {
+            "data": {
+              "active_policy_stage": "",
+              "cache_metric_bytes_reused": 0,
+              "cache_metric_candidates": 0,
+              "cache_metric_hits": 0,
+              "cache_metric_misses": 0,
+              "cache_metric_unique_files": 0,
+              "duration_ms": 295,
+              "failed": 0,
+              "parallel_fallback_reason": "",
+              "parallel_mode": "serial",
+              "parallel_prefetch_duration_ms": 0,
+              "parallel_prefetched_files": 0,
+              "parallel_requested": false,
+              "parallel_used": false,
+              "parallel_workers": 1,
+              "passed": 2,
+              "skipped": 0,
+              "suite_description": "",
+              "suite_name": "relay-relay-fixture-mission",
+              "suite_version": "0.0.0",
+              "test_results": [
+                {
+                  "check": "command_succeeds",
+                  "description": "",
+                  "details": {
+                    "allowed_command_patterns": [],
+                    "allowed_commands": [],
+                    "blocked_arg_patterns": [],
+                    "command": "git -C '$DEMO/workspace' diff --check",
+                    "command_pattern_match_mode": "substring",
+                    "exit_code": 0,
+                    "stderr": "",
+                    "stdout": ""
+                  },
+                  "message": "Command succeeded (exit 0)",
+                  "name": "git diff check",
+                  "passed": true,
+                  "skipped": false
+                },
+                {
+                  "check": "command_succeeds",
+                  "description": "",
+                  "details": {
+                    "allowed_command_patterns": [],
+                    "allowed_commands": [],
+                    "blocked_arg_patterns": [],
+                    "command": "test -f '$DEMO/workspace/RELAY_OUTPUT.txt'",
+                    "command_pattern_match_mode": "substring",
+                    "exit_code": 0,
+                    "stderr": "",
+                    "stdout": ""
+                  },
+                  "message": "Command succeeded (exit 0)",
+                  "name": "file exists: RELAY_OUTPUT.txt",
+                  "passed": true,
+                  "skipped": false
+                }
+              ],
+              "timestamp": "",
+              "total": 2
+            },
+            "error": "",
+            "ok": true
+          }
+        ],
+        "events": [
+          {
+            "agent_id": "relay",
+            "event_id": "evt-1790095173958-773337-run_started",
+            "integrity_sha256": "195bb53accd51eab4e0d12615b56fdc052815dcecdfe0429cf19fde71289ea3d",
+            "kind": "run_started",
+            "metadata": {
+              "agent_id": "relay",
+              "artifact": "",
+              "contract_version": "AgentEvent-compatible-v1",
+              "evaluation_id": "",
+              "mission_id": "relay-fixture-mission",
+              "model": "fixture-model",
+              "packet_revision": 0,
+              "provider": "fixture",
+              "repair_id": "",
+              "retry_id": "",
+              "run_id": "$RUN_ID",
+              "runledger_id": "2026-09-22-fixture-model-relay-fixture-mission-001",
+              "step_id": "",
+              "tool": "",
+              "workflow": "verified-feature"
+            },
+            "parent_event_id": "",
+            "payload": {
+              "receipt_id": "rcpt-1790095173441-660818-runledger",
+              "repository": "$DEMO/workspace",
+              "source_repository": "$DEMO/workspace",
+              "workflow": "verified-feature",
+              "workspace": {
+                "mode": "provided",
+                "path": "$DEMO/workspace",
+                "source_repository": "$DEMO/workspace"
+              }
+            },
+            "run_id": "$RUN_ID",
+            "session_id": "$RUN_ID",
+            "step_id": "",
+            "timestamp": "2026-09-22T16:39:33Z",
+            "type": "AgentEvent"
+          },
+          {
+            "agent_id": "planner",
+            "event_id": "evt-1790095175546-418155-artifact_created",
+            "integrity_sha256": "3d299b8d8b508e13d5313c78ee25f6ec7a61901aee58b19b28147551083d0757",
+            "kind": "artifact_created",
+            "metadata": {
+              "agent_id": "planner",
+              "artifact": "$DEMO/state/runs/$RUN_ID/agent",
+              "contract_version": "AgentEvent-compatible-v1",
+              "evaluation_id": "",
+              "mission_id": "relay-fixture-mission",
+              "model": "fixture-model",
+              "packet_revision": 1,
+              "provider": "fixture",
+              "repair_id": "",
+              "retry_id": "",
+              "run_id": "$RUN_ID",
+              "runledger_id": "2026-09-22-fixture-model-relay-fixture-mission-001",
+              "step_id": "packet",
+              "tool": "packwrite_agent_pack",
+              "workflow": "verified-feature"
+            },
+            "parent_event_id": "evt-1790095173958-773337-run_started",
+            "payload": {
+              "integrity_sha256": "282f473a47446e49aa6b7f7742b9de348c3a9896ac2e5c0d07d18e9fb513590d",
+              "kind": "packwrite_agent_pack",
+              "manifest_integrity_sha256": "278a356c77f9bb9f055dc73d085e037b53405cf111af73a081914f07d8e1a351",
+              "manifest_path": "$DEMO/state/runs/$RUN_ID/packet-manifest.json",
+              "ok": true,
+              "path": "$DEMO/state/runs/$RUN_ID/agent",
+              "receipt_id": "rcpt-1790095175475-122404-artifact",
+              "revision": 1
+            },
+            "run_id": "$RUN_ID",
+            "session_id": "$RUN_ID",
+            "step_id": "packet",
+            "timestamp": "2026-09-22T16:39:35Z",
+            "type": "AgentEvent"
+          },
+          {
+            "agent_id": "planner",
+            "event_id": "evt-1790095175662-899893-artifact_created",
+            "integrity_sha256": "fbe6e1e95aafadb578a61a688bccc6bc0ead2e1df69cffadd0dd8da4a7fe7e6d",
+            "kind": "artifact_created",
+            "metadata": {
+              "agent_id": "planner",
+              "artifact": "",
+              "contract_version": "AgentEvent-compatible-v1",
+              "evaluation_id": "",
+              "mission_id": "relay-fixture-mission",
+              "model": "fixture-model",
+              "packet_revision": 1,
+              "provider": "fixture",
+              "repair_id": "",
+              "retry_id": "",
+              "run_id": "$RUN_ID",
+              "runledger_id": "2026-09-22-fixture-model-relay-fixture-mission-001",
+              "step_id": "agent-sdk",
+              "tool": "agents_sdk_offline_smoke",
+              "workflow": "verified-feature"
+            },
+            "parent_event_id": "evt-1790095175546-418155-artifact_created",
+            "payload": {
+              "kind": "agents_sdk_offline_smoke",
+              "ok": true,
+              "receipt_id": "rcpt-1790095175588-775695-artifact"
+            },
+            "run_id": "$RUN_ID",
+            "session_id": "$RUN_ID",
+            "step_id": "agent-sdk",
+            "timestamp": "2026-09-22T16:39:35Z",
+            "type": "AgentEvent"
+          },
+          {
+            "agent_id": "core-developer",
+            "event_id": "evt-1790095175773-302300-tool_call_completed",
+            "integrity_sha256": "9045e23539c4b2419170fe8126a80fcfdd781e3e1b05085415adf716bebf54d2",
+            "kind": "tool_call_completed",
+            "metadata": {
+              "agent_id": "core-developer",
+              "artifact": "",
+              "contract_version": "AgentEvent-compatible-v1",
+              "evaluation_id": "",
+              "mission_id": "relay-fixture-mission",
+              "model": "fixture-model",
+              "packet_revision": 1,
+              "provider": "fixture",
+              "repair_id": "",
+              "retry_id": "",
+              "run_id": "$RUN_ID",
+              "runledger_id": "2026-09-22-fixture-model-relay-fixture-mission-001",
+              "step_id": "agent-sdk-tools",
+              "tool": "agents_sdk_tool_registry",
+              "workflow": "verified-feature"
+            },
+            "parent_event_id": "evt-1790095175662-899893-artifact_created",
+            "payload": {
+              "data": {},
+              "kind": "agents_sdk_tool_registry",
+              "ok": true,
+              "receipt_id": "rcpt-1790095175707-65235-tool",
+              "skipped": true
+            },
+            "run_id": "$RUN_ID",
+            "session_id": "$RUN_ID",
+            "step_id": "agent-sdk-tools",
+            "timestamp": "2026-09-22T16:39:35Z",
+            "type": "AgentEvent"
+          },
+          {
+            "agent_id": "planner",
+            "event_id": "evt-1790095176157-947498-artifact_created",
+            "integrity_sha256": "0fda8625d99cd3dcca593c1fac6d19e42d3d915575ab027f5167068086166cf9",
+            "kind": "artifact_created",
+            "metadata": {
+              "agent_id": "planner",
+              "artifact": "$DEMO/state/runs/$RUN_ID/agent-response.md",
+              "contract_version": "AgentEvent-compatible-v1",
+              "evaluation_id": "",
+              "mission_id": "relay-fixture-mission",
+              "model": "fixture-model",
+              "packet_revision": 1,
+              "provider": "fixture",
+              "repair_id": "",
+              "retry_id": "",
+              "run_id": "$RUN_ID",
+              "runledger_id": "2026-09-22-fixture-model-relay-fixture-mission-001",
+              "step_id": "plan-response",
+              "tool": "agent_response",
+              "workflow": "verified-feature"
+            },
+            "parent_event_id": "evt-1790095175773-302300-tool_call_completed",
+            "payload": {
+              "kind": "agent_response",
+              "path": "$DEMO/state/runs/$RUN_ID/agent-response.md",
+              "receipt_id": "rcpt-1790095176072-522082-artifact"
+            },
+            "run_id": "$RUN_ID",
+            "session_id": "$RUN_ID",
+            "step_id": "plan-response",
+            "timestamp": "2026-09-22T16:39:36Z",
+            "type": "AgentEvent"
+          },
+          {
+            "agent_id": "planner",
+            "event_id": "evt-1790095176265-445097-model_request_completed",
+            "integrity_sha256": "eb4f89eb8faa0627229082cee23d9152a132455f0faaabdb93b3de5758cc241c",
+            "kind": "model_request_completed",
+            "metadata": {
+              "agent_id": "planner",
+              "artifact": "",
+              "contract_version": "AgentEvent-compatible-v1",
+              "evaluation_id": "",
+              "mission_id": "relay-fixture-mission",
+              "model": "fixture-model",
+              "packet_revision": 1,
+              "provider": "fixture",
+              "repair_id": "",
+              "retry_id": "",
+              "run_id": "$RUN_ID",
+              "runledger_id": "2026-09-22-fixture-model-relay-fixture-mission-001",
+              "step_id": "plan",
+              "tool": "",
+              "workflow": "verified-feature"
+            },
+            "parent_event_id": "evt-1790095176157-947498-artifact_created",
+            "payload": {
+              "ok": true,
+              "receipt_id": "rcpt-1790095176196-133737-model",
+              "telemetry": {
+                "correlation_id": "$RUN_ID",
+                "duration_ms": 123,
+                "model": "fixture-model",
+                "provider": "fixture",
+                "requested_max_tokens": 4000,
+                "route": "direct_ai_sdk",
+                "stream_requested": false,
+                "watchdog_auth_configured": false,
+                "watchdog_route": {
+                  "configured": false,
+                  "reason": "missing",
+                  "scheme": "",
+                  "valid": false
+                },
+                "watchdog_upstream_profile_configured": false
+              }
+            },
+            "run_id": "$RUN_ID",
+            "session_id": "$RUN_ID",
+            "step_id": "plan",
+            "timestamp": "2026-09-22T16:39:36Z",
+            "type": "AgentEvent"
+          },
+          {
+            "agent_id": "core-developer",
+            "event_id": "evt-1790095176480-982172-tool_call_completed",
+            "integrity_sha256": "91bb330571f6d83ee39916a26ca4feac6e8568bf2fb7897bf4359e771b5945d0",
+            "kind": "tool_call_completed",
+            "metadata": {
+              "agent_id": "core-developer",
+              "artifact": "",
+              "contract_version": "AgentEvent-compatible-v1",
+              "evaluation_id": "",
+              "mission_id": "relay-fixture-mission",
+              "model": "fixture-model",
+              "packet_revision": 1,
+              "provider": "fixture",
+              "repair_id": "",
+              "retry_id": "",
+              "run_id": "$RUN_ID",
+              "runledger_id": "2026-09-22-fixture-model-relay-fixture-mission-001",
+              "step_id": "implementation",
+              "tool": "",
+              "workflow": "verified-feature"
+            },
+            "parent_event_id": "evt-1790095176265-445097-model_request_completed",
+            "payload": {
+              "actions": 2,
+              "ok": true
+            },
+            "run_id": "$RUN_ID",
+            "session_id": "$RUN_ID",
+            "step_id": "implementation",
+            "timestamp": "2026-09-22T16:39:36Z",
+            "type": "AgentEvent"
+          },
+          {
+            "agent_id": "release-verifier",
+            "event_id": "evt-1790095178844-209079-run_completed",
+            "integrity_sha256": "ac49be13f5584fe09bfb0e68f24c0711a6a75512a2dedc2646dffd0a7fbe214a",
+            "kind": "run_completed",
+            "metadata": {
+              "agent_id": "release-verifier",
+              "artifact": "",
+              "contract_version": "AgentEvent-compatible-v1",
+              "evaluation_id": "",
+              "mission_id": "relay-fixture-mission",
+              "model": "fixture-model",
+              "packet_revision": 1,
+              "provider": "fixture",
+              "repair_id": "",
+              "retry_id": "",
+              "run_id": "$RUN_ID",
+              "runledger_id": "2026-09-22-fixture-model-relay-fixture-mission-001",
+              "step_id": "verify",
+              "tool": "",
+              "workflow": "verified-feature"
+            },
+            "parent_event_id": "evt-1790095176480-982172-tool_call_completed",
+            "payload": {
+              "changes_ok": true,
+              "changes_receipt_id": "rcpt-1790095177067-971426-changes",
+              "evaluation_ok": true,
+              "evaluation_receipt_id": "rcpt-1790095178203-810354-evaluation"
+            },
+            "run_id": "$RUN_ID",
+            "session_id": "$RUN_ID",
+            "step_id": "verify",
+            "timestamp": "2026-09-22T16:39:38Z",
+            "type": "AgentEvent"
+          }
+        ],
+        "failure": null,
+        "integrity_sha256": "b97c486e6b5f82806aea82c43f7b5a2d84088f689d2082f57c1f5d52805dac27",
+        "mission_id": "relay-fixture-mission",
+        "mission_spec": {
+          "acceptance_criteria": [
+            "the approved file exists",
+            "git diff --check passes"
+          ],
+          "actions": [
+            {
+              "content": "Created by the policy-controlled Relay fixture mission.\n",
+              "path": "RELAY_OUTPUT.txt",
+              "type": "write_file"
+            },
+            {
+              "command": "git status --short",
+              "type": "run_command"
+            }
+          ],
+          "allow_writes": true,
+          "allowed_commands": [
+            "git",
+            "kujo"
+          ],
+          "approval": {
+            "actor": "fixture-operator",
+            "approved": true,
+            "reason": "disposable isolated workspace"
+          },
+          "goal": "Make one bounded repository change and verify it deterministically.",
+          "id": "relay-fixture-mission",
+          "model": "fixture-model",
+          "name": "relay-fixture-mission",
+          "provider": "fixture",
+          "repository": "$DEMO/workspace",
+          "version": "1.0.0",
+          "workflow": "verified-feature"
+        },
+        "mission_spec_integrity_sha256": "bd2c7e85b4907ced7e928a41dbad13c4babed85d24de26e97cb68cd310ab8ff1",
+        "model": "fixture-model",
+        "packet_manifest": {
+          "entries": 13,
+          "integrity_sha256": "278a356c77f9bb9f055dc73d085e037b53405cf111af73a081914f07d8e1a351",
+          "path": "$DEMO/state/runs/$RUN_ID/packet-manifest.json",
+          "required": true
+        },
+        "packet_manifest_required": true,
+        "packet_revision": 1,
+        "planner_output": "Standardized AI SDK responses reduce integration complexity and speed up development.",
+        "planner_output_path": "$DEMO/state/runs/$RUN_ID/agent-response.md",
+        "provider": "fixture",
+        "receipts": [
+          {
+            "agent_id": "relay",
+            "artifact_ref": "$DEMO/state/runs/$RUN_ID/ledger",
+            "contract_version": "relay-receipt-v1",
+            "created_at": "2026-09-22T16:39:33Z",
+            "integrity_sha256": "584064f6320c411c68c1c4cbda12df3ecc7e090c5f56104831104b34119790b2",
+            "kind": "runledger",
+            "metadata": {
+              "artifact": "$DEMO/state/runs/$RUN_ID/ledger",
+              "attempt": 0,
+              "correlation_id": "",
+              "evaluation_id": "",
+              "mission_id": "relay-fixture-mission",
+              "model": "fixture-model",
+              "packet_revision": 0,
+              "provider": "fixture",
+              "repair_attempt": 0,
+              "repair_id": "",
+              "retry_id": "",
+              "run_id": "$RUN_ID",
+              "runledger_id": "2026-09-22-fixture-model-relay-fixture-mission-001",
+              "tool": "",
+              "workflow": "verified-feature"
+            },
+            "mission_id": "relay-fixture-mission",
+            "payload": {
+              "ok": true,
+              "runledger_id": "2026-09-22-fixture-model-relay-fixture-mission-001"
+            },
+            "receipt_id": "rcpt-1790095173441-660818-runledger",
+            "run_id": "$RUN_ID",
+            "status": "completed",
+            "step_id": "plan",
+            "type": "RelayReceipt"
+          },
+          {
+            "agent_id": "planner",
+            "artifact_ref": "$DEMO/state/runs/$RUN_ID/agent",
+            "contract_version": "relay-receipt-v1",
+            "created_at": "2026-09-22T16:39:35Z",
+            "integrity_sha256": "30f625a0928bb81276e79068aaecae2a8bcee62df69e4044f5596e46b004a08d",
+            "kind": "artifact",
+            "metadata": {
+              "artifact": "$DEMO/state/runs/$RUN_ID/agent",
+              "attempt": 0,
+              "correlation_id": "",
+              "evaluation_id": "",
+              "mission_id": "relay-fixture-mission",
+              "model": "fixture-model",
+              "packet_revision": 1,
+              "provider": "fixture",
+              "repair_attempt": 0,
+              "repair_id": "",
+              "retry_id": "",
+              "run_id": "$RUN_ID",
+              "runledger_id": "2026-09-22-fixture-model-relay-fixture-mission-001",
+              "tool": "packwrite_agent_pack",
+              "workflow": "verified-feature"
+            },
+            "mission_id": "relay-fixture-mission",
+            "payload": {
+              "integrity_sha256": "282f473a47446e49aa6b7f7742b9de348c3a9896ac2e5c0d07d18e9fb513590d",
+              "kind": "packwrite_agent_pack",
+              "manifest_integrity_sha256": "278a356c77f9bb9f055dc73d085e037b53405cf111af73a081914f07d8e1a351",
+              "manifest_path": "$DEMO/state/runs/$RUN_ID/packet-manifest.json",
+              "ok": true,
+              "path": "$DEMO/state/runs/$RUN_ID/agent",
+              "revision": 1
+            },
+            "receipt_id": "rcpt-1790095175475-122404-artifact",
+            "run_id": "$RUN_ID",
+            "status": "completed",
+            "step_id": "packet",
+            "type": "RelayReceipt"
+          },
+          {
+            "agent_id": "planner",
+            "artifact_ref": "agent_sdk",
+            "contract_version": "relay-receipt-v1",
+            "created_at": "2026-09-22T16:39:35Z",
+            "integrity_sha256": "0452f57db2ae983960fa103c7111a6b5e461e6830c5427ec91348ec2cd203f17",
+            "kind": "artifact",
+            "metadata": {
+              "artifact": "agent_sdk",
+              "attempt": 0,
+              "correlation_id": "",
+              "evaluation_id": "",
+              "mission_id": "relay-fixture-mission",
+              "model": "fixture-model",
+              "packet_revision": 1,
+              "provider": "fixture",
+              "repair_attempt": 0,
+              "repair_id": "",
+              "retry_id": "",
+              "run_id": "$RUN_ID",
+              "runledger_id": "2026-09-22-fixture-model-relay-fixture-mission-001",
+              "tool": "agents_sdk_offline_smoke",
+              "workflow": "verified-feature"
+            },
+            "mission_id": "relay-fixture-mission",
+            "payload": {
+              "kind": "agents_sdk_offline_smoke",
+              "ok": true
+            },
+            "receipt_id": "rcpt-1790095175588-775695-artifact",
+            "run_id": "$RUN_ID",
+            "status": "completed",
+            "step_id": "agent-sdk",
+            "type": "RelayReceipt"
+          },
+          {
+            "agent_id": "core-developer",
+            "artifact_ref": "agent_sdk_tools",
+            "contract_version": "relay-receipt-v1",
+            "created_at": "2026-09-22T16:39:35Z",
+            "integrity_sha256": "a6dae524ae3ea12e7c2fbec6710a7c718915da4f334f9e82663546a841384a7e",
+            "kind": "tool",
+            "metadata": {
+              "artifact": "agent_sdk_tools",
+              "attempt": 0,
+              "correlation_id": "",
+              "evaluation_id": "",
+              "mission_id": "relay-fixture-mission",
+              "model": "fixture-model",
+              "packet_revision": 1,
+              "provider": "fixture",
+              "repair_attempt": 0,
+              "repair_id": "",
+              "retry_id": "",
+              "run_id": "$RUN_ID",
+              "runledger_id": "2026-09-22-fixture-model-relay-fixture-mission-001",
+              "tool": "agents_sdk_tool_registry",
+              "workflow": "verified-feature"
+            },
+            "mission_id": "relay-fixture-mission",
+            "payload": {
+              "kind": "agents_sdk_tool_registry",
+              "ok": true,
+              "skipped": true
+            },
+            "receipt_id": "rcpt-1790095175707-65235-tool",
+            "run_id": "$RUN_ID",
+            "status": "completed",
+            "step_id": "agent-sdk-tools",
+            "type": "RelayReceipt"
+          },
+          {
+            "agent_id": "planner",
+            "artifact_ref": "$DEMO/state/runs/$RUN_ID/agent-response.md",
+            "contract_version": "relay-receipt-v1",
+            "created_at": "2026-09-22T16:39:36Z",
+            "integrity_sha256": "3d1a08dc9c1e08d98c799afa1c891665c475f44cb17a7832eac53e8e012d1bae",
+            "kind": "artifact",
+            "metadata": {
+              "artifact": "$DEMO/state/runs/$RUN_ID/agent-response.md",
+              "attempt": 0,
+              "correlation_id": "$RUN_ID",
+              "evaluation_id": "",
+              "mission_id": "relay-fixture-mission",
+              "model": "fixture-model",
+              "packet_revision": 1,
+              "provider": "fixture",
+              "repair_attempt": 0,
+              "repair_id": "",
+              "retry_id": "",
+              "run_id": "$RUN_ID",
+              "runledger_id": "2026-09-22-fixture-model-relay-fixture-mission-001",
+              "tool": "agent_response",
+              "workflow": "verified-feature"
+            },
+            "mission_id": "relay-fixture-mission",
+            "payload": {
+              "integrity_sha256": "668245c81f7c2e22591da6fa85a0e801561c4f4f4b3ba526a2c33ffca1ead176",
+              "kind": "agent_response",
+              "path": "$DEMO/state/runs/$RUN_ID/agent-response.md"
+            },
+            "receipt_id": "rcpt-1790095176072-522082-artifact",
+            "run_id": "$RUN_ID",
+            "status": "completed",
+            "step_id": "plan-response",
+            "type": "RelayReceipt"
+          },
+          {
+            "agent_id": "planner",
+            "artifact_ref": "fixture-model",
+            "contract_version": "relay-receipt-v1",
+            "created_at": "2026-09-22T16:39:36Z",
+            "integrity_sha256": "cb3f5c5a24bfd62c8ecb17d397a019c761c2cf06deb6d066b11de8880b202f3b",
+            "kind": "model",
+            "metadata": {
+              "artifact": "fixture-model",
+              "attempt": 0,
+              "correlation_id": "$RUN_ID",
+              "evaluation_id": "",
+              "mission_id": "relay-fixture-mission",
+              "model": "fixture-model",
+              "packet_revision": 1,
+              "provider": "fixture",
+              "repair_attempt": 0,
+              "repair_id": "",
+              "retry_id": "",
+              "run_id": "$RUN_ID",
+              "runledger_id": "2026-09-22-fixture-model-relay-fixture-mission-001",
+              "tool": "",
+              "workflow": "verified-feature"
+            },
+            "mission_id": "relay-fixture-mission",
+            "payload": {
+              "ok": true,
+              "telemetry": {
+                "correlation_id": "$RUN_ID",
+                "duration_ms": 123,
+                "model": "fixture-model",
+                "provider": "fixture",
+                "requested_max_tokens": 4000,
+                "route": "direct_ai_sdk",
+                "stream_requested": false,
+                "watchdog_auth_configured": false,
+                "watchdog_route": {
+                  "configured": false,
+                  "reason": "missing",
+                  "scheme": "",
+                  "valid": false
+                },
+                "watchdog_upstream_profile_configured": false
+              },
+              "usage": {
+                "input_tokens": 12,
+                "output_tokens": 8,
+                "relay_accounted_total_tokens": 20,
+                "relay_input_tokens": 12,
+                "relay_output_tokens": 8,
+                "total_tokens": 20
+              }
+            },
+            "receipt_id": "rcpt-1790095176196-133737-model",
+            "run_id": "$RUN_ID",
+            "status": "completed",
+            "step_id": "plan",
+            "type": "RelayReceipt"
+          },
+          {
+            "agent_id": "release-verifier",
+            "artifact_ref": "$DEMO/state/runs/$RUN_ID/changes.json",
+            "contract_version": "relay-receipt-v1",
+            "created_at": "2026-09-22T16:39:37Z",
+            "integrity_sha256": "022b408d49e948b7b90e924d38fedcfcc551dfa8c159bcea0fff824e0ff44b5b",
+            "kind": "changes",
+            "metadata": {
+              "artifact": "$DEMO/state/runs/$RUN_ID/changes.json",
+              "attempt": 2,
+              "correlation_id": "$RUN_ID",
+              "evaluation_id": "",
+              "mission_id": "relay-fixture-mission",
+              "model": "fixture-model",
+              "packet_revision": 1,
+              "provider": "fixture",
+              "repair_attempt": 0,
+              "repair_id": "",
+              "retry_id": "",
+              "run_id": "$RUN_ID",
+              "runledger_id": "2026-09-22-fixture-model-relay-fixture-mission-001",
+              "tool": "",
+              "workflow": "verified-feature"
+            },
+            "mission_id": "relay-fixture-mission",
+            "payload": {
+              "ok": true,
+              "persisted": true
+            },
+            "receipt_id": "rcpt-1790095177067-971426-changes",
+            "run_id": "$RUN_ID",
+            "status": "completed",
+            "step_id": "verify",
+            "type": "RelayReceipt"
+          },
+          {
+            "agent_id": "release-verifier",
+            "artifact_ref": "$DEMO/state/runs/$RUN_ID/evaluations.json",
+            "contract_version": "relay-receipt-v1",
+            "created_at": "2026-09-22T16:39:38Z",
+            "integrity_sha256": "4fd169b576d18a037abd28e0f01e7752c267611afe568b4fbbdba31c1074cd6b",
+            "kind": "evaluation",
+            "metadata": {
+              "artifact": "$DEMO/state/runs/$RUN_ID/evaluations.json",
+              "attempt": 2,
+              "correlation_id": "$RUN_ID",
+              "evaluation_id": "",
+              "mission_id": "relay-fixture-mission",
+              "model": "fixture-model",
+              "packet_revision": 1,
+              "provider": "fixture",
+              "repair_attempt": 0,
+              "repair_id": "",
+              "retry_id": "",
+              "run_id": "$RUN_ID",
+              "runledger_id": "2026-09-22-fixture-model-relay-fixture-mission-001",
+              "tool": "",
+              "workflow": "verified-feature"
+            },
+            "mission_id": "relay-fixture-mission",
+            "payload": {
+              "config": "$DEMO/state/runs/$RUN_ID/eval.json",
+              "ok": true,
+              "persisted": true
+            },
+            "receipt_id": "rcpt-1790095178203-810354-evaluation",
+            "run_id": "$RUN_ID",
+            "status": "completed",
+            "step_id": "verify",
+            "type": "RelayReceipt"
+          },
+          {
+            "agent_id": "relay",
+            "artifact_ref": "$DEMO/state/runs/$RUN_ID/ledger",
+            "contract_version": "relay-receipt-v1",
+            "created_at": "2026-09-22T16:39:38Z",
+            "integrity_sha256": "94b3e4fb969f50a35c66a218369ce218fc34f7d5022e91fd3f6eedaafb7b72f6",
+            "kind": "runledger",
+            "metadata": {
+              "artifact": "$DEMO/state/runs/$RUN_ID/ledger",
+              "attempt": 2,
+              "correlation_id": "$RUN_ID",
+              "evaluation_id": "",
+              "mission_id": "relay-fixture-mission",
+              "model": "fixture-model",
+              "packet_revision": 1,
+              "provider": "fixture",
+              "repair_attempt": 0,
+              "repair_id": "",
+              "retry_id": "",
+              "run_id": "$RUN_ID",
+              "runledger_id": "2026-09-22-fixture-model-relay-fixture-mission-001",
+              "tool": "",
+              "workflow": "verified-feature"
+            },
+            "mission_id": "relay-fixture-mission",
+            "payload": {
+              "ok": true,
+              "runledger_id": "2026-09-22-fixture-model-relay-fixture-mission-001"
+            },
+            "receipt_id": "rcpt-1790095178747-985000-runledger",
+            "run_id": "$RUN_ID",
+            "status": "pass",
+            "step_id": "finish",
+            "type": "RelayReceipt"
+          }
+        ],
+        "relay_version": "1.1.0",
+        "repository": "$DEMO/workspace",
+        "run_id": "$RUN_ID",
+        "runledger": {
+          "duration_ms": 547,
+          "error": "",
+          "ledger": "$DEMO/state/runs/$RUN_ID/ledger",
+          "ok": true,
+          "output": "Started run: 2026-09-22-fixture-model-relay-fixture-mission-001\n  storage:      $DEMO/state/runs/$RUN_ID/ledger/runs/2026-09-22-fixture-model-relay-fixture-mission-001.json\n  repo:         $DEMO/workspace\n  start commit: 4eb1e35deaa229416263d94e3ab6f1d204f48f3b\n\nNext: runledger finish 2026-09-22-fixture-model-relay-fixture-mission-001 --status <pass|partial|fail|abandoned> --verdict \"...\"\n",
+          "run_id": "2026-09-22-fixture-model-relay-fixture-mission-001"
+        },
+        "runledger_finish": {
+          "duration_ms": 389,
+          "error": "",
+          "ok": true,
+          "output": "Finished run: 2026-09-22-fixture-model-relay-fixture-mission-001\n  status:       pass\n  end commit:   4eb1e35deaa229416263d94e3ab6f1d204f48f3b\n  changed files: 1\n"
+        },
+        "started_at": "2026-09-22T16:39:32Z",
+        "status": "completed",
+        "telemetry": {
+          "correlation_id": "$RUN_ID",
+          "duration_ms": 123,
+          "model": "fixture-model",
+          "provider": "fixture",
+          "requested_max_tokens": 4000,
+          "route": "direct_ai_sdk",
+          "stream_requested": false,
+          "watchdog_auth_configured": false,
+          "watchdog_route": {
+            "configured": false,
+            "reason": "missing",
+            "scheme": "",
+            "valid": false
+          },
+          "watchdog_upstream_profile_configured": false
+        },
+        "type": "RelayRun",
+        "updated_at": "2026-09-22T16:39:38Z",
+        "usage": {
+          "input_tokens": 12,
+          "output_tokens": 8,
+          "relay_accounted_total_tokens": 20,
+          "relay_input_tokens": 12,
+          "relay_output_tokens": 8,
+          "total_tokens": 20
+        },
+        "workflow": "verified-feature",
+        "workspace": {
+          "mode": "provided",
+          "path": "$DEMO/workspace",
+          "source_repository": "$DEMO/workspace"
+        }
+      },
+      "run_dir": "$DEMO/state/runs/$RUN_ID"
+    }
+  },
+  {
+    "step": "Verify evidence",
+    "command": "relay runs verify $RUN_ID --json",
+    "result": {
+      "changes_valid": true,
+      "errors": [
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "evaluations_valid": true,
+      "events_valid": true,
+      "format": "relay-run-verification-v1",
+      "integrity_valid": true,
+      "ok": true,
+      "packet_manifest_required": true,
+      "packet_manifest_valid": true,
+      "receipts_consistent": true,
+      "receipts_valid": true,
+      "report_valid": true,
+      "run_id": "$RUN_ID",
+      "state_valid": true,
+      "status": "completed",
+      "tool_results_required": false,
+      "tool_results_valid": true
+    }
+  },
+  {
+    "step": "Export signed bundle",
+    "command": "relay runs export $RUN_ID --signed --key-id walkthrough --output $DEMO/verified-export.json --json",
+    "result": {
+      "integrity_valid": true,
+      "ok": true,
+      "output": "$DEMO/verified-export.json",
+      "run_id": "$RUN_ID"
+    }
+  },
+  {
+    "step": "Verify portable export",
+    "command": "relay runs verify-signature $DEMO/verified-export.json --json",
+    "result": {
+      "key_id": "walkthrough",
+      "ok": true,
+      "payload_sha256": "4b7d7199300e9f520a8436dfc3dc86673ee6b412d596fe1bc3ab08dec8a4c2ca",
+      "signature_valid": true
+    }
+  }
+]
