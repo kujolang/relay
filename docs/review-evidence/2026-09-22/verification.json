@@ -1,0 +1,35 @@
+{
+  "format": "relay-review-verification-v1",
+  "date": "2026-09-22",
+  "source_commit": "5867ddda9c27a71842c8c6a4edb3bb874cb352b7",
+  "platform": "darwin-x86_64",
+  "kujo_revision": "9b77dce592047121cb71066629836ad89252f3ce",
+  "kujo_version": "1.0.0",
+  "kujo_binary_sha256": "40d12094c82b0cfb99134cb6c7d5eea4793c9c5fa2c384f2cea6cfdc4a15f9df",
+  "dependency_setup": "isolated sibling worktrees at release/dependencies.json revisions",
+  "release_gate": {
+    "command": "bash scripts/release_gate.sh",
+    "exit_code": 0,
+    "log_sha256": "5972480ea28706890c2e182482b214751f3e9f3a7cac992795339463911378f5",
+    "source_checks": "passed",
+    "contract_tests": "passed",
+    "smoke_scripts": 34,
+    "acceptance": "passed",
+    "schemas": 25,
+    "markdown_links": "passed",
+    "metadata": "passed",
+    "kennel": "passed",
+    "shipcheck": "passed-16-of-16",
+    "reproducible_artifacts": "passed",
+    "archive_clean_install": "passed"
+  },
+  "focused_commands": {
+    "doctor": "passed",
+    "agents_validate": "passed",
+    "fixture_chat": "passed"
+  },
+  "external_provider": "not-run-approval-required",
+  "cross_platform_ci": "not-run-this-session",
+  "workcell": "blocked-see-workcell-blocker.json",
+  "fresh_representative_performance": "small-budget-failures-on-baseline-and-candidate; broader-run-stopped; see performance-comparison.json"
+}

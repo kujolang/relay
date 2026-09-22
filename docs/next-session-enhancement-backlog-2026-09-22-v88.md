@@ -50,6 +50,16 @@ release gate, and explicit deployment scope. These continue the v87 P0 gates.
 
 ## P1 — Strengthen boundaries before extending the product
 
+- [ ] Recheck performance budgets on a quiescent host with the same pinned
+  runtime and five samples. The [small-profile comparison](review-evidence/2026-09-22/performance-comparison.json)
+  shows both pre-session `01c44da` and candidate `5867ddd` exceeding export,
+  verify, and watch limits. Candidate p95 values were 6790/7044/5282 ms against
+  allowance-inclusive limits of 3000/6000/3000 ms; baseline values were
+  7659/6849/6843 ms. These were contended-host measurements, not proof of a
+  regression or speedup. Complete medium/large profiles on a quiet host,
+  isolate bottlenecks, and preserve the existing budgets until evidence
+  justifies a reviewed change.
+
 - [ ] Define operator-owned machine identity/role/tenant mappings before adding
   socket or MCP transport. `src/enterprise.kujo::authorize_machine_request`
   currently trusts caller-supplied claims after shared-secret authentication;
@@ -89,6 +99,26 @@ implementing them requires explicit contracts and compatibility fixtures.
 
 ## Verification record
 
-Verification results are recorded below after running the candidate checks.
-Do not infer external provider, Workcell, or cross-platform success from local
-contract tests.
+The [local verification receipt](review-evidence/2026-09-22/verification.json)
+records a passed release gate at source commit `5867ddd` on macOS x86_64,
+using Kujo `9b77dce` (1.0.0) and isolated pinned sibling dependencies. All 34
+smoke scripts, contracts, 25 schemas, source checks, links, metadata, Kennel,
+ShipCheck 16/16, two-build reproducibility, and clean archive installation passed.
+The required doctor, agent validation, and fixture-chat commands passed too.
+The separate representative performance experiment did **not** pass: small
+budgets failed on both revisions; broader sampling was stopped after that
+comparison. The functional release gate checks performance contracts and a
+historical budget fixture, so its success must not be read as fresh performance
+certification.
+
+Workcell stopped during preparation with exit 4: the Docker daemon did not
+report AppArmor required by the pinned rootful-Docker policy. Cleanup completed;
+container execution and verification did not occur. The sanitized
+[blocker receipt](review-evidence/2026-09-22/workcell-blocker.json) records the
+exact candidate, run ID, error, and source receipt digest. Fixture/worktree tests
+are the closest local proof and do not replace container execution.
+
+External live-provider proof was not run without owner-approved credentials.
+Linux/macOS-arm64 CI was not run in this session. Final documentation/evidence
+commits do not change the tested runtime implementation; release-owner gates
+still require results for the eventual exact release candidate.

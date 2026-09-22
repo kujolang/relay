@@ -1,0 +1,173 @@
+{
+  "format": "relay-review-performance-comparison-v1",
+  "date": "2026-09-22",
+  "profile": "small",
+  "percentile_method": "nearest-rank; both reports recalculated from retained samples",
+  "measurement_conditions": "Busy shared macOS host; baseline overlapped candidate medium measurements. Not a controlled speedup experiment.",
+  "scope": "Small profile completed; broader representative harness intentionally stopped after small budget failures and baseline confirmation. Medium/large results are not claimed.",
+  "baseline": {
+    "commands": {
+      "runs_export": {
+        "max_ms": 7659,
+        "median_ms": 6624,
+        "min_ms": 3453,
+        "p95_ms": 7659,
+        "samples_ms": [
+          3453,
+          6624,
+          6519,
+          7659,
+          7389
+        ],
+        "original_reported_p95_ms": 7389,
+        "budget_with_allowance_ms": 3000.0,
+        "within_budget": false
+      },
+      "runs_list": {
+        "max_ms": 2798,
+        "median_ms": 2469,
+        "min_ms": 1476,
+        "p95_ms": 2798,
+        "samples_ms": [
+          1607,
+          1476,
+          2798,
+          2798,
+          2469
+        ],
+        "original_reported_p95_ms": 2798,
+        "budget_with_allowance_ms": 3000.0,
+        "within_budget": true
+      },
+      "runs_verify": {
+        "max_ms": 6849,
+        "median_ms": 5957,
+        "min_ms": 2961,
+        "p95_ms": 6849,
+        "samples_ms": [
+          2961,
+          3584,
+          5957,
+          6833,
+          6849
+        ],
+        "original_reported_p95_ms": 6833,
+        "budget_with_allowance_ms": 6000.0,
+        "within_budget": false
+      },
+      "runs_watch_completed": {
+        "max_ms": 6843,
+        "median_ms": 6445,
+        "min_ms": 3077,
+        "p95_ms": 6843,
+        "samples_ms": [
+          3077,
+          3173,
+          6445,
+          6843,
+          6757
+        ],
+        "original_reported_p95_ms": 6757,
+        "budget_with_allowance_ms": 3000.0,
+        "within_budget": false
+      }
+    },
+    "contract_version": "relay-run-store-benchmark-v1",
+    "iterations": 5,
+    "platform": "darwin-x86_64",
+    "relay_commit": "01c44da192e0fa7f1135d3c047b16dd23421058d",
+    "run_id": "benchmark-small-10",
+    "sizes": {
+      "excluded_count": 1,
+      "hashes_included": false,
+      "summary": {
+        "bytes": 105084,
+        "directories": 0,
+        "files": 7
+      }
+    }
+  },
+  "candidate": {
+    "commands": {
+      "runs_export": {
+        "max_ms": 6790,
+        "median_ms": 5912,
+        "min_ms": 4146,
+        "p95_ms": 6790,
+        "samples_ms": [
+          6790,
+          5992,
+          5912,
+          5328,
+          4146
+        ],
+        "original_reported_p95_ms": 6790,
+        "budget_with_allowance_ms": 3000.0,
+        "within_budget": false
+      },
+      "runs_list": {
+        "max_ms": 2607,
+        "median_ms": 2228,
+        "min_ms": 1826,
+        "p95_ms": 2607,
+        "samples_ms": [
+          2607,
+          2342,
+          2228,
+          1826,
+          1915
+        ],
+        "original_reported_p95_ms": 2607,
+        "budget_with_allowance_ms": 3000.0,
+        "within_budget": true
+      },
+      "runs_verify": {
+        "max_ms": 7044,
+        "median_ms": 5387,
+        "min_ms": 4451,
+        "p95_ms": 7044,
+        "samples_ms": [
+          4451,
+          7044,
+          6113,
+          5387,
+          5028
+        ],
+        "original_reported_p95_ms": 7044,
+        "budget_with_allowance_ms": 6000.0,
+        "within_budget": false
+      },
+      "runs_watch_completed": {
+        "max_ms": 5282,
+        "median_ms": 5001,
+        "min_ms": 4755,
+        "p95_ms": 5282,
+        "samples_ms": [
+          5282,
+          5131,
+          5001,
+          4957,
+          4755
+        ],
+        "original_reported_p95_ms": 5282,
+        "budget_with_allowance_ms": 3000.0,
+        "within_budget": false
+      }
+    },
+    "contract_version": "relay-run-store-benchmark-v1",
+    "iterations": 5,
+    "platform": "darwin-x86_64",
+    "relay_commit": "5867ddda9c27a71842c8c6a4edb3bb874cb352b7",
+    "run_id": "benchmark-small-10",
+    "sizes": {
+      "excluded_count": 1,
+      "hashes_included": false,
+      "summary": {
+        "bytes": 105087,
+        "directories": 0,
+        "files": 7
+      }
+    }
+  },
+  "conclusion": "Both revisions exceed export, verify, and watch budgets. Reproduce on a quiescent host before attributing regression or changing budgets."
+}

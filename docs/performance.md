@@ -33,3 +33,9 @@ Each platform CI job retains the generated suite as exact-commit evidence.
 The committed [macOS x86_64 small-profile result](../benchmarks/macos-x86_64-small.json)
 passes all four budgets. Linux and macOS arm64 results remain platform-specific
 CI evidence and must not be inferred from that local sample.
+
+The [2026-09-22 review comparison](review-evidence/2026-09-22/performance-comparison.json)
+retains five fresh small-profile samples for baseline and candidate. Both
+exceeded three budgets on a busy shared host. Medium/large measurements were
+not completed in that experiment. These results require controlled retesting;
+the historical passing result above does not establish current readiness.

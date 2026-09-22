@@ -1,0 +1,30 @@
+{
+  "run_id": "wc-4120f0e623224f648b00fbea843ed7b7",
+  "final_status": "failed",
+  "exit_code": 4,
+  "errors": [
+    {
+      "message": "Docker daemon does not report AppArmor; rootful Docker requires both seccomp and AppArmor profiles",
+      "stage": "preparing"
+    }
+  ],
+  "cleanup_status": "complete",
+  "source_commit": "5867ddda9c27a71842c8c6a4edb3bb874cb352b7",
+  "workcell_version": "1.0.0",
+  "start_time": "2026-09-22T15:09:23Z",
+  "end_time": "2026-09-22T15:09:27Z",
+  "verification": {
+    "artifacts_exported": false,
+    "checks": [],
+    "cleanup_succeeded": true,
+    "execution_succeeded": false,
+    "verification_succeeded": false
+  },
+  "format": "relay-review-workcell-blocker-v1",
+  "workcell_revision": "28d2c4a3b8d317fedd5e20be618f98bd3859eaea",
+  "kujo_revision": "9b77dce592047121cb71066629836ad89252f3ce",
+  "source_receipt_sha256": "65246537b097c800f351b8dd2840ad70500e0283c089d3a69f56137e5b495639",
+  "status": "blocked",
+  "required_next_step": "Rerun success and intentional failure proof on a host satisfying the pinned Workcell seccomp and AppArmor policy.",
+  "closest_equivalent": "Relay fixture mission, worktree and evidence verification smoke tests; these do not demonstrate container execution."
+}
