@@ -18,7 +18,7 @@ Provider request payloads are bounded below the bridge transport limit, provider
 
 Run evidence is stored below `RELAY_STATE_ROOT` (default `.relay`). State, events, receipts, reports, tool-result bundles, and PackWrite manifests use bounded, symlink-safe reads and fail-closed writes. Every parsed JSON document is limited to the pinned runtime's 1 MiB parser ceiling. Event JSONL, Markdown reports, and exported artifact inventories have separate 8 MiB envelopes plus file, depth, and entry limits.
 
-SHA-256 integrity fields detect local mutation and sequence inconsistency. They are not cryptographic signatures, identity assertions, tenant authorization, non-repudiation, or proof that an operator controls a signing key. Exports must be verified before use and remain local unsigned evidence unless an external approved signing system is applied by the release owner.
+SHA-256 integrity fields detect local mutation and sequence inconsistency. They are not cryptographic signatures, identity assertions, tenant authorization, non-repudiation, or proof that an operator controls a signing key. Exports must be verified before use. Optional `relay-signed-export-v1` wrappers authenticate the payload digest using operator-owned HMAC keys; they do not provide asymmetric identity or custody. Configured keyrings fail closed rather than falling back to a legacy secret.
 
 ## Repository and worktree authority
 
@@ -34,7 +34,7 @@ Every mission has bounded steps, repairs, aggregate tokens, per-request tokens, 
 
 ## Persistence failure and recovery
 
-State, JSONL, receipt, required artifact, and index persistence errors are failures, not successful evidence. Authoritative per-run state and evidence are verified before inspection or export; the run index is a locked, rebuildable cache. This design is for local single-host operation and is not durable transactional storage, disaster recovery, retention management, or multi-host concurrency.
+State, JSONL, receipt, required artifact, and index persistence errors are failures, not successful evidence. Authoritative per-run state and evidence are verified before inspection or export; the run index is a locked, rebuildable cache. The optional SQLite index provides single-host transactions, and retention is explicit and confirmation-gated. Authoritative evidence still requires operator-managed backup and recovery; this design does not provide multi-host durability.
 
 ## Deployment limitations
 

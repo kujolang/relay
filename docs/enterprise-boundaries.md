@@ -21,7 +21,10 @@ bounded `RELAY_MACHINE_REQUEST`. Relay requires identity, recognized role,
 tenant, action, and explicit approval for operator actions. Every accepted or
 denied authenticated request is appended to a bounded, integrity-sealed local
 audit log. This is an authorization primitive, not a network server, SSO
-implementation, or multi-tenant isolation claim.
+implementation, or multi-tenant isolation claim. The caller supplies role,
+tenant, identity, and approval; the shared secret authenticates that trusted
+caller, not an independent end user. A future transport must derive these
+claims from operator-managed policy and enforce the resulting decision.
 
 ## Failed-run handoff
 
@@ -48,6 +51,11 @@ relay runs verify-signature signed.json --json
 
 Retain old keys only while their exports must remain verifiable, then remove
 them according to organizational policy. `RELAY_SIGNING_KEY` is a single-key
-compatibility fallback. HMAC proves possession of a shared key; it does not
+compatibility fallback only when `RELAY_SIGNING_KEYS` is unset or empty. A
+configured keyring is authoritative: malformed, non-object, oversized, or
+missing-key maps fail closed even if the fallback secret exists. Verification
+requires the declared `hmac-sha256` algorithm and valid wrapper metadata, and
+works without a local run store. The wrapper timestamp is descriptive metadata,
+not part of the authenticated payload. HMAC proves possession of a shared key; it does not
 provide public verifiability, non-repudiation, hardware custody, notarization,
 or asymmetric signer identity.

@@ -42,7 +42,7 @@ Supported v1 target hosts are Linux and macOS. The exact release candidate must 
 
 ## Repository layout
 
-Runtime implementation lives in `src/`. The small root `main.kujo` file is the conventional Kujo executable entrypoint, `kujo.toml` and `kennel.toml` are package manifests, and `bin/relay` resolves and launches the pinned Kujo runtime. Tests, schemas, examples, release metadata, scripts, and operator documentation remain in their named directories. Start with the concise [architecture map](docs/architecture.md) to locate subsystem ownership and the relevant tests.
+Runtime implementation lives in `src/`. The September review found no duplicate tracked root implementation to move. The small root `main.kujo` file is the conventional Kujo executable entrypoint, `kujo.toml` and `kennel.toml` are package manifests, and `bin/relay` resolves and launches the pinned Kujo runtime. Tests, schemas, examples, release metadata, scripts, and operator documentation remain in their named directories. Start with the concise [architecture map](docs/architecture.md) to locate subsystem ownership and the relevant tests.
 
 ## Quick start
 
@@ -73,6 +73,10 @@ export RELAY_SIGNING_KEYS='{"release-2026":"replace-with-secret-from-your-key-ma
 ./bin/relay runs export <run-id> --signed --key-id release-2026 --output /tmp/relay-signed.json --json
 ./bin/relay runs verify-signature /tmp/relay-signed.json --json
 ```
+
+Signed-bundle verification works without the originating run store. A configured
+keyring is authoritative and invalid configuration fails closed. See the
+[key rotation and trust boundary](docs/enterprise-boundaries.md).
 
 Run a write mission only against a disposable Git repository and with explicit approval in its mission file. `examples/worktree-mission.json` demonstrates a detached worktree whose cleanup requires `--confirm`.
 
@@ -142,7 +146,7 @@ Run state, events, receipts, reports, packet manifests, tool results, and export
 - Deferred: network service transport, durable multi-host storage, hosted orchestration, public-key signing/custody, and enterprise certification.
 
 Exact immutable revisions and evidence classifications are in the [integration matrix](docs/integration-matrix.md) and [`release/dependencies.json`](release/dependencies.json).
-The next bounded improvement set is tracked in the [v87 enhancement backlog](docs/next-session-enhancement-backlog-2026-08-13-v87.md).
+The latest review and prioritized next steps are in the [September enhancement backlog](docs/next-session-enhancement-backlog-2026-09-22-v88.md).
 
 ## Compatibility
 
