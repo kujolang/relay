@@ -1,0 +1,41 @@
+{
+  "format": "relay-backup-restore-drill-v1",
+  "fixture_only": true,
+  "drill_sha256": "7e34664b324572df4500aeea0af3912fd837471c124836105e138db8a7bbcdc7",
+  "source_commit": "5c5a909d9b8d76b71d7ffa29396015c66a8f4e14",
+  "runtime_revision": "9b77dce592047121cb71066629836ad89252f3ce",
+  "scope": "quiesced completed run evidence; no running workspace or machine replay rollback",
+  "recovery": {
+    "json": {
+      "observed_rto_ms": 4152,
+      "cache_rebuilt": true,
+      "authoritative_bytes_unchanged": true,
+      "post_publish_verification": true
+    },
+    "sqlite": {
+      "observed_rto_ms": 3705,
+      "cache_rebuilt": true,
+      "authoritative_bytes_unchanged": true,
+      "post_publish_verification": true
+    }
+  },
+  "negative_cases": {
+    "partial": "inventory and Relay verification rejected; not published",
+    "corrupt": "inventory and Relay verification rejected; not published",
+    "interrupted": "unpublished staging discarded; retry verified"
+  },
+  "backup_ms": 128,
+  "files": 34,
+  "bytes": 93039,
+  "manifest_sha256": "580bf7ba249a61bb00785d152b6f6a5a97d466edcd02add84e65dc198cba216a",
+  "observed_rpo_completed_runs": 0,
+  "source_unchanged": true,
+  "original_location_unavailable_during_recovery": true,
+  "ok": true,
+  "limitations": [
+    "single completed fixture run on this host",
+    "measured durations are observations, not an SLA",
+    "RPO requires writer quiescence; production backup cadence is operator-owned",
+    "machine audit/capability state and repository workspaces require separate recovery policies"
+  ]
+}

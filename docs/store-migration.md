@@ -34,3 +34,6 @@ The legacy `index.json` cache remains as a rollback-compatible sidecar. Set
 Do not copy a live WAL database between hosts. This migration provides local
 transactions and crash recovery from authoritative evidence, not replicated
 storage, remote locking, backup policy, or multi-host concurrency.
+
+Use the [backup/restore drill](backup-restore.md) to verify authoritative recovery
+and reconstruction of both cache backends before adopting a recovery procedure.
