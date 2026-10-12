@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+trap 'rc=$?; if [[ $- == *e* ]]; then printf "FAIL %s:%s (exit %s)\n" "${BASH_SOURCE[0]}" "$LINENO" "$rc" >&2; fi' ERR
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 KUJO="${KUJO:-${KUJO_BIN:-$ROOT/../kujo/target/release/kujo}}"
