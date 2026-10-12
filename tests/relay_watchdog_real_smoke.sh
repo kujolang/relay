@@ -6,6 +6,7 @@ RELAY_TEST_TMP_ROOT="$(cd "${TMPDIR:-/tmp}" && pwd -P)"
 export RELAY_STATE_ROOT="${RELAY_STATE_ROOT:-$RELAY_TEST_TMP_ROOT/relay-test-state-${UID:-0}-$$}"
 KUJO="${KUJO:-${KUJO_BIN:-$ROOT/../kujo/target/release/kujo}}"
 WATCHDOG_ROOT="${RELAY_WATCHDOG_ROOT:-$ROOT/../watchdog}"
+WATCHDOG_KUJO="${RELAY_WATCHDOG_KUJO_BIN:-$KUJO}"
 STUB_PORT="${RELAY_TEST_PORT:-18772}"
 WATCHDOG_PORT="${RELAY_WATCHDOG_TEST_PORT:-18773}"
 CORRELATION="relay-real-watchdog-correlation"
@@ -27,7 +28,7 @@ WDG_API_AUTH_TOKEN=relay-api-token \
 WDG_PROXY_AUTHZ_MODE=token \
 WDG_PROXY_AUTHZ_TOKEN=relay-proxy-token \
 WDG_DEPLOYMENT_PROFILE=local \
-"$KUJO" run --interpreter "$WATCHDOG_ROOT/dashboard_server.kujo" >"$WATCHDOG_LOG" 2>&1 &
+"$WATCHDOG_KUJO" run --interpreter "$WATCHDOG_ROOT/dashboard_server.kujo" >"$WATCHDOG_LOG" 2>&1 &
 watchdog_pid=$!
 
 cleanup() {
