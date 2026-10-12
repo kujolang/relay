@@ -42,3 +42,7 @@ The release owner must verify:
 - the proof does not claim compatibility with other providers or models.
 
 If approval, credentials, Watchdog API visibility, usage fields, or an external provider are unavailable, record `blocked` in the launch checklist and release manifest. Never substitute fixture or stub evidence.
+
+## Watchdog release pin
+
+The current integration pin is Watchdog 1.2.1. Local CI starts it with a separate Kujo 1.6.0 runtime through `RELAY_WATCHDOG_KUJO_BIN`; Relay keeps its own runtime contract. Before running external proof, deploy that exact Watchdog commit and set the GitHub Actions variable `RELAY_WATCHDOG_DEPLOYED_REVISION` to the observed deployed commit. The workflow compares that value with `release/dependencies.json`; a source checkout alone is not deployment evidence.

@@ -6,7 +6,7 @@
     "ai-sdk": {"version": "1.0.0", "revision": "d3c6def0f7844f8b42bd92d3b176e80283af8e79", "required": true},
     "agents-sdk": {"version": "1.0.0", "revision": "e92a61ec1df21c89ae26f411838b4669405a0765", "required": true},
     "kujo-agents": {"version": "unreleased", "revision": "f0c95b66fbc74057481ef228961eb6e69ff8886a", "required": true},
-    "watchdog": {"version": "1.0.0", "revision": "7c46cd0bf1680d037c24506be4ed0a2405a9841f", "required": false},
+    "watchdog": {"version": "1.2.1", "revision": "9e82e8f5b05edca948f6a432ae517031388296e6", "required": false},
     "packwrite": {"version": "1.0.0", "revision": "0cb9487e4c02218bb4a18efe68b8a0c22998f715", "required": true},
     "runledger": {"version": "1.0.0", "revision": "5cf186c9b56b540970f75e33a06f50d3dac833a8", "required": true},
     "changebucket": {"version": "1.0.0", "revision": "373ac51a572bd3bb0510ac718ac1bab065c84735", "required": true},
