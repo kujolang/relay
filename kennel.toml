@@ -30,7 +30,7 @@ excludes = [".git", ".relay", ".workcell", ".loop-engineering", "dist", "build",
 
 [scripts]
 test = "bash tests/relay_acceptance.sh"
-contracts = '"$KUJO_BIN" run tests/relay_contract_tests.kujo --interpreter'
+contracts = '"$KUJO_BIN" run tests/relay_contract_tests.kujo'
 verify-release = "bash scripts/release_gate.sh"
 
 [package.exports]

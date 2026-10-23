@@ -31,7 +31,7 @@ Run the focused command checks while iterating, then the complete gate:
 
 ```bash
 "$KUJO_BIN" check main.kujo
-"$KUJO_BIN" run tests/relay_contract_tests.kujo --interpreter
+"$KUJO_BIN" run tests/relay_contract_tests.kujo
 bash tests/relay_acceptance.sh
 bash tests/markdown_links.sh
 bash tests/release_metadata.sh
