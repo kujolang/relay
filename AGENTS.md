@@ -20,7 +20,7 @@ Set `KUJO_BIN` to the intended Kujo runtime.
 ./bin/relay doctor --json
 ./bin/relay agents validate --json
 ./bin/relay chat "Summarize the mission boundary" --fixture --json
-"$KUJO_BIN" run tests/relay_contract_tests.kujo --interpreter
+"$KUJO_BIN" run tests/relay_contract_tests.kujo
 bash tests/relay_acceptance.sh
 git diff --check
 ```
