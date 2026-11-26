@@ -6,15 +6,20 @@ func sqlite_store_path(state_root) { return state_root + "/run-index.sqlite3" }
 
 func sqlite_store_safe(state_root) {
     path := sqlite_store_path(state_root)
-    if path_has_symlink_component(state_root) || path_is_symlink_safe(path) { return false }
-    if path_exists(path) && path_is_file(path) == false { return false }
+    if path_has_symlink_component(state_root) { return false }
+    for suffix in ["", "-wal", "-shm", "-journal"] {
+        member := path + suffix
+        if path_is_symlink_safe(member) || (path_exists(member) && path_is_file(member) == false) { return false }
+    }
     return true
 }
 
-func sqlite_open(state_root) {
+func sqlite_open(state_root, initialize) {
     if sqlite_store_safe(state_root) == false { return null }
     try {
         db := db_connect("sqlite", sqlite_store_path(state_root))
+        db_execute(db, "PRAGMA trusted_schema=OFF", [])
+        if initialize == false { return db }
         db_query(db, "PRAGMA journal_mode=WAL", [])
         db_execute(db, "PRAGMA synchronous=FULL", [])
         db_execute(db, "CREATE TABLE IF NOT EXISTS schema_migrations (version INTEGER PRIMARY KEY, contract_version TEXT NOT NULL, applied_at_ms INTEGER NOT NULL)", [])
@@ -26,7 +31,7 @@ func sqlite_open(state_root) {
 
 func sqlite_write_index(state_root, index) {
     if type(index) != "dict" || len(keys(index)) > 4096 { return {"ok": false, "error": "SQLite run index input is invalid or oversized"} }
-    db := sqlite_open(state_root)
+    db := sqlite_open(state_root, true)
     if type(db) == "null" { return {"ok": false, "error": "SQLite run index is unavailable or unsafe"} }
     mut committed := false
     try {
@@ -47,16 +52,27 @@ func sqlite_write_index(state_root, index) {
 
 func sqlite_read_index(state_root) {
     if sqlite_store_safe(state_root) == false || path_exists(sqlite_store_path(state_root)) == false { return {"ok": false, "index": {}, "error": "SQLite run index is absent or unsafe"} }
-    db := sqlite_open(state_root)
+    db := sqlite_open(state_root, false)
     if type(db) == "null" { return {"ok": false, "index": {}, "error": "SQLite run index could not be opened"} }
     try {
         migrations := db_query(db, "SELECT contract_version FROM schema_migrations WHERE version = 1 LIMIT 1", [])
         if len(migrations) != 1 || string_or(dict_get_or(migrations[0], "contract_version", ""), "") != SQLITE_STORE_CONTRACT { return {"ok": false, "index": {}, "error": "SQLite run index migration contract is invalid"} }
-        rows := db_query(db, "SELECT run_id, run_dir, mission_id, status, updated_at, integrity_valid FROM run_index ORDER BY run_id ASC LIMIT 4097", [])
+        # Bound stored text before materializing it through the runtime.
+        sql := "SELECT CASE WHEN length(CAST(run_id AS BLOB)) <= 160" +
+            " AND length(CAST(run_dir AS BLOB)) <= 8192" +
+            " AND length(CAST(mission_id AS BLOB)) <= 1024" +
+            " AND length(CAST(status AS BLOB)) <= 64" +
+            " AND length(CAST(updated_at AS BLOB)) <= 128 THEN run_id END AS checked_id," +
+            " CASE WHEN length(CAST(run_dir AS BLOB)) <= 8192 THEN run_dir END AS run_dir," +
+            " CASE WHEN length(CAST(mission_id AS BLOB)) <= 1024 THEN mission_id END AS mission_id," +
+            " CASE WHEN length(CAST(status AS BLOB)) <= 64 THEN status END AS status," +
+            " CASE WHEN length(CAST(updated_at AS BLOB)) <= 128 THEN updated_at END AS updated_at," +
+            " integrity_valid FROM run_index ORDER BY run_id ASC LIMIT 4097"
+        rows := db_query(db, sql, [])
         if len(rows) > 4096 { return {"ok": false, "index": {}, "error": "SQLite run index exceeds the 4096-record safety limit"} }
         index := {}
         for row in rows {
-            run_id := string_or(dict_get_or(row, "run_id", ""), "")
+            run_id := string_or(dict_get_or(row, "checked_id", ""), "")
             if run_id == "" || has_key(index, run_id) { return {"ok": false, "index": {}, "error": "SQLite run index contains an invalid identity"} }
             index[run_id] := {"run_dir": string_or(dict_get_or(row, "run_dir", ""), ""), "mission_id": string_or(dict_get_or(row, "mission_id", ""), ""), "status": string_or(dict_get_or(row, "status", "unknown"), "unknown"), "updated_at": string_or(dict_get_or(row, "updated_at", ""), ""), "integrity_valid": int_or(dict_get_or(row, "integrity_valid", 0), 0) != 0}
         }

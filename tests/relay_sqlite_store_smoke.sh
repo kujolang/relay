@@ -51,4 +51,19 @@ test -f "$RELAY_STATE_ROOT/run-index.sqlite3"
 doctor="$(RELAY_STORE_BACKEND=sqlite $KUJO run "$ROOT/main.kujo" -- doctor --json)"
 printf '%s' "$doctor" | jq -e '(.checks | map(select(.name == "Relay transactional store"))[0]) | .ok == true and .required == true and .backend == "sqlite" and .configured == true and .contract_version == "relay-run-index-sqlite-v1"' >/dev/null
 
+python3 - "$RELAY_STATE_ROOT" <<'PYMODE'
+import os, stat, sys
+assert stat.S_IMODE(os.stat(sys.argv[1]).st_mode) == 0o700
+PYMODE
+
+# Reject a non-regular companion before SQLite opens the database.
+mkdir "$RELAY_STATE_ROOT/run-index.sqlite3-journal"
+if invalid_companion="$(RELAY_STORE_BACKEND=sqlite "$KUJO" run "$ROOT/main.kujo" -- runs list --json)"; then
+  echo "SQLite opened an index with a non-regular companion" >&2
+  exit 1
+fi
+jq -e '.ok == false and .failure_class == "state_store_failure"' <<<"$invalid_companion" >/dev/null
+rmdir "$RELAY_STATE_ROOT/run-index.sqlite3-journal"
+RELAY_STORE_BACKEND=sqlite "$KUJO" run "$ROOT/main.kujo" -- runs list --json | jq -e '.ok' >/dev/null
+
 echo "PASS relay SQLite store migration and recovery smoke"
