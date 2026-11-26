@@ -1,5 +1,5 @@
 from src.common import dict_get_or, env_or, int_or, safe_json, write_json, write_text_atomic, ensure_safe_directory
-from src.contracts import event, state_integrity_input
+from src.contracts import RELAY_VERSION, event, state_integrity_input
 
 config_raw := env_or("RELAY_BENCHMARK_FIXTURE", "")
 config := null
@@ -35,7 +35,7 @@ while run_number <= run_count {
         parent = item["event_id"]
         event_number = event_number + 1
     }
-    state := {"type": "RelayRun", "relay_version": "1.0.0", "contract_version": "relay-run-v1", "mission_id": "relay-benchmark-" + profile, "run_id": run_id, "workflow": "benchmark", "status": "completed", "repository": ".", "started_at": "2026-08-12T00:00:00Z", "updated_at": "2026-08-12T00:00:00Z", "current_step": "complete", "attempt": 0, "budgets": {"used_tokens": 0}, "events": events, "receipts": [], "artifacts": [], "evaluations": [], "changes": {}, "failure": null, "telemetry": {"duration_ms": 0}}
+    state := {"type": "RelayRun", "relay_version": RELAY_VERSION, "contract_version": "relay-run-v1", "mission_id": "relay-benchmark-" + profile, "run_id": run_id, "workflow": "benchmark", "status": "completed", "repository": ".", "started_at": "2026-08-12T00:00:00Z", "updated_at": "2026-08-12T00:00:00Z", "current_step": "complete", "attempt": 0, "budgets": {"used_tokens": 0}, "events": events, "receipts": [], "artifacts": [], "evaluations": [], "changes": {}, "failure": null, "telemetry": {"duration_ms": 0}}
     changes := {"profile": profile, "artifact_bytes": desired_artifact_bytes}
     state["changes"] := changes
     state["integrity_sha256"] := sha256(state_integrity_input(state))

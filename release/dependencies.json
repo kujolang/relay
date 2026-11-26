@@ -1,6 +1,6 @@
 {
   "format": "relay-release-dependencies-v1",
-  "relay_version": "1.0.0",
+  "relay_version": "1.1.0",
   "dependencies": {
     "kujo": {"version": "1.0.0", "revision": "9b77dce592047121cb71066629836ad89252f3ce", "required": true},
     "ai-sdk": {"version": "1.0.0", "revision": "d3c6def0f7844f8b42bd92d3b176e80283af8e79", "required": true},

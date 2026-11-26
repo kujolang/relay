@@ -4,6 +4,17 @@ All notable Relay changes are recorded here. Relay follows semantic versioning f
 
 ## [Unreleased]
 
+- Bind worker tools and execution policy to the issued capability, and enforce UTF-8 byte budgets.
+- Verify run artifacts against sealed state, keep export files outside the state store, and mask credentials in captured evidence.
+- Evaluate bounded Git and file observations without routing repository paths through a shell command.
+- Harden the SQLite cache, verify live performance samples, and use only read access for CI dependency checkouts.
+
+## [1.1.0] - 2026-08-27
+
+This release includes all changes merged after `1.0.0` through the release candidate commit.
+
+### Features and improvements
+
 - Added bounded, resumable `relay.list_files` pages with an independent 16 MiB discovery envelope, allowing cursor traversal beyond the agent-visible response budget.
 - Hardened CLI parsing to reject unknown and duplicate options, missing option values, and unexpected arguments; added the standard `--` option delimiter for prompt text.
 - Clarified the source-root layout and corrected the documented four-tool Agents SDK surface.
@@ -12,6 +23,12 @@ All notable Relay changes are recorded here. Relay follows semantic versioning f
 - Added bounded aggregate run metrics, committed performance budgets and benchmark harness, and a generated evidence-linked showcase gallery.
 - Fixed retention ordering to use validated completion/update evidence across different mission IDs, and made selected SQLite index rebuild failures propagate instead of returning a healthy run-list result.
 - Simplified maintenance by isolating agent capability state, centralizing evidence limits and read-side verification, and adding a current architecture and task-navigation map.
+
+### Release metadata
+
+- Bumped the Relay product and CLI from `1.0.0` to `1.1.0` across `VERSION`, Kujo and Kennel manifests, runtime contracts, schemas, release inventories, documentation, and contract tests.
+- Kept mission format `1.0.0`, legacy mission format `0.1.0`, and all independent machine contract identifiers unchanged for backward compatibility.
+- Updated the release checklist, installation examples, CLI documentation, version badge, and deterministic release metadata checks for `1.1.0`.
 
 ## [1.0.0] - 2026-08-08
 

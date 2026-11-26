@@ -1,6 +1,6 @@
 [package]
 name = "relay"
-version = "1.0.0"
+version = "1.1.0"
 description = "Local-first composition and execution layer for bounded, evidence-backed agent missions."
 license = "MIT"
 authors = ["Kujolang <contact@kujolang.ai>"]
@@ -30,7 +30,7 @@ excludes = [".git", ".relay", ".workcell", ".loop-engineering", "dist", "build",
 
 [scripts]
 test = "bash tests/relay_acceptance.sh"
-contracts = '"$KUJO_BIN" run tests/relay_contract_tests.kujo'
+contracts = '"$KUJO_BIN" run tests/relay_contract_tests.kujo --interpreter'
 verify-release = "bash scripts/release_gate.sh"
 
 [package.exports]
