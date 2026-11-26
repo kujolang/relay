@@ -34,7 +34,7 @@ jq -e --slurpfile budget "$ROOT/benchmarks/budgets.json" '
   .commands.runs_verify.p95_ms <= ($budget[0].p95_ms.small.runs_verify * (1 + $budget[0].regression_percent / 100)) and
   .commands.runs_watch_completed.p95_ms <= ($budget[0].p95_ms.small.runs_watch_completed * (1 + $budget[0].regression_percent / 100)) and
   .commands.runs_export.p95_ms <= ($budget[0].p95_ms.small.runs_export * (1 + $budget[0].regression_percent / 100))
-' "$ROOT/benchmarks/macos-x86_64-small.json" >/dev/null
+' "$TMP_ROOT/result.json" "$ROOT/benchmarks/macos-x86_64-small.json" | awk '$0 != "true" { exit 1 }'
 if [[ -n "${RELAY_PERFORMANCE_EVIDENCE_OUTPUT:-}" ]]; then
   test ! -e "$RELAY_PERFORMANCE_EVIDENCE_OUTPUT"
   cp "$TMP_ROOT/result.json" "$RELAY_PERFORMANCE_EVIDENCE_OUTPUT"
