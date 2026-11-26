@@ -68,7 +68,10 @@ func path_is_safe(root, requested) {
 func path_parent(path) {
     i := len(path) - 1
     while i >= 0 {
-        if substring(path, i, i + 1) == "/" { return substring(path, 0, i) }
+        if substring(path, i, i + 1) == "/" {
+            if i == 0 { return "/" }
+            return substring(path, 0, i)
+        }
         i = i - 1
     }
     return "."
@@ -76,7 +79,7 @@ func path_parent(path) {
 
 func real_path(path) {
     try {
-        result := spawn_process(["realpath", path], process_options({}, 5000, 4096))
+        result := spawn_process(["realpath", "--", path], process_options({}, 5000, 4096))
         if result.success { return trim(result.stdout) }
     } except err {}
     return ""
@@ -87,6 +90,7 @@ func path_is_within_workspace(root, requested) {
     root_real := real_path(root)
     if root_real == "" { return false }
     target := root + "/" + requested
+    if path_has_symlink_component(target) { return false }
     target_real := real_path(target)
     if target_real != "" { return path_is_within_root(target_real, root_real) }
     parent_real := real_path(path_parent(target))
@@ -194,6 +198,7 @@ export canonicalize_path := canonicalize_path
 export path_is_within_root := path_is_within_root
 export path_is_within_workspace := path_is_within_workspace
 export real_path := real_path
+export path_parent := path_parent
 export command_is_allowed := command_is_allowed
 export script_hash_policy_valid := script_hash_policy_valid
 export tool_decision := tool_decision

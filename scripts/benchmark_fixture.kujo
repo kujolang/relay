@@ -36,12 +36,13 @@ while run_number <= run_count {
         event_number = event_number + 1
     }
     state := {"type": "RelayRun", "relay_version": "1.0.0", "contract_version": "relay-run-v1", "mission_id": "relay-benchmark-" + profile, "run_id": run_id, "workflow": "benchmark", "status": "completed", "repository": ".", "started_at": "2026-08-12T00:00:00Z", "updated_at": "2026-08-12T00:00:00Z", "current_step": "complete", "attempt": 0, "budgets": {"used_tokens": 0}, "events": events, "receipts": [], "artifacts": [], "evaluations": [], "changes": {}, "failure": null, "telemetry": {"duration_ms": 0}}
+    changes := {"profile": profile, "artifact_bytes": desired_artifact_bytes}
+    state["changes"] := changes
     state["integrity_sha256"] := sha256(state_integrity_input(state))
     event_lines := []
     for item in events { event_lines = push(event_lines, safe_json(item)) }
     event_text := ""
     if len(event_lines) > 0 { event_text = join(event_lines, "\n") + "\n" }
-    changes := {"profile": profile, "artifact_bytes": desired_artifact_bytes}
     report_markdown := "# Relay benchmark fixture\n" + repeat("x", desired_artifact_bytes)
     if write_json(run_dir + "/state.json", state) == false || write_text_atomic(run_dir + "/events.jsonl", event_text) == false || write_json(run_dir + "/receipts.json", []) == false || write_json(run_dir + "/changes.json", changes) == false || write_json(run_dir + "/evaluations.json", []) == false || write_json(run_dir + "/report.json", state) == false || write_text_atomic(run_dir + "/report.md", report_markdown) == false {
         print(safe_json({"ok": false, "error": "benchmark fixture evidence could not be persisted", "run_id": run_id}))

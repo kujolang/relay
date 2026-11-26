@@ -1,4 +1,4 @@
-from src.common import JSON_DOCUMENT_MAX_BYTES, JSONL_EVIDENCE_MAX_BYTES, dict_get_or, env_or, string_or, bool_or, int_or, now_iso, safe_id, read_json_or, read_json_limited, write_json, append_jsonl_bounded, safe_json, shell_quote_single, command_args, write_text_atomic, process_options, process_options_with_cancel, redact_text, path_is_symlink_safe, path_has_symlink_component, ensure_safe_directory
+from src.common import JSON_DOCUMENT_MAX_BYTES, JSONL_EVIDENCE_MAX_BYTES, dict_get_or, env_or, string_or, bool_or, int_or, now_iso, safe_id, utf8_size, read_bounded_text, read_file_digest, read_json_limited, write_json, append_jsonl_bounded, safe_json, command_args, write_text_atomic, process_options, process_options_with_cancel, redact_text, path_is_symlink_safe, path_has_symlink_component, ensure_safe_directory
 from src.capabilities import consume_agent_capability
 from src.contracts import run_state, event, event_integrity_input, receipt, receipt_integrity_input, event_chain_integrity_valid, receipt_sequence_valid, state_integrity_input, state_integrity_valid, MISSION_SPEC_VERSION, LEGACY_MISSION_SPEC_VERSION, mission_spec_version_supported
 from src.registry import find_agent
@@ -41,13 +41,13 @@ func save_state(state, run_dir) {
     }
     state["updated_at"] := now_iso()
     state["integrity_sha256"] := sha256(state_integrity_input(state))
-    if len(safe_json(state)) > JSON_EVIDENCE_MAX_BYTES {
+    if utf8_size(safe_json(state)) > JSON_EVIDENCE_MAX_BYTES {
         failure := {"class": "evidence_failure", "message": "run state exceeds the 1 MiB runtime JSON limit"}
         mission_spec := dict_get_or(state, "mission_spec", {})
         compact_spec := {"repository": string_or(dict_get_or(mission_spec, "repository", dict_get_or(state, "repository", ".")), "."), "workspace_mode": string_or(dict_get_or(mission_spec, "workspace_mode", "provided"), "provided")}
         compact := {"type": string_or(dict_get_or(state, "type", "RelayRun"), "RelayRun"), "relay_version": string_or(dict_get_or(state, "relay_version", "1.0.0"), "1.0.0"), "contract_version": string_or(dict_get_or(state, "contract_version", "relay-run-v1"), "relay-run-v1"), "mission_id": string_or(dict_get_or(state, "mission_id", "unknown"), "unknown"), "run_id": string_or(dict_get_or(state, "run_id", "unknown"), "unknown"), "workflow": string_or(dict_get_or(state, "workflow", "verified-feature"), "verified-feature"), "status": "failed", "repository": string_or(dict_get_or(state, "repository", "."), "."), "mission_spec": compact_spec, "workspace": dict_get_or(state, "workspace", {}), "budgets": dict_get_or(state, "budgets", {}), "events": dict_get_or(state, "events", []), "receipts": dict_get_or(state, "receipts", []), "artifacts": [], "evaluations": [], "changes": {}, "failure": failure, "evidence_failure": failure, "updated_at": now_iso()}
         compact["integrity_sha256"] := sha256(state_integrity_input(compact))
-        if len(safe_json(compact)) > JSON_EVIDENCE_MAX_BYTES || write_json(run_dir + "/state.json", compact) == false { return mark_evidence_failure(state, "run state overflow tombstone could not be persisted") }
+        if utf8_size(safe_json(compact)) > JSON_EVIDENCE_MAX_BYTES || write_json(run_dir + "/state.json", compact) == false { return mark_evidence_failure(state, "run state overflow tombstone could not be persisted") }
         return compact
     }
     if write_json(run_dir + "/state.json", state) == false { state = mark_evidence_failure(state, "run state could not be persisted") }
@@ -76,7 +76,7 @@ func record_receipt(state, run_dir, kind, step_id, agent_id, artifact_ref, statu
     item["integrity_sha256"] := sha256(receipt_integrity_input(item))
     existing_receipts := dict_get_or(state, "receipts", [])
     receipts := push(existing_receipts, item)
-    if len(safe_json(state)) + len(safe_json(item)) + 2 > JSON_EVIDENCE_MAX_BYTES || len(safe_json(receipts)) > JSON_EVIDENCE_MAX_BYTES { return {"receipt": item, "receipts": existing_receipts, "evidence_failure": {"class": "evidence_failure", "message": "run receipt projection exceeds the 1 MiB runtime JSON limit"}} }
+    if utf8_size(safe_json(state)) + utf8_size(safe_json(item)) + 2 > JSON_EVIDENCE_MAX_BYTES || utf8_size(safe_json(receipts)) > JSON_EVIDENCE_MAX_BYTES { return {"receipt": item, "receipts": existing_receipts, "evidence_failure": {"class": "evidence_failure", "message": "run receipt projection exceeds the 1 MiB runtime JSON limit"}} }
     if write_json(run_dir + "/receipts.json", receipts) == false { return {"receipt": item, "receipts": receipts, "evidence_failure": {"class": "evidence_failure", "message": "run receipt index could not be persisted"}} }
     return {"receipt": item, "receipts": receipts}
 }
@@ -114,7 +114,7 @@ func add_event(state, run_dir, kind, step_id, agent_id, payload) {
     metadata["runledger_id"] := string_or(dict_get_or(dict_get_or(state, "runledger", {}), "run_id", ""), "")
     item["metadata"] := metadata
     item["integrity_sha256"] := sha256(event_integrity_input(item))
-    if len(safe_json(state)) + len(safe_json(item)) + 2 > JSON_EVIDENCE_MAX_BYTES { return mark_evidence_failure(state, "run state event projection exceeds the 1 MiB runtime JSON limit") }
+    if utf8_size(safe_json(state)) + utf8_size(safe_json(item)) + 2 > JSON_EVIDENCE_MAX_BYTES { return mark_evidence_failure(state, "run state event projection exceeds the 1 MiB runtime JSON limit") }
     state["events"] := push(state["events"], item)
     if append_jsonl_bounded(run_dir + "/events.jsonl", item, JSONL_EVIDENCE_MAX_BYTES) == false { state = mark_evidence_failure(state, "run event log could not be persisted or exceeded the 8 MiB evidence limit") }
     return state
@@ -122,25 +122,29 @@ func add_event(state, run_dir, kind, step_id, agent_id, payload) {
 
 func persist_required_json(path, value, expected_type, label) {
     name := string_or(label, "required")
-    if write_json(path, value) == false {
+    serialized := safe_json(value)
+    if utf8_size(serialized) > JSON_EVIDENCE_MAX_BYTES || write_text_atomic(path, serialized) == false {
         return {"ok": false, "error": name + " artifact could not be persisted"}
     }
-    if path_is_symlink_safe(path) || path_exists(path) == false || path_is_file(path) == false || file_size(path) > JSON_EVIDENCE_MAX_BYTES {
+    captured := read_bounded_text(path, JSON_EVIDENCE_MAX_BYTES)
+    if type(captured) != "string" || captured != serialized {
         return {"ok": false, "error": name + " artifact persistence could not be verified"}
     }
-    persisted := read_json_limited(path, null, JSON_EVIDENCE_MAX_BYTES)
-    if type(persisted) != expected_type {
-        return {"ok": false, "error": name + " artifact persistence has an invalid JSON shape"}
-    }
-    return {"ok": true, "path": path}
+    try {
+        if type(parse_json(captured)) != expected_type {
+            return {"ok": false, "error": name + " artifact persistence has an invalid JSON shape"}
+        }
+    } except err { return {"ok": false, "error": name + " artifact persistence is invalid JSON"} }
+    return {"ok": true, "path": path, "integrity_sha256": sha256(captured)}
 }
 
-func packet_manifest_walk(root, relative, depth) {
+func packet_manifest_walk(root, relative, depth, max_files, max_directories, max_bytes) {
     if depth > 16 { return {"ok": false, "error": "PackWrite packet exceeds the 16-level directory depth limit"} }
     target := root
     if relative != "" { target = root + "/" + relative }
     if path_is_symlink_safe(target) || path_has_symlink_component(target) { return {"ok": false, "error": "PackWrite packet contains a symbolic link"} }
     if path_is_dir(target) {
+        if max_directories < 1 { return {"ok": false, "error": "PackWrite packet exceeds its bounded directory limit"} }
         names := sort(list_dir(target))
         if len(names) > 256 { return {"ok": false, "error": "PackWrite packet exceeds the 256-entry directory limit"} }
         mut entries := []
@@ -151,27 +155,24 @@ func packet_manifest_walk(root, relative, depth) {
             child_relative := name
             if relative != "" { child_relative = relative + "/" + name }
             if path_is_safe(root, child_relative) == false { return {"ok": false, "error": "PackWrite packet contains an unsafe path"} }
-            child := packet_manifest_walk(root, child_relative, depth + 1)
+            child := packet_manifest_walk(root, child_relative, depth + 1, max_files - files, max_directories - directories, max_bytes - bytes)
             if dict_get_or(child, "ok", false) == false { return child }
             for entry in dict_get_or(child, "entries", []) { entries := push(entries, entry) }
             bytes = bytes + int_or(dict_get_or(child, "bytes", 0), 0)
             files = files + int_or(dict_get_or(child, "files", 0), 0)
             directories = directories + int_or(dict_get_or(child, "directories", 0), 0)
-            if len(entries) > 256 || bytes > 8388608 { return {"ok": false, "error": "PackWrite packet exceeds its bounded manifest limits"} }
         }
         return {"ok": true, "entries": entries, "bytes": bytes, "files": files, "directories": directories}
     }
-    if path_is_file(target) == false { return {"ok": false, "error": "PackWrite packet contains an unsupported artifact path"} }
-    bytes := file_size(target)
-    if bytes > 8388608 { return {"ok": false, "error": "PackWrite packet contains an oversized artifact"} }
-    digest := ""
-    try { digest = to_string(sha256_file(target)) } except err { return {"ok": false, "error": "PackWrite packet artifact digest failed"} }
-    return {"ok": true, "entries": [{"path": relative, "kind": "file", "bytes": bytes, "integrity_sha256": digest}], "bytes": bytes, "files": 1, "directories": 0}
+    if max_files < 1 { return {"ok": false, "error": "PackWrite packet exceeds its bounded file limit"} }
+    captured := read_file_digest(target, max_bytes)
+    if type(captured) != "dict" { return {"ok": false, "error": "PackWrite packet contains an unavailable, unsupported, or oversized artifact"} }
+    return {"ok": true, "entries": [{"path": relative, "kind": "file", "bytes": captured["bytes"], "integrity_sha256": captured["integrity_sha256"]}], "bytes": captured["bytes"], "files": 1, "directories": 0}
 }
 
 func create_packet_manifest(run_dir, state) {
     root := run_dir + "/agent"
-    walked := packet_manifest_walk(root, "", 0)
+    walked := packet_manifest_walk(root, "", 0, 256, 4096, JSONL_EVIDENCE_MAX_BYTES)
     if dict_get_or(walked, "ok", false) == false { return walked }
     has_master := false
     for entry in dict_get_or(walked, "entries", []) { if string_or(dict_get_or(entry, "path", ""), "") == "MASTER.md" { has_master = true } }
@@ -181,7 +182,6 @@ func create_packet_manifest(run_dir, state) {
     persisted := persist_required_json(path, manifest, "dict", "PackWrite packet manifest")
     if dict_get_or(persisted, "ok", false) == false { return persisted }
     persisted["path"] := path
-    persisted["integrity_sha256"] := sha256_file(path)
     persisted["manifest"] := manifest
     return persisted
 }
@@ -190,13 +190,15 @@ func verify_packet_manifest(run_dir, state) {
     required := bool_or(dict_get_or(state, "packet_manifest_required", false), false)
     if required == false { return {"required": false, "ok": true, "error": ""} }
     path := run_dir + "/packet-manifest.json"
-    if path_is_symlink_safe(path) || path_exists(path) == false || path_is_file(path) == false || file_size(path) > JSON_EVIDENCE_MAX_BYTES { return {"required": true, "ok": false, "error": "PackWrite packet manifest is missing, unsafe, or exceeds 1 MiB"} }
+    captured := read_bounded_text(path, JSON_EVIDENCE_MAX_BYTES)
+    if type(captured) != "string" { return {"required": true, "ok": false, "error": "PackWrite packet manifest is missing, unsafe, or exceeds 1 MiB"} }
     expected_hash := string_or(dict_get_or(dict_get_or(state, "packet_manifest", {}), "integrity_sha256", ""), "")
-    actual_hash := sha256_file(path)
-    if expected_hash == "" || actual_hash == "" || expected_hash != actual_hash { return {"required": true, "ok": false, "error": "PackWrite packet manifest integrity does not match authoritative state"} }
-    manifest := read_json_limited(path, null, JSON_EVIDENCE_MAX_BYTES)
+    actual_hash := sha256(captured)
+    if expected_hash == "" || expected_hash != actual_hash { return {"required": true, "ok": false, "error": "PackWrite packet manifest integrity does not match authoritative state"} }
+    manifest := null
+    try { manifest = parse_json(captured) } except err {}
     if type(manifest) != "dict" || string_or(dict_get_or(manifest, "contract_version", ""), "") != "relay-packwrite-manifest-v1" || string_or(dict_get_or(manifest, "run_id", ""), "") != string_or(dict_get_or(state, "run_id", ""), "") { return {"required": true, "ok": false, "error": "PackWrite packet manifest identity is invalid"} }
-    walked := packet_manifest_walk(run_dir + "/agent", "", 0)
+    walked := packet_manifest_walk(run_dir + "/agent", "", 0, 256, 4096, JSONL_EVIDENCE_MAX_BYTES)
     if dict_get_or(walked, "ok", false) == false || safe_json(dict_get_or(walked, "entries", [])) != safe_json(dict_get_or(manifest, "entries", [])) { return {"required": true, "ok": false, "error": "PackWrite packet contents do not match the manifest"} }
     return {"required": true, "ok": true, "error": "", "path": path, "integrity_sha256": actual_hash, "entries": len(dict_get_or(manifest, "entries", []))}
 }
@@ -231,10 +233,7 @@ func provider_tool_result_messages(calls, agent_sdk_tools, turn) {
 
 func persist_provider_tool_results(run_dir, state, results) {
     bundle := {"contract_version": "relay-tool-result-bundle-v1", "run_id": state["run_id"], "results": results}
-    persisted := persist_required_json(run_dir + "/tool-results.json", bundle, "dict", "Provider tool-result bundle")
-    if dict_get_or(persisted, "ok", false) == false { return persisted }
-    persisted["integrity_sha256"] := sha256_file(run_dir + "/tool-results.json")
-    return persisted
+    return persist_required_json(run_dir + "/tool-results.json", bundle, "dict", "Provider tool-result bundle")
 }
 
 func provider_failure_message(model_result) {
@@ -395,7 +394,7 @@ export func load_spec(path) {
     if path_is_symlink_safe(path) { return {"ok": false, "error": "Mission file must not be a symbolic link"} }
     if path_is_file(path) == false { return {"ok": false, "error": "Mission file must be a regular file"} }
     if file_size(path) > MISSION_SPEC_MAX_BYTES { return {"ok": false, "error": "Mission file exceeds the 1 MiB safety limit"} }
-    spec := read_json_or(path, null)
+    spec := read_json_limited(path, null, MISSION_SPEC_MAX_BYTES)
     if type(spec) != "dict" { return {"ok": false, "error": "Mission file is missing or invalid JSON: " + path} }
     version := string_or(dict_get_or(spec, "version", ""), "")
     if version == "" { return {"ok": false, "error": "Mission requires version " + MISSION_SPEC_VERSION + " (legacy " + LEGACY_MISSION_SPEC_VERSION + " is accepted for v1 compatibility)"} }
@@ -405,7 +404,7 @@ export func load_spec(path) {
     if len(name) > 160 || contains(name, "\n") || contains(name, "\r") || contains(name, "\t") { return {"ok": false, "error": "Mission name exceeds the 160-character or control-character limit"} }
     goal := string_or(dict_get_or(spec, "goal", ""), "")
     if goal == "" { return {"ok": false, "error": "Mission requires goal"} }
-    if len(goal) > 65536 { return {"ok": false, "error": "Mission goal exceeds the 64 KiB safety limit"} }
+    if utf8_size(goal) > 65536 { return {"ok": false, "error": "Mission goal exceeds the 64 KiB safety limit"} }
     actions := dict_get_or(spec, "actions", [])
     if type(actions) != "array" { return {"ok": false, "error": "Mission actions must be an array"} }
     if len(actions) > 32 { return {"ok": false, "error": "Mission exceeds the 32-action safety limit"} }
@@ -432,7 +431,7 @@ export func load_spec(path) {
             content := dict_get_or(action, "content", null)
             if relative == "" || type(content) != "string" { return {"ok": false, "error": "write_file requires path and string content"} }
             if len(relative) > 4096 { return {"ok": false, "error": "write_file path exceeds the 4 KiB safety limit"} }
-            if len(content) > max_write_bytes { return {"ok": false, "error": "write_file content exceeds max_write_bytes"} }
+            if utf8_size(content) > max_write_bytes { return {"ok": false, "error": "write_file content exceeds max_write_bytes"} }
         } else if kind == "list_files" {
             if len(keys(action)) > 2 || (len(keys(action)) == 2 && has_key(action, "offset") == 0) { return {"ok": false, "error": "list_files accepts only type and offset"} }
             list_offset := int_or(dict_get_or(action, "offset", 0), -1)
@@ -445,7 +444,7 @@ export func load_spec(path) {
         } else if kind == "run_command" {
             command := string_or(dict_get_or(action, "command", ""), "")
             if command == "" { return {"ok": false, "error": "run_command requires command"} }
-            if len(command) > MISSION_COMMAND_MAX_BYTES { return {"ok": false, "error": "run_command exceeds the 16 KiB safety limit"} }
+            if utf8_size(command) > MISSION_COMMAND_MAX_BYTES { return {"ok": false, "error": "run_command exceeds the 16 KiB safety limit"} }
             timeout_ms := int_or(dict_get_or(action, "timeout_ms", 120000), -1)
             if timeout_ms <= 0 || timeout_ms > 600000 { return {"ok": false, "error": "run_command timeout_ms must be between 1 and 600000"} }
         } else { return {"ok": false, "error": "Mission action type is not supported: " + kind} }
@@ -465,7 +464,7 @@ export func load_spec(path) {
         if type(input) != "dict" { return {"ok": false, "error": "Mission agent tool input must be an object"} }
         if tool_name == "relay.write_file" {
             if string_or(dict_get_or(input, "path", ""), "") == "" || type(dict_get_or(input, "content", null)) != "string" { return {"ok": false, "error": "relay.write_file requires path and string content"} }
-            if len(string_or(dict_get_or(input, "path", ""), "")) > 4096 || len(dict_get_or(input, "content", "")) > max_write_bytes { return {"ok": false, "error": "relay.write_file input exceeds its path or write-byte safety limit"} }
+            if len(string_or(dict_get_or(input, "path", ""), "")) > 4096 || utf8_size(dict_get_or(input, "content", "")) > max_write_bytes { return {"ok": false, "error": "relay.write_file input exceeds its path or write-byte safety limit"} }
         } else if tool_name == "relay.read_file" {
             relative := string_or(dict_get_or(input, "path", ""), "")
             if relative == "" || len(relative) > 4096 { return {"ok": false, "error": "relay.read_file requires a bounded path"} }
@@ -475,7 +474,7 @@ export func load_spec(path) {
             if list_offset < 0 { return {"ok": false, "error": "relay.list_files offset must be a non-negative integer"} }
         } else if tool_name == "relay.run_command" {
             if string_or(dict_get_or(input, "command", ""), "") == "" { return {"ok": false, "error": "relay.run_command requires command"} }
-            if len(string_or(dict_get_or(input, "command", ""), "")) > MISSION_COMMAND_MAX_BYTES { return {"ok": false, "error": "relay.run_command exceeds the 16 KiB safety limit"} }
+            if utf8_size(string_or(dict_get_or(input, "command", ""), "")) > MISSION_COMMAND_MAX_BYTES { return {"ok": false, "error": "relay.run_command exceeds the 16 KiB safety limit"} }
             tool_timeout := int_or(dict_get_or(input, "timeout_ms", 120000), -1)
             if tool_timeout <= 0 || tool_timeout > 600000 { return {"ok": false, "error": "relay.run_command timeout_ms must be between 1 and 600000"} }
         } else { return {"ok": false, "error": "Mission agent tool is not supported: " + tool_name} }
@@ -600,7 +599,7 @@ func execute_action(action, spec, state, run_dir) {
         target := repo + "/" + relative
         if path_is_within_workspace(repo, relative) == false { return {"ok": false, "failure_class": "permission_denial", "error": "unsafe or symlinked path"} }
         content := to_string(dict_get_or(action, "content", ""))
-        if len(content) > state["budgets"]["max_write_bytes"] { return {"ok": false, "failure_class": "budget_exceeded", "error": "write_file content exceeds max_write_bytes"} }
+        if utf8_size(content) > state["budgets"]["max_write_bytes"] { return {"ok": false, "failure_class": "budget_exceeded", "error": "write_file content exceeds max_write_bytes"} }
         try {
             if write_text_atomic(target, content) == false { return {"ok": false, "failure_class": "repository_failure", "error": "atomic write failed"} }
             return {"ok": true, "tool": "write_file", "path": relative}
@@ -608,11 +607,24 @@ func execute_action(action, spec, state, run_dir) {
     }
     if kind == "run_command" {
         command := string_or(dict_get_or(action, "command", ""), "")
+        if utf8_size(command) > MISSION_COMMAND_MAX_BYTES { return {"ok": false, "failure_class": "budget_exceeded", "error": "run_command exceeds the 16 KiB safety limit"} }
         if command_is_allowed(command, policy) == false { return {"ok": false, "failure_class": "policy_violation", "error": "command_not_allowlisted"} }
         argv := command_args(command)
         if len(argv) == 0 { return {"ok": false, "failure_class": "policy_violation", "error": "command_not_allowlisted"} }
         direct_command := ["/usr/bin/env", "-C", repo]
-        for argument in argv { direct_command := push(direct_command, argument) }
+        if argv[0] == "git" {
+            direct_command := ["git", "--no-pager", "-c", "core.fsmonitor=false", "-C", repo, argv[1]]
+            if argv[1] == "diff" || argv[1] == "show" {
+                direct_command := push(direct_command, "--no-ext-diff")
+                direct_command := push(direct_command, "--no-textconv")
+            }
+            for option in slice(argv, 2, len(argv)) { direct_command := push(direct_command, option) }
+        } else {
+            if argv[0] == "kujo" && len(argv) > 2 && path_is_within_workspace(repo, argv[2]) == false {
+                return {"ok": false, "failure_class": "permission_denial", "error": "Kujo entrypoint is outside the safe workspace"}
+            }
+            for argument in argv { direct_command := push(direct_command, argument) }
+        }
         started_ms := current_timestamp()
         cancel_file := ""
         if path_exists(run_dir + "/state.json") { cancel_file = run_dir + "/cancel.request.json" }
@@ -643,10 +655,7 @@ func execute_tool_request(request, supplied_capability) {
     capability_check := consume_agent_capability(relay_root(), request, env_or("RELAY_TOOL_CAPABILITY_SECRET", ""))
     if dict_get_or(capability_check, "ok", false) == false { return {"ok": false, "error": dict_get_or(capability_check, "error", {"code": "capability_invalid", "message": "Tool capability could not be consumed"})} }
     if path_exists(workspace + "/.git") == false || path_is_symlink_safe(workspace + "/.git") || path_has_symlink_component(workspace + "/.git") { return {"ok": false, "error": "tool workspace must be a Git workspace"} }
-    original_spec := dict_get_or(request, "mission_spec", {})
-    if type(original_spec) != "dict" { return {"ok": false, "error": "mission policy is missing"} }
-    spec := original_spec
-    spec["repository"] := workspace
+    spec := capability_check["policy"]
     if script_hash_policy_valid(workspace, dict_get_or(spec, "allowed_script_hashes", {})) == false { return {"ok": false, "error": "mission allowed_script_hashes is invalid"} }
     if bool_or(dict_get_or(spec, "allow_writes", false), false) && dict_get_or(dict_get_or(spec, "approval", {}), "approved", false) != true {
         return {"ok": false, "error": {"code": "permission_denial", "message": "write-enabled tool requests require approval.approved=true"}}
@@ -726,16 +735,19 @@ func execute_actions(spec, state, run_dir) {
     return {"ok": true, "results": results, "state": state}
 }
 
-func write_eval_config(run_dir, state) {
+func eval_assertion(name, passed) {
+    return {"name": name, "check": "json_value_equals", "params": {"json": safe_json({"passed": passed}), "json_path": "passed", "expected": true, "expected_type": "bool"}}
+}
+
+func eval_verify(run_dir, state) {
     repo := state["repository"]
-    mut tests := [
-        {"name": "git diff check", "check": "command_succeeds", "params": {"command": "git -C " + shell_quote_single(repo) + " diff --check"}}
-    ]
+    diff := spawn_process(["git", "-c", "core.fsmonitor=false", "-C", repo, "diff", "--no-ext-diff", "--no-textconv", "--check"], process_options({}, 30000, 65536))
+    tests := [eval_assertion("git diff check", diff.success)]
     for action in dict_get_or(state["mission_spec"], "actions", []) {
         if dict_get_or(action, "type", "") == "write_file" {
             relative := string_or(dict_get_or(action, "path", ""), "")
             if relative != "" {
-                tests := push(tests, {"name": "file exists: " + relative, "check": "command_succeeds", "params": {"command": "test -f " + shell_quote_single(repo + "/" + relative)}})
+                tests := push(tests, eval_assertion("file exists: " + relative, path_is_within_workspace(repo, relative) && path_is_file(repo + "/" + relative)))
             }
         }
     }
@@ -744,7 +756,7 @@ func write_eval_config(run_dir, state) {
             input := dict_get_or(tool_call, "input", {})
             relative := string_or(dict_get_or(input, "path", ""), "")
             if relative != "" {
-                tests := push(tests, {"name": "agent tool file exists: " + relative, "check": "command_succeeds", "params": {"command": "test -f " + shell_quote_single(repo + "/" + relative)}})
+                tests := push(tests, eval_assertion("agent tool file exists: " + relative, path_is_within_workspace(repo, relative) && path_is_file(repo + "/" + relative)))
             }
         }
     }
@@ -757,8 +769,11 @@ func write_eval_config(run_dir, state) {
         "tests": tests
     }
     path := run_dir + "/eval.json"
-    write_json(path, config)
-    return path
+    persisted := persist_required_json(path, config, "dict", "Eval config")
+    if persisted["ok"] == false { return {"ok": false, "config": path, "error": persisted["error"]} }
+    result := eval_run(run_dir, "eval.json")
+    result["config"] := path
+    return result
 }
 
 func report(state, run_dir) {
@@ -923,6 +938,16 @@ func run_mission(path, options) {
             calls := dict_get_or(normalized_tools, "calls", [])
             if len(calls) == 0 {
                 provider_loop_complete = true
+                break
+            }
+            granted_tools := dict_get_or(spec, "agent_tool_allowlist", [])
+            mut ungranted := false
+            for call in calls {
+                if index_of(granted_tools, call["name"]) < 0 { ungranted = true; break }
+            }
+            if ungranted {
+                provider_loop_ok = false
+                agent_sdk_tools["error"] := "provider requested a tool outside the mission allowlist"
                 break
             }
             if len(tool_calls_accumulated) + len(calls) > max_tool_calls {
@@ -1116,14 +1141,13 @@ func run_mission(path, options) {
         changes_receipt_result := record_receipt(state, run_dir, "changes", "verify", "release-verifier", run_dir + "/changes.json", evidence_status(changes_ok), {"ok": changes["ok"], "persisted": dict_get_or(changes_artifact, "ok", false)})
         state = apply_receipt_result(state, changes_receipt_result)
         changes_receipt := changes_receipt_result["receipt"]
-        eval_path := write_eval_config(run_dir, state)
-        evaluation := eval_run(run_dir, "eval.json")
+        evaluation := eval_verify(run_dir, state)
         state["evaluations"] := push(state["evaluations"], dict_get_or(evaluation, "data", {"ok": evaluation["ok"]}))
         evaluations_artifact := persist_required_json(run_dir + "/evaluations.json", state["evaluations"], "array", "Eval")
         evaluation_ok := evaluation["ok"] && dict_get_or(evaluations_artifact, "ok", false)
         artifact_persistence["evaluations"] := evaluations_artifact
         state["artifact_persistence"] := artifact_persistence
-        evaluation_receipt_result := record_receipt(state, run_dir, "evaluation", "verify", "release-verifier", run_dir + "/evaluations.json", evidence_status(evaluation_ok), {"ok": evaluation["ok"], "persisted": dict_get_or(evaluations_artifact, "ok", false), "config": eval_path})
+        evaluation_receipt_result := record_receipt(state, run_dir, "evaluation", "verify", "release-verifier", run_dir + "/evaluations.json", evidence_status(evaluation_ok), {"ok": evaluation["ok"], "persisted": dict_get_or(evaluations_artifact, "ok", false), "config": evaluation["config"]})
         state = apply_receipt_result(state, evaluation_receipt_result)
         evaluation_receipt := evaluation_receipt_result["receipt"]
         if evaluation_ok == false || changes_ok == false {
@@ -1422,8 +1446,7 @@ func resume_run(run_id, repair_requested) {
         changes_receipt_result := record_receipt(state, record["run_dir"], "changes", "resume", "release-verifier", record["run_dir"] + "/changes.json", evidence_status(changes_ok), {"ok": changes["ok"], "persisted": dict_get_or(changes_artifact, "ok", false)})
         state = apply_receipt_result(state, changes_receipt_result)
         changes_receipt := changes_receipt_result["receipt"]
-        write_eval_config(record["run_dir"], state)
-        evaluation := eval_run(record["run_dir"], "eval.json")
+        evaluation := eval_verify(record["run_dir"], state)
         state["evaluations"] := push(state["evaluations"], dict_get_or(evaluation, "data", {"ok": evaluation["ok"]}))
         evaluations_artifact := persist_required_json(record["run_dir"] + "/evaluations.json", state["evaluations"], "array", "Eval")
         evaluation_ok := evaluation["ok"] && dict_get_or(evaluations_artifact, "ok", false)
@@ -1500,7 +1523,6 @@ export ensure_dir := ensure_dir
 export save_state := save_state
 export mark_evidence_failure := mark_evidence_failure
 export persist_required_json := persist_required_json
-export packet_manifest_walk := packet_manifest_walk
 export create_packet_manifest := create_packet_manifest
 export verify_packet_manifest := verify_packet_manifest
 export report := report

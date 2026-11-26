@@ -1,7 +1,7 @@
 from src.contracts import event, event_integrity_valid, event_chain_integrity_valid, event_sequence_matches_state, receipt, receipt_integrity_valid, receipt_sequence_valid, receipt_sequence_matches_state, state_integrity_input, state_integrity_valid, run_state, agent_profile, RELAY_VERSION, MISSION_SPEC_VERSION, LEGACY_MISSION_SPEC_VERSION, mission_spec_version_supported, EVENT_CONTRACT, RECEIPT_CONTRACT
 from src.policy import classify_failure, repair_allowed, path_is_safe, path_is_within_workspace, command_is_allowed, tool_decision
 from src.runtime import load_spec, resume_state_safe, cleanup_state_safe, control_state_safe, save_state, mark_evidence_failure, cancellation_request, cancellation_integrity_input, persist_required_json, report, provider_failure_message, provider_followup_token_ceiling, provider_synthesis_messages, provider_synthesis_tool, provider_synthesis_answer, preflight_failure_message, list_files_page
-from src.common import safe_id, redact_text, shell_quote_single, command_args, process_options, process_options_with_cancel, safe_process_path, safe_env_name, path_is_symlink_safe, path_has_symlink_component, path_has_parent_component, read_json_limited, append_jsonl, append_jsonl_bounded, write_json, write_text_atomic, create_exclusive_dir, dict_get_or, bool_or, string_or, safe_json
+from src.common import utf8_size, safe_id, redact_text, shell_quote_single, command_args, process_options, process_options_with_cancel, safe_process_path, safe_env_name, path_is_symlink_safe, path_has_symlink_component, path_has_parent_component, read_json_limited, append_jsonl, append_jsonl_bounded, write_json, write_text_atomic, create_exclusive_dir, dict_get_or, bool_or, string_or, safe_json
 from src.capabilities import issue_agent_capability, revoke_agent_capability
 from src.adapters import fallback_allowed, fallback_decision, watchdog_route_allowed, tool_definitions, normalize_provider_tool_calls, provider_payload_size, provider_payload_allowed, safe_watchdog_upstream_profile, bounded_max_tokens
 from src.store import safe_run_key, store_root_safe, run_store_posture, index_lock_owner_path, index_lock_recovery_path, index_lock_recovery_input, acquire_index_lock, acquire_index_lock_retry, release_index_lock, rebuild_and_persist_run_index, rebuild_and_persist_run_index_result
@@ -169,6 +169,12 @@ failed = failed + check("Watchdog token redaction", contains(redact_text("X-Watc
 failed = failed + check("generic secret redaction", contains(redact_text("RELAY_WATCHDOG_PROXY_TOKEN=relay-proxy-token"), "[REDACTED_CREDENTIAL]"))
 json_redaction := redact_text("{\"api_key\":\"json-secret\",\"access_token\":\"access-secret\",\"password\":\"pw-secret\"}")
 failed = failed + check("JSON credential redaction", bool_or(contains(json_redaction, "json-secret"), true) == false && bool_or(contains(json_redaction, "access-secret"), true) == false && bool_or(contains(json_redaction, "pw-secret"), true) == false && bool_or(contains(json_redaction, "[REDACTED_CREDENTIAL]"), false))
+credential_excerpt := redact_text("OPENAI_API_KEY=fixture-capture-value\nAuthorization: Bearer fixture-header-value\npassword='fixture quoted value'\n{\"api_key\":\"fixture \\\"quoted\\\" value\",\"tokens\":12}")
+failed = failed + check("credential values are removed without altering ordinary fields", contains(credential_excerpt, "fixture") == 0 && contains(credential_excerpt, "\"tokens\":12"))
+pem_excerpt := redact_text("before\n-----BEGIN PRIVATE KEY-----\nfixture-body\n-----END PRIVATE KEY-----\nafter")
+failed = failed + check("private key envelope redaction", pem_excerpt == "before\n[REDACTED_PRIVATE_KEY]\nafter")
+failed = failed + check("truncated private key envelope redaction", redact_text("-----BEGIN OPENSSH PRIVATE KEY-----\nfixture-partial") == "[REDACTED_PRIVATE_KEY]")
+failed = failed + check("UTF-8 byte size includes multibyte characters", utf8_size("aé日😀") == 10 && utf8_size("") == 0)
 failed = failed + check("provider token redaction", contains(redact_text("sk-12345678abcdefghijklmnopqrstuvwxyz"), "[REDACTED_KEY]") && contains(redact_text("github_pat_123456789012345678901234567890"), "[REDACTED_KEY]"))
 failed = failed + check("private key redaction", contains(redact_text("-----BEGIN PRIVATE KEY-----"), "[REDACTED_PRIVATE_KEY]"))
 process_env_probe := process_options({"PATH": "/tmp/relay-untrusted-path", "PWD": "/tmp/relay-untrusted-pwd", "LD_PRELOAD": "/tmp/relay-loader", "RELAY_TEST_ENV": "ok"}, 1000, 1000)
@@ -316,7 +322,7 @@ delete_file(refresh_root + "/index.json")
 os_rmdir(refresh_root)
 revoke_root := tmp_base + "/relay-contract-capability-revoke-" + to_string(current_timestamp())
 create_dir(revoke_root)
-revoke_issued := issue_agent_capability(revoke_root, "revoke-run", "revoke-session", ".", "revoke-nonce", 1, 180000)
+revoke_issued := issue_agent_capability(revoke_root, "revoke-run", "revoke-session", ".", "revoke-nonce", 1, 180000, {"tools": []})
 revoke_path := string_or(dict_get_or(revoke_issued, "path", ""), "")
 revoke_lock := revoke_path + ".lock"
 revoke_lock_created := create_exclusive_dir(revoke_lock)

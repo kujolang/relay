@@ -90,6 +90,12 @@ jq -e --arg run_id "$run_id" '.events | all(.metadata.mission_id == "relay-fixtu
 python3 "$ROOT/scripts/validate_json.py" "$ROOT/schemas/run-export.schema.json" "$export_path"
 
 run_dir="$RELAY_STATE_ROOT/runs/$run_id"
+state_sha="$(shasum -a 256 "$run_dir/state.json")"
+if "$KUJO" run "$ROOT/main.kujo" -- runs export "$run_id" --output "$run_dir/state.json" --json >/dev/null; then
+  echo "Export accepted an output path inside the state store" >&2
+  exit 1
+fi
+test "$(shasum -a 256 "$run_dir/state.json")" = "$state_sha"
 events_path="$run_dir/events.jsonl"
 mv "$events_path" "$events_path.regular"
 ln -s /etc/passwd "$events_path"
@@ -259,6 +265,15 @@ printf '%s' "$partial_export" | jq -e --arg run_id "$paused_id" '.ok == true and
 # Run artifact readers must fail closed instead of turning a missing result
 # into a successful empty object or array.
 changes_path="$run_dir/changes.json"
+mv "$changes_path" "$changes_path.original"
+jq '.summary.fixture_label="different evidence"' "$changes_path.original" > "$changes_path"
+if changed_validation="$("$KUJO" run "$ROOT/main.kujo" -- runs verify "$run_id" --json)"; then
+  echo "Run verification accepted inconsistent ChangeBucket evidence" >&2
+  exit 1
+fi
+jq -e '.ok == false and .changes_valid == false' <<<"$changed_validation" >/dev/null
+mv "$changes_path.original" "$changes_path"
+
 mv "$changes_path" "$changes_path.missing"
 set +e
 missing_changes="$($KUJO run "$ROOT/main.kujo" -- runs changes "$run_id" --json 2>&1)"

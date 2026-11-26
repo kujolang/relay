@@ -1,3 +1,4 @@
+from src.common import utf8_size
 # Provider bridge executed with the AI SDK repository as its working directory.
 from src.providers import openai_provider, openrouter_provider, deepseek_provider, custom_openai_compatible_provider
 from src.ai_sdk import create_client, create_message, chat_completion
@@ -10,7 +11,7 @@ func get(obj, key, fallback) {
 payload_text := env("RELAY_AI_PAYLOAD")
 if type(payload_text) == "null" || trim(to_string(payload_text)) == "" { print(to_json({"ok": false, "error": {"code": "missing_payload"}})); exit(1) }
 payload_text := to_string(payload_text)
-if len(payload_text) > 131072 { print(to_json({"ok": false, "error": {"code": "payload_too_large", "message": "RELAY_AI_PAYLOAD exceeds the 128 KiB safety limit"}})); exit(1) }
+if utf8_size(payload_text) > 131072 { print(to_json({"ok": false, "error": {"code": "payload_too_large", "message": "RELAY_AI_PAYLOAD exceeds the 128 KiB safety limit"}})); exit(1) }
 payload := null
 try { payload = parse_json(payload_text) } except err { print(to_json({"ok": false, "error": {"code": "invalid_payload", "message": "RELAY_AI_PAYLOAD is invalid JSON"}})); exit(1) }
 if type(payload) != "dict" { print(to_json({"ok": false, "error": {"code": "invalid_payload", "message": "RELAY_AI_PAYLOAD must be a JSON object"}})); exit(1) }

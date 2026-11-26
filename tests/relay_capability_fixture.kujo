@@ -12,7 +12,8 @@ result := issue_agent_capability(
     to_string(dict_get_or(payload, "workspace", "")),
     to_string(dict_get_or(payload, "nonce", "")),
     int_or(dict_get_or(payload, "max_calls", 4), 4),
-    int_or(dict_get_or(payload, "ttl_ms", 180000), 180000)
+    int_or(dict_get_or(payload, "ttl_ms", 180000), 180000),
+    dict_get_or(payload, "policy", {"tools": []})
 )
 print(to_json(result))
 if dict_get_or(result, "ok", false) == false { exit(1) }

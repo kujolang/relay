@@ -6,7 +6,7 @@ KUJO="${KUJO:-${KUJO_BIN:-$ROOT/../kujo/target/release/kujo}}"
 TMP_BASE="$(cd "${TMPDIR:-/tmp}" && pwd -P)"
 TMP_ROOT="$(mktemp -d "$TMP_BASE/relay-discovery.XXXXXX")"
 trap 'rm -rf "$TMP_ROOT"' EXIT
-WORK="$TMP_ROOT/work"
+WORK="$TMP_ROOT/acceptance workspace"
 mkdir -p "$WORK"
 git init -q "$WORK"
 git -C "$WORK" config user.email relay@example.invalid
