@@ -1,4 +1,4 @@
-from src.common import CONTROL_RECORD_MAX_BYTES, JSON_DOCUMENT_MAX_BYTES, dict_get_or, env_or, env_bool, string_or, bool_or, int_or, safe_json, read_json_limited, write_json, append_jsonl_bounded, redact_text, now_iso, path_is_symlink_safe, ensure_safe_directory
+from src.common import CONTROL_RECORD_MAX_BYTES, JSON_DOCUMENT_MAX_BYTES, dict_get_or, env_or, env_bool, string_or, bool_or, int_or, safe_json, utf8_size, read_json_limited, write_json, append_jsonl_bounded, redact_text, now_iso, path_is_symlink_safe, ensure_safe_directory
 from src.contracts import state_integrity_valid
 
 export SPEC_IMPORT_CONTRACT := "relay-spec-import-v1"
@@ -75,7 +75,7 @@ func failure_handoff(run_dir, run_id, output_path, confirmed) {
 
 func signed_export(bundle, key_id, secret) {
     if type(bundle) != "dict" { return {"ok": false, "error": "signed export payload must be an object"} }
-    if len(safe_json(bundle)) > 900000 { return {"ok": false, "error": "signed export payload exceeds its bounded 900 KiB envelope"} }
+    if utf8_size(safe_json(bundle)) > 900000 { return {"ok": false, "error": "signed export payload exceeds its bounded 900 KiB envelope"} }
     if key_id == "" || secret == "" { return {"ok": false, "error": "signed export requires --key-id and RELAY_SIGNING_KEY"} }
     payload_sha := sha256(safe_json(bundle))
     signature := hmac_sha256(secret, SIGNED_EXPORT_CONTRACT + "|" + key_id + "|" + payload_sha)
@@ -84,21 +84,24 @@ func signed_export(bundle, key_id, secret) {
 
 func signing_key(key_id) {
     raw := env_or("RELAY_SIGNING_KEYS", "")
-    if raw != "" && len(raw) <= CONTROL_RECORD_MAX_BYTES {
+    if raw != "" {
+        if utf8_size(raw) > CONTROL_RECORD_MAX_BYTES { return "" }
         keys_value := null
         try { keys_value = parse_json(raw) } except err { return "" }
-        if type(keys_value) == "dict" { return string_or(dict_get_or(keys_value, key_id, ""), "") }
+        return string_or(dict_get_or(keys_value, key_id, ""), "")
     }
     return env_or("RELAY_SIGNING_KEY", "")
 }
 
-func verify_signed_export(path, secret) {
-    if secret == "" { return {"ok": false, "error": "RELAY_SIGNING_KEY is required"} }
+func verify_signed_export(path) {
     if path == "" || path_is_symlink_safe(path) || path_exists(path) == false || path_is_file(path) == false || file_size(path) > JSON_DOCUMENT_MAX_BYTES { return {"ok": false, "error": "signed export is unavailable or exceeds 1 MiB"} }
     value := read_json_limited(path, null, JSON_DOCUMENT_MAX_BYTES)
-    if type(value) != "dict" || string_or(dict_get_or(value, "format", ""), "") != SIGNED_EXPORT_CONTRACT || type(dict_get_or(value, "payload", null)) != "dict" { return {"ok": false, "error": "signed export contract is invalid"} }
+    if type(value) != "dict" || string_or(dict_get_or(value, "format", ""), "") != SIGNED_EXPORT_CONTRACT || dict_get_or(value, "algorithm", "") != "hmac-sha256" || type(dict_get_or(value, "payload", null)) != "dict" { return {"ok": false, "error": "signed export contract is invalid"} }
+    key_id := string_or(dict_get_or(value, "key_id", ""), "")
+    secret := signing_key(key_id)
+    if key_id == "" || secret == "" { return {"ok": false, "error": "a signing key for this key ID is required"} }
     payload_sha := sha256(safe_json(value["payload"]))
-    expected := hmac_sha256(secret, SIGNED_EXPORT_CONTRACT + "|" + string_or(dict_get_or(value, "key_id", ""), "") + "|" + payload_sha)
+    expected := hmac_sha256(secret, SIGNED_EXPORT_CONTRACT + "|" + key_id + "|" + payload_sha)
     valid := payload_sha == string_or(dict_get_or(value, "payload_sha256", ""), "") && expected == string_or(dict_get_or(value, "signature", ""), "")
     return {"ok": valid, "signature_valid": valid, "key_id": dict_get_or(value, "key_id", ""), "payload_sha256": payload_sha}
 }

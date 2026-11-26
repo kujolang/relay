@@ -14,6 +14,8 @@ Relay defaults to fixture mode. Live provider traffic requires an explicit `RELA
 
 Provider request payloads are bounded below the bridge transport limit, provider responses are capped, tool arguments and tool-call IDs are validated, and token/tool-turn/tool-call budgets are enforced. Relay records provider and model identifiers, correlation IDs, and reconciled usage when available; it must never record credential values. Watchdog and the provider remain separate trust domains operated by the user.
 
+New Relay state and run directories are created with mode `0700`. Keep any existing or operator-provided state directory private to the Relay user. Run evidence can contain workspace paths, mission content, and tool output; review it before sharing.
+
 ## Local evidence and integrity
 
 Run evidence is stored below `RELAY_STATE_ROOT` (default `.relay`). State, events, receipts, reports, tool-result bundles, and PackWrite manifests use bounded, symlink-safe reads and fail-closed writes. Every parsed JSON document is limited to the pinned runtime's 1 MiB parser ceiling. Event JSONL, Markdown reports, and exported artifact inventories have separate 8 MiB envelopes plus file, depth, and entry limits.

@@ -194,8 +194,10 @@ loader, interpreter, Git override, and trust-store environment names are
 dropped before spawn.
 Relay also issues a short-lived registry record per worker session. The record
 stores only a digest of a parent-generated secret, binds the run/session/
-workspace/nonce identity, expires after a bounded interval, and tracks a
-bounded call budget under a lock. The secret crosses only the bounded parent /
+workspace/nonce identity, and stores the exact tool names, write approval,
+command rules, and byte budgets granted by the parent. The worker reads that
+policy from the registry. The record expires after a bounded interval and
+tracks a bounded call budget under a lock. The secret crosses only the bounded parent /
 child environment; each worker call consumes one allowance, replayed or delayed
 calls fail closed, and the record is revoked when the worker exits. This closes
 local replay within the capability lifetime but is not an authenticated remote
@@ -263,7 +265,7 @@ rather than caller-widenable mission budgets.
 
 ## JSON evidence
 
-A successful mission JSON result contains `run_id`, `status`, `current_step`, `budgets`, `events`, `receipts`, `artifacts`, `action_results`, `changes`, `evaluations`, `runledger`, and `runledger_finish`. Run artifacts live under `.relay/runs/<run-id>/` and include `state.json`, `events.jsonl`, `receipts.json`, `agent/`, `eval.json`, `changes.json`, `evaluations.json`, `report.json`, and `report.md` when the corresponding phase ran.
+A successful mission JSON result contains `run_id`, `status`, `current_step`, `budgets`, `events`, `receipts`, `artifacts`, `action_results`, `changes`, `evaluations`, `runledger`, and `runledger_finish`. Provide export and handoff output paths outside the Relay state directory. Run artifacts live under `.relay/runs/<run-id>/` and include `state.json`, `events.jsonl`, `receipts.json`, `agent/`, `eval.json`, `changes.json`, `evaluations.json`, `report.json`, and `report.md` when the corresponding phase ran.
 
 Event metadata includes the workflow, model, provider, packet revision, and
 RunLedger run ID associated with the emission. A completed mission also writes

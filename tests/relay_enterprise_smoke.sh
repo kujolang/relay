@@ -54,6 +54,11 @@ RELAY_SIGNING_KEYS="$signing_keys" "$KUJO" run "$ROOT/main.kujo" -- runs export 
 jq -e '.format == "relay-signed-export-v1" and .key_id == "fixture-2026" and (.signature | length == 64)' "$signed_path" >/dev/null
 verified="$(RELAY_SIGNING_KEYS="$signing_keys" $KUJO run "$ROOT/main.kujo" -- runs verify-signature "$signed_path" --json)"
 jq -e '.ok and .signature_valid and .key_id == "fixture-2026"' <<<"$verified" >/dev/null
+jq '.algorithm="unsupported"' "$signed_path" > "$TMP_ROOT/wrong-algorithm.json"
+if RELAY_SIGNING_KEYS="$signing_keys" "$KUJO" run "$ROOT/main.kujo" -- runs verify-signature "$TMP_ROOT/wrong-algorithm.json" --json >/dev/null; then
+  echo "Verification accepted an unsupported signature algorithm" >&2
+  exit 1
+fi
 jq '.payload.run.status="tampered"' "$signed_path" > "$TMP_ROOT/tampered.json"
 set +e
 tampered="$(RELAY_SIGNING_KEY=fixture-signing-secret $KUJO run "$ROOT/main.kujo" -- runs verify-signature "$TMP_ROOT/tampered.json" --json 2>&1)"

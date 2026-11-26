@@ -1,7 +1,7 @@
 # Agents SDK bridge executed with the Agents SDK checkout as its working
 # directory. The SDK owns registry, approval, and runner semantics; Relay owns
 # policy and repository authority through the bounded tools worker callback.
-from src.common import JSONL_EVIDENCE_MAX_BYTES, path_is_symlink_safe, path_has_symlink_component, redact_text, safe_env_name
+from src.common import JSONL_EVIDENCE_MAX_BYTES, path_is_symlink_safe, path_has_symlink_component, redact_text, safe_env_name, utf8_size
 from src.agents.ai.adapter import create_ai_sdk_adapter
 from src.agents.runner import create_agent_runner, run_agent
 from src.agents.core_types import create_agent, create_agent_run_request
@@ -91,12 +91,10 @@ func call_relay_worker(tool_name, input_payload, context, payload) {
     kujo_bin := configured_kujo_bin
     capability := to_string(get(payload, "capability", ""))
     clean_input := {}
-    if tool_name == "relay.list_files" { clean_input = {} }
+    if tool_name == "relay.list_files" { clean_input = {"offset": get(input_payload, "offset", 0)} }
     if tool_name == "relay.read_file" { clean_input = {"path": to_string(get(input_payload, "path", "")), "offset": get(input_payload, "offset", 0)} }
     if tool_name == "relay.write_file" { clean_input = {"path": to_string(get(input_payload, "path", "")), "content": to_string(get(input_payload, "content", ""))} }
     if tool_name == "relay.run_command" { clean_input = {"command": to_string(get(input_payload, "command", "")), "timeout_ms": get(input_payload, "timeout_ms", 120000)} }
-    raw_spec := get(payload, "mission_spec", {})
-    clean_spec := {"allow_writes": get(raw_spec, "allow_writes", false), "approval": get(raw_spec, "approval", {}), "allowed_commands": get(raw_spec, "allowed_commands", ["git", "kujo"]), "allowed_script_hashes": get(raw_spec, "allowed_script_hashes", {}), "budgets": get(raw_spec, "budgets", {})}
     request := {
         "tool_name": tool_name,
         "input": clean_input,
@@ -105,11 +103,9 @@ func call_relay_worker(tool_name, input_payload, context, payload) {
         "capability_nonce": get(payload, "capability_nonce", ""),
         "agent_id": get(context, "agent_id", ""),
         "workspace": get(payload, "workspace", ""),
-        "mission_spec": clean_spec,
         "capability": capability
     }
-    budgets := get(raw_spec, "budgets", {})
-    max_tool_calls := get(budgets, "max_tool_calls", 4)
+    max_tool_calls := get(payload, "max_tool_calls", 4)
     if type(max_tool_calls) != "int" || max_tool_calls < 1 { max_tool_calls = 4 }
     call_count := get(payload, "tool_call_count", 0)
     if type(call_count) != "int" { call_count = 0 }
@@ -150,7 +146,7 @@ func summarize_agent_result(result) {
 payload_text := env("RELAY_AGENT_PAYLOAD")
 if type(payload_text) == "null" || trim(to_string(payload_text)) == "" { print(to_json({"ok": false, "error": {"code": "missing_agent_payload"}})); exit(1) }
 payload_text := to_string(payload_text)
-if len(payload_text) > 131072 { print(to_json({"ok": false, "error": {"code": "payload_too_large", "message": "RELAY_AGENT_PAYLOAD exceeds the 128 KiB safety limit"}})); exit(1) }
+if utf8_size(payload_text) > 131072 { print(to_json({"ok": false, "error": {"code": "payload_too_large", "message": "RELAY_AGENT_PAYLOAD exceeds the 128 KiB safety limit"}})); exit(1) }
 payload := null
 try { payload = parse_json(payload_text) } except err { print(to_json({"ok": false, "error": {"code": "invalid_payload", "message": "RELAY_AGENT_PAYLOAD is invalid JSON"}})); exit(1) }
 if type(payload) != "dict" { print(to_json({"ok": false, "error": {"code": "invalid_payload", "message": "RELAY_AGENT_PAYLOAD must be a JSON object"}})); exit(1) }
@@ -169,7 +165,7 @@ list_register := register_tool(registry, {
     "description": "List tracked files through Relay policy.",
     "permissions": [],
     "risk": "low",
-    "input_schema": {"type": "object", "properties": {}},
+    "input_schema": {"type": "object", "properties": {"offset": {"type": "integer", "minimum": 0}}},
     "handler": func(input_payload, context) { return call_relay_worker("relay.list_files", input_payload, context, payload) }
 })
 list_registry := get(list_register, "registry", registry)

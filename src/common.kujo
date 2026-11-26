@@ -172,7 +172,7 @@ func create_exclusive_dir(path) {
         # Kujo's create_dir is intentionally idempotent. Use the fixed native
         # mkdir executable for the OS-level exclusive-create primitive needed
         # by capability and index lock directories; no shell is involved.
-        result := spawn_process(["/bin/mkdir", candidate], process_options({}, 2000, 4096))
+        result := spawn_process(["/bin/mkdir", "-m", "700", "--", candidate], process_options({}, 2000, 4096))
         return result.success && result.exitcode == 0 && path_is_dir(candidate) && path_is_symlink_safe(candidate) == false
     } except err { return false }
 }
@@ -247,23 +247,39 @@ func process_options_with_cancel(extra_env, timeout_ms, max_output_bytes, cancel
     return options
 }
 
-func read_json_or(path, fallback) {
-    # Probe link metadata before existence semantics so a dangling link cannot
-    # be treated as an absent optional artifact.
-    if path_is_symlink_safe(path) { return fallback }
-    if path_exists(path) == false || path_is_file(path) == false { return fallback }
-    try { return parse_json(read_file(path)) } except err { return fallback }
+func utf8_size(text) {
+    encoded := encode_base64(text)
+    size := len(encoded) * 3 / 4
+    if ends_with(encoded, "==") { return size - 2 }
+    if ends_with(encoded, "=") { return size - 1 }
+    return size
+}
+
+func read_bounded_text(path, max_bytes) {
+    try {
+        if max_bytes <= 0 || path_is_symlink_safe(path) || path_is_file(path) == false || file_size(path) > max_bytes { return null }
+        text := read_file(path)
+        if utf8_size(text) <= max_bytes { return text }
+    } except err {}
+    return null
+}
+
+func read_file_digest(path, max_bytes) {
+    try {
+        if max_bytes < 0 || path_is_symlink_safe(path) || path_is_file(path) == false { return null }
+        size := file_size(path)
+        if size > max_bytes { return null }
+        captured := io_read_bytes(path, size + 1)
+        if len(captured) != size || file_size(path) != size || path_is_symlink_safe(path) { return null }
+        return {"bytes": size, "integrity_sha256": sha256(captured)}
+    } except err { return null }
 }
 
 func read_json_limited(path, fallback, max_bytes) {
-    limit := int_or(max_bytes, JSON_DOCUMENT_MAX_BYTES)
-    if limit <= 0 || path_is_symlink_safe(path) || path_exists(path) == false { return fallback }
-    if path_is_file(path) == false || file_size(path) > limit { return fallback }
-    # Kujo's stable JSON parser rejects inputs above 1 MiB. Clamp the
-    # effective boundary so callers fail before reading instead of advertising
-    # a larger JSON limit that the runtime cannot parse.
-    if file_size(path) > JSON_DOCUMENT_MAX_BYTES { return fallback }
-    return read_json_or(path, fallback)
+    limit := min(int_or(max_bytes, JSON_DOCUMENT_MAX_BYTES), JSON_DOCUMENT_MAX_BYTES)
+    text := read_bounded_text(path, limit)
+    if type(text) != "string" { return fallback }
+    try { return parse_json(text) } except err { return fallback }
 }
 
 func write_json(path, value) {
@@ -274,14 +290,15 @@ func append_jsonl_bounded(path, value, max_bytes) {
     try {
         line := safe_json(value) + "\n"
         limit := int_or(max_bytes, JSONL_EVIDENCE_MAX_BYTES)
-        if limit <= 0 || len(line) > limit { return false }
+        line_bytes := utf8_size(line)
+        if limit <= 0 || line_bytes > limit { return false }
         # Check metadata before path_exists: writing through a dangling link
         # would otherwise turn an absent evidence file into an attacker-
         # selected destination.
         if path_is_symlink_safe(path) { return false }
         if path_exists(path) {
             if path_is_file(path) == false { return false }
-            if file_size(path) + len(line) > limit { return false }
+            if file_size(path) + line_bytes > limit { return false }
             return append_file(path, line) == true
         } else { return write_file(path, line) == true }
     } except err { return false }
@@ -293,26 +310,21 @@ func append_jsonl(path, value) {
 
 func redact_text(value) {
     text := to_string(value)
-    text := replace(text, "Authorization: Bearer ", "Authorization: Bearer [REDACTED]")
-    text := replace(text, "authorization: Bearer ", "authorization: Bearer [REDACTED]")
-    text := replace(text, "Authorization: bearer ", "Authorization: bearer [REDACTED]")
-    text := replace(text, "authorization: bearer ", "authorization: bearer [REDACTED]")
-    text := replace(text, "OPENAI_API_KEY=", "OPENAI_API_KEY=[REDACTED]")
-    text := replace(text, "DEEPSEEK_API_KEY=", "DEEPSEEK_API_KEY=[REDACTED]")
-    text := replace(text, "OLLAMA_API_KEY=", "OLLAMA_API_KEY=[REDACTED]")
-    text := replace(text, "ANTHROPIC_API_KEY=", "ANTHROPIC_API_KEY=[REDACTED]")
-    text := replace(text, "GOOGLE_API_KEY=", "GOOGLE_API_KEY=[REDACTED]")
-    text := replace(text, "AZURE_OPENAI_API_KEY=", "AZURE_OPENAI_API_KEY=[REDACTED]")
-    text := replace(text, "RELAY_API_KEY=", "RELAY_API_KEY=[REDACTED]")
-    text := regex_replace(text, "(?i)Bearer[[:space:]]+[^[:space:]]+", "Bearer [REDACTED]")
-    text := regex_replace(text, "(?i)(api[_-]?key|access[_-]?token|auth[_-]?token|client[_-]?secret|authorization|token|password|secret)([[:space:]:=\\\"']+)[^[:space:],}\\\"']+", "$1$2[REDACTED_CREDENTIAL]")
-    text := regex_replace(text, "(?i)[A-Za-z0-9_-]*(?:TOKEN|KEY|SECRET|PASSWORD)[A-Za-z0-9_-]*[[:space:]]*=[[:space:]]*[^[:space:],;]+", "[REDACTED_CREDENTIAL]")
+    # Remove complete key envelopes before processing individual lines. A
+    # capture can end at its byte limit before reaching the closing marker.
+    text := regex_replace(text, "(?s)-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----.*?(?:-----END [A-Z0-9 ]*PRIVATE KEY-----|$)", "[REDACTED_PRIVATE_KEY]")
+    text := regex_replace(text, "(?i)(\\bAuthorization[ \\t]*:[ \\t]*)(?:Bearer|Basic)[ \\t]+[^\\s,}\\\"']+", "$1[REDACTED]")
+    credential := "(?:[A-Za-z0-9_-]*[-_])?(?:api[_-]?key|token|password|secret|authorization|key)(?:[-_][A-Za-z0-9_-]+)?"
+    # Quoted values can contain whitespace and escaped delimiters.
+    text := regex_replace(text, "(?i)(\\b" + credential + "\\b[\\\"']?[ \\t]*[:=][ \\t]*\\\")(?:\\\\.|[^\\\"\\\\\\r\\n])*(\\\"|$)", "$1[REDACTED_CREDENTIAL]$2")
+    text := regex_replace(text, "(?i)(\\b" + credential + "\\b[\\\"']?[ \\t]*[:=][ \\t]*')(?:\\\\.|[^'\\\\\\r\\n])*('|$)", "$1[REDACTED_CREDENTIAL]$2")
+    text := regex_replace(text, "(?i)(\\b" + credential + "\\b[ \\t]*[:=][ \\t]*)[^\\s,;}\\[\\\"']+", "$1[REDACTED_CREDENTIAL]")
+    text := regex_replace(text, "(?i)\\bBearer[ \\t]+[^\\s,}\\[\\\"']+", "Bearer [REDACTED]")
     text := regex_replace(text, "sk-[A-Za-z0-9_-]{8}[A-Za-z0-9_-]+", "sk-[REDACTED_KEY]")
     text := regex_replace(text, "AKIA[0-9A-Z]{16}", "AKIA[REDACTED_KEY]")
     text := regex_replace(text, "github_pat_[A-Za-z0-9_]{20,}", "github_pat_[REDACTED_KEY]")
     text := regex_replace(text, "gh[pousr]_[A-Za-z0-9]{20,}", "gh_[REDACTED_KEY]")
     text := regex_replace(text, "xox[baprs]-[A-Za-z0-9-]{10,}", "xox-[REDACTED_KEY]")
-    text := regex_replace(text, "-----BEGIN [A-Z ]*PRIVATE KEY-----", "[REDACTED_PRIVATE_KEY]")
     return text
 }
 
@@ -345,7 +357,9 @@ export ensure_safe_directory := ensure_safe_directory
 export safe_process_path := safe_process_path
 export process_options := process_options
 export process_options_with_cancel := process_options_with_cancel
-export read_json_or := read_json_or
+export utf8_size := utf8_size
+export read_bounded_text := read_bounded_text
+export read_file_digest := read_file_digest
 export read_json_limited := read_json_limited
 export write_json := write_json
 export append_jsonl_bounded := append_jsonl_bounded

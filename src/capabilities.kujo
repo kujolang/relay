@@ -1,4 +1,4 @@
-from src.common import CONTROL_RECORD_MAX_BYTES, JSON_DOCUMENT_MAX_BYTES, append_jsonl_bounded, bool_or, create_exclusive_dir, dict_get_or, ensure_safe_directory, env_or, int_or, path_has_symlink_component, path_is_symlink_safe, read_json_limited, string_or, write_json
+from src.common import CONTROL_RECORD_MAX_BYTES, JSON_DOCUMENT_MAX_BYTES, append_jsonl_bounded, bool_or, create_exclusive_dir, dict_get_or, ensure_safe_directory, env_or, int_or, path_has_symlink_component, path_is_symlink_safe, read_json_limited, string_or, safe_json, utf8_size, write_text_atomic, write_json
 
 func relay_state_root(root) {
     return env_or("RELAY_STATE_ROOT", trim(to_string(root)) + "/.relay")
@@ -50,7 +50,7 @@ func recover_expired_capability_lock(root, lock) {
     return {"ok": true, "recovered": true, "receipt": receipt}
 }
 
-func issue_agent_capability(root, run_id, session_id, workspace, nonce, max_calls, ttl_ms) {
+func issue_agent_capability(root, run_id, session_id, workspace, nonce, max_calls, ttl_ms, policy) {
     path := capability_registry_path(root, run_id, session_id)
     if path == "" { return {"ok": false, "error": {"code": "capability_registry_unsafe", "message": "Capability registry root is unsafe"}} }
     directory := relay_state_root(root) + "/capabilities"
@@ -77,9 +77,11 @@ func issue_agent_capability(root, run_id, session_id, workspace, nonce, max_call
     lifetime := int_or(ttl_ms, 180000)
     if lifetime < 1000 { lifetime = 1000 }
     if lifetime > 600000 { lifetime = 600000 }
-    secret := sha256(to_string(run_id) + "|" + to_string(session_id) + "|" + to_string(nonce) + "|" + to_string(current_timestamp()) + "|" + to_string(random_int(1000, 999999)))
+    secret := sha256(uuid_v4() + uuid_v4())
     record := {"contract_version": "relay-agent-capability-v1", "run_id": to_string(run_id), "session_id": to_string(session_id), "workspace": to_string(workspace), "nonce": to_string(nonce), "capability": sha256(to_string(run_id) + "|" + to_string(session_id) + "|" + to_string(workspace) + "|" + to_string(nonce) + "|relay-agent-tools"), "secret_digest": sha256(secret), "issued_at_ms": current_timestamp(), "expires_at_ms": current_timestamp() + lifetime, "max_calls": calls, "used_calls": 0}
-    if write_json(path, record) == false {
+    record["policy"] := policy
+    serialized := safe_json(record)
+    if utf8_size(serialized) > CONTROL_RECORD_MAX_BYTES || write_text_atomic(path, serialized) == false {
         capability_lock_release(lock)
         return {"ok": false, "error": {"code": "capability_registry_write_failed", "message": "Capability registry record could not be persisted"}}
     }
@@ -111,6 +113,8 @@ func consume_agent_capability(root, request, supplied_secret) {
         else if to_string(dict_get_or(record, "run_id", "")) != run_id || to_string(dict_get_or(record, "session_id", "")) != session_id || to_string(dict_get_or(record, "workspace", "")) != to_string(dict_get_or(request, "workspace", "")) || to_string(dict_get_or(record, "nonce", "")) != to_string(dict_get_or(request, "capability_nonce", "")) || to_string(dict_get_or(record, "capability", "")) != to_string(dict_get_or(request, "capability", "")) { result = {"ok": false, "error": {"code": "capability_invalid", "message": "Tool capability identity does not match"}} }
         else if sha256(to_string(supplied_secret)) != to_string(dict_get_or(record, "secret_digest", "")) { result = {"ok": false, "error": {"code": "capability_invalid", "message": "Tool capability secret is invalid"}} }
         else if current_timestamp() > int_or(dict_get_or(record, "expires_at_ms", 0), 0) { result = {"ok": false, "error": {"code": "capability_expired", "message": "Tool capability has expired"}} }
+        else if type(dict_get_or(record, "policy", null)) != "dict" { result = {"ok": false, "error": {"code": "capability_invalid", "message": "Tool capability must be reissued with mission policy"}} }
+        else if index_of(dict_get_or(record["policy"], "tools", []), dict_get_or(request, "tool_name", "")) < 0 { result = {"ok": false, "error": {"code": "permission_denial", "message": "Tool is outside the issued capability"}} }
         else {
             used := int_or(dict_get_or(record, "used_calls", 0), 0)
             maximum := int_or(dict_get_or(record, "max_calls", 0), 0)
@@ -119,7 +123,7 @@ func consume_agent_capability(root, request, supplied_secret) {
                 record["used_calls"] := used + 1
                 record["last_used_at_ms"] := current_timestamp()
                 if write_json(path, record) == false { result = {"ok": false, "error": {"code": "capability_registry_write_failed", "message": "Tool capability usage could not be persisted"}} }
-                else { result = {"ok": true, "used_calls": used + 1, "remaining_calls": maximum - used - 1, "expires_at_ms": record["expires_at_ms"]} }
+                else { result = {"ok": true, "policy": record["policy"], "used_calls": used + 1, "remaining_calls": maximum - used - 1, "expires_at_ms": record["expires_at_ms"]} }
             }
         }
     } except err { result = {"ok": false, "error": {"code": "capability_invalid", "message": "Tool capability could not be verified"}} }

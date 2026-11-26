@@ -1,10 +1,11 @@
-from src.common import JSON_DOCUMENT_MAX_BYTES, JSONL_EVIDENCE_MAX_BYTES, dict_get_or, env_or, env_bool, string_or, bool_or, int_or, read_json_limited, safe_json, write_json, now_iso, path_is_symlink_safe
+from src.common import JSON_DOCUMENT_MAX_BYTES, JSONL_EVIDENCE_MAX_BYTES, dict_get_or, env_or, env_bool, string_or, bool_or, int_or, read_json_limited, read_bounded_text, read_file_digest, utf8_size, safe_json, write_json, now_iso, path_is_symlink_safe, path_has_symlink_component
 from src.contracts import RELAY_VERSION, event_chain_integrity_valid, event_sequence_matches_state, receipt_sequence_valid, receipt_sequence_matches_state, state_integrity_valid
 from src.registry import agent_catalog, find_agent, agent_path
 from src.adapters import ai_chat, capsule_run
 from src.runtime import ensure_dir, create_mission, run_mission, pause_run, cancel_run, cleanup_run, resume_run, execute_tool_request, verify_packet_manifest, retention_plan, prune_run_evidence, state_root, run_root
 from src.store import load_run_index_result, rebuild_run_index, persist_run_index, rebuild_and_persist_run_index_result, migrate_run_index_sqlite, store_backend, store_root_safe, run_store_posture
 from src.doctor import doctor
+from src.policy import real_path, path_parent, path_is_within_root
 from src.enterprise import negotiate_contract, machine_access_status, authorize_machine_request, failure_handoff, signed_export, signing_key, verify_signed_export, aggregate_metrics
 
 func has_flag(flags, name) { return has_key(flags, name) }
@@ -51,14 +52,16 @@ func read_run_state_evidence(run_dir, run_id) {
 
 func read_run_artifact_evidence(run_dir, name, expected_type) {
     path := run_dir + "/" + name
-    if path_is_symlink_safe(path) || path_exists(path) == false || path_is_file(path) == false || file_size(path) > JSON_DOCUMENT_MAX_BYTES {
+    captured := read_bounded_text(path, JSON_DOCUMENT_MAX_BYTES)
+    if type(captured) != "string" {
         return {"ok": false, "value": null, "error": "run artifact evidence is missing, non-regular, symbolic-linked, or exceeds its inspection limit: " + name}
     }
-    value := read_json_limited(path, null, JSON_DOCUMENT_MAX_BYTES)
+    value := null
+    try { value = parse_json(captured) } except err {}
     if type(value) != expected_type {
         return {"ok": false, "value": null, "error": "run artifact evidence has an invalid JSON shape: " + name}
     }
-    return {"ok": true, "value": value}
+    return {"ok": true, "value": value, "integrity_sha256": sha256(captured)}
 }
 
 func provider_tool_result_evidence(run_dir, state, run_id) {
@@ -75,7 +78,7 @@ func provider_tool_result_evidence(run_dir, state, run_id) {
         return {"required": true, "ok": false, "value": null, "error": "provider tool-result evidence has an invalid contract or run identity"}
     }
     expected_hash := string_or(dict_get_or(dict_get_or(state, "tool_result_artifact", {}), "integrity_sha256", ""), "")
-    actual_hash := sha256_file(run_dir + "/tool-results.json")
+    actual_hash := artifact["integrity_sha256"]
     if expected_hash == "" || actual_hash == "" || expected_hash != actual_hash {
         return {"required": true, "ok": false, "value": null, "error": "provider tool-result evidence integrity does not match authoritative run state"}
     }
@@ -86,6 +89,7 @@ func report_matches_state(report, state, run_id) {
     if type(report) != "dict" || type(state) != "dict" { return false }
     if string_or(dict_get_or(report, "run_id", ""), "") != string_or(run_id, "") { return false }
     if string_or(dict_get_or(report, "mission_id", ""), "") != string_or(dict_get_or(state, "mission_id", ""), "") { return false }
+    if state_integrity_valid(report) == false { return false }
     return string_or(dict_get_or(report, "status", ""), "") == string_or(dict_get_or(state, "status", ""), "")
 }
 
@@ -434,6 +438,7 @@ func watch_run_events(record, run_id, flags) {
 
 func artifact_inventory(path, relative, max_entries, max_bytes, depth, include_hashes) {
     if depth > 16 { return {"ok": false, "error": "run artifact inventory exceeds the 16-level directory depth limit"} }
+    if max_entries < 1 { return {"ok": false, "error": "run artifact inventory exceeds the entry limit"} }
     if path_is_symlink_safe(path) { return {"ok": false, "error": "run artifact inventory encountered a symbolic link: " + relative} }
     if path_is_dir(path) {
         mut entries := []
@@ -441,9 +446,9 @@ func artifact_inventory(path, relative, max_entries, max_bytes, depth, include_h
         mut files := 0
         mut directories := 1
         names := sort(list_dir(path))
-        if len(names) > max_entries { return {"ok": false, "error": "run artifact inventory exceeds the entry limit"} }
+        if len(names) >= max_entries { return {"ok": false, "error": "run artifact inventory exceeds the entry limit"} }
         for name in names {
-            child := artifact_inventory(path + "/" + name, relative + "/" + name, max_entries, max_bytes, depth + 1, include_hashes)
+            child := artifact_inventory(path + "/" + name, relative + "/" + name, max_entries - files - directories, max_bytes - total_bytes, depth + 1, include_hashes)
             if dict_get_or(child, "ok", false) == false { return child }
             child_entries := dict_get_or(child, "entries", [])
             if type(child_entries) == "array" {
@@ -452,8 +457,6 @@ func artifact_inventory(path, relative, max_entries, max_bytes, depth, include_h
             total_bytes := total_bytes + int_or(dict_get_or(child, "bytes", 0), 0)
             files := files + int_or(dict_get_or(child, "files", 0), 0)
             directories := directories + int_or(dict_get_or(child, "directories", 0), 0)
-            if len(entries) > max_entries { return {"ok": false, "error": "run artifact inventory exceeds the entry limit"} }
-            if total_bytes > max_bytes { return {"ok": false, "error": "run artifact inventory exceeds the total byte limit"} }
         }
         return {"ok": true, "entries": entries, "bytes": total_bytes, "files": files, "directories": directories}
     }
@@ -461,7 +464,11 @@ func artifact_inventory(path, relative, max_entries, max_bytes, depth, include_h
     bytes := file_size(path)
     if bytes > max_bytes { return {"ok": false, "error": "run artifact inventory exceeds the total byte limit"} }
     entry := {"path": relative, "kind": "file", "bytes": bytes}
-    if bool_or(include_hashes, false) { entry["integrity_sha256"] := sha256_file(path) }
+    if bool_or(include_hashes, false) {
+        captured := read_file_digest(path, max_bytes)
+        if type(captured) != "dict" || captured["bytes"] != bytes { return {"ok": false, "error": "run artifact changed during inventory: " + relative} }
+        entry["integrity_sha256"] := captured["integrity_sha256"]
+    }
     return {"ok": true, "entries": [entry], "bytes": bytes, "files": 1, "directories": 0}
 }
 
@@ -473,11 +480,13 @@ func run_artifact_sizes(record, run_id, flags) {
     mut files := 0
     mut directories := 0
     mut excluded := [{"path": "workspace", "reason": "repository workspace excluded from artifact inventory", "present": path_exists(run_dir + "/workspace")}]
-    for name in sort(list_dir(run_dir)) {
+    names := sort(list_dir(run_dir))
+    if len(names) > 4097 { return {"ok": false, "error": "run artifact inventory exceeds the entry limit"} }
+    for name in names {
         if name == "workspace" {
             continue
         }
-        child := artifact_inventory(run_dir + "/" + name, name, 4096, JSONL_EVIDENCE_MAX_BYTES, 0, has_flag(flags, "hashes"))
+        child := artifact_inventory(run_dir + "/" + name, name, 4096 - files - directories, JSONL_EVIDENCE_MAX_BYTES - total_bytes, 0, has_flag(flags, "hashes"))
         if dict_get_or(child, "ok", false) == false { return child }
         child_entries := dict_get_or(child, "entries", [])
         if type(child_entries) == "array" {
@@ -486,8 +495,6 @@ func run_artifact_sizes(record, run_id, flags) {
         total_bytes := total_bytes + int_or(dict_get_or(child, "bytes", 0), 0)
         files := files + int_or(dict_get_or(child, "files", 0), 0)
         directories := directories + int_or(dict_get_or(child, "directories", 0), 0)
-        if len(entries) > 4096 { return {"ok": false, "error": "run artifact inventory exceeds the entry limit"} }
-        if total_bytes > JSONL_EVIDENCE_MAX_BYTES { return {"ok": false, "error": "run artifact inventory exceeds the total byte limit"} }
     }
     return {"ok": true, "format": "relay-run-sizes-v1", "run_id": run_id, "run_dir": run_dir, "generated_at": now_iso(), "hashes_included": bool_or(has_flag(flags, "hashes"), false), "summary": {"bytes": total_bytes, "files": files, "directories": directories}, "entries": entries, "excluded": excluded}
 }
@@ -567,13 +574,13 @@ func run_window(index, flags) {
     return {"ok": true, "runs": window, "run_count": len(run_ids), "offset": start, "has_more": end < len(run_ids), "next_after": next_after}
 }
 
-func load_run_event_evidence(record, run_id) {
+func load_run_event_evidence(record, state_evidence) {
     run_dir := record["run_dir"]
     events_path := run_dir + "/events.jsonl"
-    if path_is_symlink_safe(events_path) || path_exists(events_path) == false || path_is_file(events_path) == false || file_size(events_path) > JSONL_EVIDENCE_MAX_BYTES {
+    raw_events := read_bounded_text(events_path, JSONL_EVIDENCE_MAX_BYTES)
+    if type(raw_events) != "string" {
         return {"ok": false, "bundle": {"ok": false, "error": "run event log is missing, non-regular, symbolic-linked, or exceeds the 8 MiB inspection limit", "integrity_valid": false, "state_consistent": false}}
     }
-    raw_events := read_file(events_path)
     events := []
     for line in split(raw_events, "\n") {
         if trim(line) == "" { continue }
@@ -581,7 +588,6 @@ func load_run_event_evidence(record, run_id) {
             return {"ok": false, "bundle": {"ok": false, "error": "run event log contains invalid JSON", "integrity_valid": false}}
         }
     }
-    state_evidence := read_run_state_evidence(run_dir, run_id)
     if dict_get_or(state_evidence, "ok", false) == false {
         return {"ok": false, "bundle": {"ok": false, "error": dict_get_or(state_evidence, "error", "run state evidence is invalid"), "integrity_valid": false, "state_consistent": false, "receipts_valid": false, "receipts_consistent": false}}
     }
@@ -603,8 +609,10 @@ func load_required_run_artifacts(run_dir, state, run_id) {
     report := read_run_artifact_evidence(run_dir, "report.json", "dict")
     tool_results := provider_tool_result_evidence(run_dir, state, run_id)
     packet_manifest := verify_packet_manifest(run_dir, state)
-    changes_valid := dict_get_or(changes, "ok", false)
-    evaluations_valid := dict_get_or(evaluations, "ok", false)
+    changes_valid := changes["ok"] && safe_json(changes["value"]) == safe_json(dict_get_or(state, "changes", {}))
+    evaluations_valid := evaluations["ok"] && safe_json(evaluations["value"]) == safe_json(dict_get_or(state, "evaluations", []))
+    if changes["ok"] && changes_valid == false { changes["error"] := "ChangeBucket evidence differs from sealed run state" }
+    if evaluations["ok"] && evaluations_valid == false { evaluations["error"] := "Eval evidence differs from sealed run state" }
     report_valid := dict_get_or(report, "ok", false) && report_matches_state(dict_get_or(report, "value", {}), state, run_id) && report_markdown_valid(run_dir)
     tool_results_valid := dict_get_or(tool_results, "ok", false)
     packet_manifest_valid := dict_get_or(packet_manifest, "ok", false)
@@ -623,6 +631,15 @@ func load_required_run_artifacts(run_dir, state, run_id) {
         "packet_manifest_valid": packet_manifest_valid,
         "errors": [dict_get_or(changes, "error", ""), dict_get_or(evaluations, "error", ""), dict_get_or(report, "error", ""), dict_get_or(tool_results, "error", ""), dict_get_or(packet_manifest, "error", "")]
     }
+}
+
+func evidence_output_safe(path) {
+    if path_is_symlink_safe(path) || path_has_symlink_component(path) { return false }
+    if path_exists(path) && path_is_file(path) == false { return false }
+    parent := real_path(path_parent(path))
+    evidence_root := real_path(state_root())
+    if parent == "" || evidence_root == "" { return false }
+    return path_is_within_root(parent, evidence_root) == false
 }
 
 func cmd_runs(tokens) {
@@ -645,10 +662,7 @@ func cmd_runs(tokens) {
     store_check := state_store_check()
     if store_check["ok"] == false { return store_check }
     id := positional(parsed["positionals"], 1, "")
-    if sub == "verify-signature" {
-        signed_value := read_json_limited(id, {}, JSON_DOCUMENT_MAX_BYTES)
-        return verify_signed_export(id, signing_key(string_or(dict_get_or(signed_value, "key_id", ""), "")))
-    }
+    if sub == "verify-signature" { return verify_signed_export(id) }
     if sub == "rebuild" {
         rebuilt_result := rebuild_and_persist_run_index_result(state_root())
         if dict_get_or(rebuilt_result, "ok", false) == false { return {"ok": false, "failure_class": "state_store_failure", "runs": dict_get_or(rebuilt_result, "index", {}), "index_source": "rebuild", "error": dict_get_or(rebuilt_result, "error", "Run index persistence failed")} }
@@ -679,13 +693,17 @@ func cmd_runs(tokens) {
     if sub == "retention" { return prune_run_evidence(int_or(dict_get_or(parsed["flags"], "keep-last", 100), -1), has_flag(parsed["flags"], "confirm")) }
     record := dict_get_or(index, id, null)
     if type(record) != "dict" { return {"ok": false, "error": "unknown run: " + id} }
-    if sub == "handoff" { return failure_handoff(record["run_dir"], id, string_or(dict_get_or(parsed["flags"], "output", ""), ""), has_flag(parsed["flags"], "confirm")) }
+    output_path := string_or(dict_get_or(parsed["flags"], "output", ""), "")
+    if (sub == "handoff" || sub == "export") && output_path != "" && evidence_output_safe(output_path) == false {
+        return {"ok": false, "error": "evidence output must be a safe file outside the Relay state store"}
+    }
+    if sub == "handoff" { return failure_handoff(record["run_dir"], id, output_path, has_flag(parsed["flags"], "confirm")) }
     if sub == "verify" {
         state_evidence := read_run_state_evidence(record["run_dir"], id)
         if dict_get_or(state_evidence, "ok", false) == false {
             return {"ok": false, "format": "relay-run-verification-v1", "run_id": id, "integrity_valid": false, "state_valid": false, "error": dict_get_or(state_evidence, "error", "run state evidence is invalid")}
         }
-        event_evidence := load_run_event_evidence(record, id)
+        event_evidence := load_run_event_evidence(record, state_evidence)
         events_result := event_evidence["bundle"]
         if dict_get_or(event_evidence, "ok", false) == false {
             return {"ok": false, "format": "relay-run-verification-v1", "run_id": id, "integrity_valid": false, "state_valid": true, "events_valid": dict_get_or(events_result, "integrity_valid", false), "receipts_valid": dict_get_or(events_result, "receipts_valid", false), "receipts_consistent": dict_get_or(events_result, "receipts_consistent", false), "error": dict_get_or(events_result, "error", "run event evidence is invalid")}
@@ -704,7 +722,8 @@ func cmd_runs(tokens) {
         return {"ok": true, "run": state_evidence["state"], "run_dir": record["run_dir"]}
     }
     if sub == "events" || sub == "export" {
-        event_evidence := load_run_event_evidence(record, id)
+        state_evidence := read_run_state_evidence(record["run_dir"], id)
+        event_evidence := load_run_event_evidence(record, state_evidence)
         event_bundle := event_evidence["bundle"]
         if sub == "events" {
             if dict_get_or(event_evidence, "ok", false) == false { return event_bundle }
@@ -742,7 +761,6 @@ func cmd_runs(tokens) {
             run_status := string_or(dict_get_or(state, "status", "unknown"), "unknown")
             if partial_requested && run_status != "completed" {
                 partial_bundle := {"format": "relay-run-export-partial-v1", "run_id": id, "integrity_valid": false, "completeness": "partial", "partial": true, "status": run_status, "state_valid": true, "events_valid": true, "receipts_valid": event_bundle["receipts_valid"], "receipts_consistent": event_bundle["receipts_consistent"], "artifact_presence": {"changes": changes_valid, "evaluations": evaluations_valid, "report": report_valid, "tool_results": tool_results_valid, "packet_manifest": packet_manifest_valid}, "artifact_errors": artifacts["errors"], "run": state, "events": events, "receipts": receipts, "changes": dict_get_or(changes_evidence, "value", null), "evaluations": dict_get_or(evaluations_evidence, "value", null), "report": dict_get_or(report_evidence, "value", null), "tool_results": dict_get_or(tool_results_evidence, "value", null), "packet_manifest": dict_get_or(packet_manifest_evidence, "value", null)}
-                output_path := string_or(dict_get_or(parsed["flags"], "output", ""), "")
                 if output_path != "" {
                     if write_json(output_path, partial_bundle) == false { return {"ok": false, "error": "partial run export could not be written"} }
                     return {"ok": true, "output": output_path, "run_id": id, "format": "relay-run-export-partial-v1", "integrity_valid": false, "completeness": "partial"}
@@ -768,7 +786,6 @@ func cmd_runs(tokens) {
             if dict_get_or(signed, "ok", false) == false { return signed }
             bundle = signed
         }
-        output_path := string_or(dict_get_or(parsed["flags"], "output", ""), "")
         if output_path != "" {
             if write_json(output_path, bundle) == false { return {"ok": false, "error": "run export could not be written"} }
             return {"ok": true, "output": output_path, "run_id": id, "integrity_valid": true}
@@ -810,7 +827,7 @@ func cmd_machine(tokens) {
     if sub == "status" { return machine_access_status() }
     if sub != "authorize" { return {"ok": false, "error": "machine requires status or authorize"} }
     raw := env_or("RELAY_MACHINE_REQUEST", "")
-    if raw == "" || len(raw) > 65536 { return {"ok": false, "error": "RELAY_MACHINE_REQUEST is required and limited to 64 KiB"} }
+    if raw == "" || utf8_size(raw) > 65536 { return {"ok": false, "error": "RELAY_MACHINE_REQUEST is required and limited to 64 KiB"} }
     request := null
     try { request = parse_json(raw) } except err { return {"ok": false, "error": "RELAY_MACHINE_REQUEST is invalid JSON"} }
     return authorize_machine_request(state_root(), request, env_or("RELAY_MACHINE_REQUEST_SECRET", ""))
@@ -837,7 +854,7 @@ func cmd_tools(tokens) {
     raw := env("RELAY_TOOL_REQUEST")
     if type(raw) == "null" || trim(to_string(raw)) == "" { return {"ok": false, "error": "RELAY_TOOL_REQUEST is required"} }
     raw := to_string(raw)
-    if len(raw) > 131072 { return {"ok": false, "error": "RELAY_TOOL_REQUEST exceeds the 128 KiB safety limit"} }
+    if utf8_size(raw) > 131072 { return {"ok": false, "error": "RELAY_TOOL_REQUEST exceeds the 128 KiB safety limit"} }
     request := null
     try { request = parse_json(raw) } except err { return {"ok": false, "error": "RELAY_TOOL_REQUEST is invalid JSON"} }
     if type(request) != "dict" { return {"ok": false, "error": "RELAY_TOOL_REQUEST must be a JSON object"} }

@@ -1,4 +1,4 @@
-from src.common import dict_get_or, env_or, env_bool, string_or, bool_or, int_or, safe_json, read_json_or, redact_text, process_options, safe_env_name, contains_any, path_is_symlink_safe, path_has_symlink_component
+from src.common import dict_get_or, env_or, env_bool, string_or, bool_or, int_or, safe_json, utf8_size, redact_text, process_options, safe_env_name, contains_any, path_is_symlink_safe, path_has_symlink_component
 from src.capabilities import issue_agent_capability, revoke_agent_capability
 from src.policy import real_path, path_is_within_root
 from src.watchdog import watchdog_verify, safe_base, route_policy, safe_correlation_id
@@ -225,7 +225,7 @@ func normalize_provider_tool_calls(raw_calls) {
             try { input = parse_json(raw_input) } except err { return {"ok": false, "error": "provider tool arguments are not valid JSON", "tool_name": name} }
         }
         if name == "" || type(input) != "dict" { return {"ok": false, "error": "provider tool call is missing a valid name or object input", "tool_name": name} }
-        if len(safe_json(input)) > 65536 { return {"ok": false, "error": "provider tool arguments exceed the 64 KiB safety limit", "tool_name": name} }
+        if utf8_size(safe_json(input)) > 65536 { return {"ok": false, "error": "provider tool arguments exceed the 64 KiB safety limit", "tool_name": name} }
         provider_call_id := string_or(dict_get_or(item, "id", ""), "")
         if provider_call_id == "" { provider_call_id = "relay-call-" + to_string(call_index) }
         if len(provider_call_id) > 256 || contains(provider_call_id, "\n") || contains(provider_call_id, "\r") || contains(provider_call_id, "\t") { return {"ok": false, "error": "provider tool call ID is invalid", "tool_name": name} }
@@ -238,7 +238,7 @@ func normalize_provider_tool_calls(raw_calls) {
 }
 
 func provider_payload_size(payload) {
-    return len(safe_json(payload))
+    return utf8_size(safe_json(payload))
 }
 
 func provider_payload_allowed(payload) {
@@ -411,18 +411,28 @@ func agents_sdk_smoke() {
 
 func agents_sdk_tool_run(workspace, spec, run_id, session_id) {
     tools := dict_get_or(spec, "agent_tools", [])
-    mission_spec := spec
-    mission_spec["allow_writes"] := bool_or(dict_get_or(spec, "allow_writes", false), false)
-    mission_spec["budgets"] := dict_get_or(spec, "budgets", {})
-    # The capability must not be derivable from public run/workspace IDs. The
-    # worker receives this nonce only through the short-lived parent/child
-    # environment boundary and Relay verifies it again at the tool authority.
-    capability_nonce := sha256(run_id + "|" + session_id + "|" + workspace + "|" + to_string(current_timestamp()) + "|" + to_string(random_int(1000, 999999)))
     tool_budgets := dict_get_or(spec, "budgets", {})
     max_tool_calls := int_or(dict_get_or(tool_budgets, "max_tool_calls", 4), 4)
     if max_tool_calls < 1 { max_tool_calls = 1 }
     if max_tool_calls > 16 { max_tool_calls = 16 }
-    issued := issue_agent_capability(relay_root(), run_id, session_id, workspace, capability_nonce, max_tool_calls, 180000)
+    names := []
+    for tool in tools {
+        name := tool["name"]
+        if index_of(names, name) < 0 { names := push(names, name) }
+    }
+    policy := {
+        "tools": names,
+        "allow_writes": bool_or(dict_get_or(spec, "allow_writes", false), false),
+        "approval": {"approved": dict_get_or(dict_get_or(spec, "approval", {}), "approved", false) == true},
+        "allowed_commands": dict_get_or(spec, "allowed_commands", ["git", "kujo"]),
+        "allowed_script_hashes": dict_get_or(spec, "allowed_script_hashes", {}),
+        "budgets": {
+            "max_output_bytes": int_or(dict_get_or(tool_budgets, "max_output_bytes", 1048576), 1048576),
+            "max_write_bytes": int_or(dict_get_or(tool_budgets, "max_write_bytes", 1048576), 1048576)
+        }
+    }
+    capability_nonce := sha256(uuid_v4() + uuid_v4())
+    issued := issue_agent_capability(relay_root(), run_id, session_id, workspace, capability_nonce, max_tool_calls, 180000, policy)
     if dict_get_or(issued, "ok", false) == false { return {"ok": false, "data": {"ok": false, "error": dict_get_or(issued, "error", {"code": "capability_registry_unavailable"})}, "stdout": "", "stderr": "capability registry unavailable", "duration_ms": 0} }
     payload := {
         "relay_root": relay_root(),
@@ -439,7 +449,7 @@ func agents_sdk_tool_run(workspace, spec, run_id, session_id) {
         "output_text": "Relay mission Agents SDK tool execution",
         "tool_calls": tools,
         "approval_approved": bool_or(dict_get_or(dict_get_or(spec, "approval", {}), "approved", false), false),
-        "mission_spec": mission_spec
+        "max_tool_calls": max_tool_calls
     }
     env_map := {"RELAY_AGENT_PAYLOAD": safe_json(payload), "RELAY_ROOT": relay_root(), "KUJO_BIN": kujo_bin()}
     configured_state_root := env_or("RELAY_STATE_ROOT", "")
