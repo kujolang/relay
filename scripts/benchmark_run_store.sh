@@ -12,22 +12,25 @@ OUTPUT="${1:-$ROOT/benchmarks/latest-local.json}"
 measure() {
   python3 - "$@" <<'PY'
 import subprocess, sys, time
+label, *command = sys.argv[1:]
 started = time.perf_counter_ns()
-result = subprocess.run(sys.argv[1:], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+result = subprocess.run(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 elapsed = (time.perf_counter_ns() - started) // 1_000_000
 if result.returncode:
+    print(f"{label} benchmark command failed with exit {result.returncode}", file=sys.stderr)
     raise SystemExit(result.returncode)
 print(elapsed)
 PY
 }
 
-tmp="$(mktemp -d "${TMPDIR:-/tmp}/relay-benchmark.XXXXXX")"
+tmp_base="$(cd "${TMPDIR:-/tmp}" && pwd -P)"
+tmp="$(mktemp -d "$tmp_base/relay-benchmark.XXXXXX")"
 trap 'rm -rf "$tmp"' EXIT
 for i in $(seq 1 "$ITERATIONS"); do
-  measure "$KUJO" run "$ROOT/main.kujo" -- runs list --limit 100 --json >> "$tmp/list"
-  measure "$KUJO" run "$ROOT/main.kujo" -- runs verify "$RUN_ID" --json >> "$tmp/verify"
-  measure "$KUJO" run "$ROOT/main.kujo" -- runs watch "$RUN_ID" --timeout-ms 5000 --poll-ms 10 --json >> "$tmp/watch"
-  measure "$KUJO" run "$ROOT/main.kujo" -- runs export "$RUN_ID" --output "$tmp/export-$i.json" --json >> "$tmp/export"
+  measure runs_list "$KUJO" run "$ROOT/main.kujo" -- runs list --limit 100 --json >> "$tmp/list"
+  measure runs_verify "$KUJO" run "$ROOT/main.kujo" -- runs verify "$RUN_ID" --json >> "$tmp/verify"
+  measure runs_watch_completed "$KUJO" run "$ROOT/main.kujo" -- runs watch "$RUN_ID" --timeout-ms 5000 --poll-ms 10 --json >> "$tmp/watch"
+  measure runs_export "$KUJO" run "$ROOT/main.kujo" -- runs export "$RUN_ID" --output "$tmp/export-$i.json" --json >> "$tmp/export"
 done
 sizes="$($KUJO run "$ROOT/main.kujo" -- runs sizes "$RUN_ID" --json)"
 python3 - "$tmp" "$OUTPUT" "$RUN_ID" "$ITERATIONS" "$sizes" "$(git -C "$ROOT" rev-parse HEAD)" <<'PY'
