@@ -170,7 +170,7 @@ failed = failed + check("generic secret redaction", contains(redact_text("RELAY_
 json_redaction := redact_text("{\"api_key\":\"json-secret\",\"access_token\":\"access-secret\",\"password\":\"pw-secret\"}")
 failed = failed + check("JSON credential redaction", bool_or(contains(json_redaction, "json-secret"), true) == false && bool_or(contains(json_redaction, "access-secret"), true) == false && bool_or(contains(json_redaction, "pw-secret"), true) == false && bool_or(contains(json_redaction, "[REDACTED_CREDENTIAL]"), false))
 credential_excerpt := redact_text("OPENAI_API_KEY=fixture-capture-value\nAuthorization: Bearer fixture-header-value\npassword='fixture quoted value'\n{\"api_key\":\"fixture \\\"quoted\\\" value\",\"tokens\":12}")
-failed = failed + check("credential values are removed without altering ordinary fields", contains(credential_excerpt, "fixture") == 0 && contains(credential_excerpt, "\"tokens\":12"))
+failed = failed + check("credential values are removed without altering ordinary fields", bool_or(contains(credential_excerpt, "fixture"), true) == false && contains(credential_excerpt, "\"tokens\":12"))
 pem_excerpt := redact_text("before\n-----BEGIN PRIVATE KEY-----\nfixture-body\n-----END PRIVATE KEY-----\nafter")
 failed = failed + check("private key envelope redaction", pem_excerpt == "before\n[REDACTED_PRIVATE_KEY]\nafter")
 failed = failed + check("truncated private key envelope redaction", redact_text("-----BEGIN OPENSSH PRIVATE KEY-----\nfixture-partial") == "[REDACTED_PRIVATE_KEY]")
