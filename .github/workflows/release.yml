@@ -39,22 +39,23 @@ jobs:
       - name: Checkout Relay
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
+          persist-credentials: false
           path: relay
           fetch-depth: 0
       - name: Checkout Kujo
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
+          persist-credentials: false
           repository: kujolang/kujo
           ref: 9b77dce592047121cb71066629836ad89252f3ce
           path: kujo
-          token: ${{ secrets.KUJO_ECOSYSTEM_TOKEN || github.token }}
       - name: Checkout Workcell
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
+          persist-credentials: false
           repository: kujolang/workcell
           ref: 28d2c4a3b8d317fedd5e20be618f98bd3859eaea
           path: workcell
-          token: ${{ secrets.KUJO_ECOSYSTEM_TOKEN || github.token }}
       - name: Setup pinned Rust toolchain action
         uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8
       - name: Build pinned Kujo runtime
@@ -100,6 +101,7 @@ jobs:
       - name: Checkout candidate source
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
+          persist-credentials: false
           fetch-depth: 0
       - name: Build deterministic candidate artifacts
         shell: bash
@@ -140,36 +142,37 @@ jobs:
       - name: Checkout Relay
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
+          persist-credentials: false
           path: relay
           fetch-depth: 0
       - name: Checkout Kujo
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
+          persist-credentials: false
           repository: kujolang/kujo
           ref: 9b77dce592047121cb71066629836ad89252f3ce
           path: kujo
-          token: ${{ secrets.KUJO_ECOSYSTEM_TOKEN || github.token }}
       - name: Checkout AI SDK
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
+          persist-credentials: false
           repository: kujolang/ai-sdk
           ref: d3c6def0f7844f8b42bd92d3b176e80283af8e79
           path: ai-sdk
-          token: ${{ secrets.KUJO_ECOSYSTEM_TOKEN || github.token }}
       - name: Checkout Agents SDK
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
+          persist-credentials: false
           repository: kujolang/agents-sdk
           ref: e92a61ec1df21c89ae26f411838b4669405a0765
           path: agents-sdk
-          token: ${{ secrets.KUJO_ECOSYSTEM_TOKEN || github.token }}
       - name: Checkout Kujo Agents
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
+          persist-credentials: false
           repository: kujolang/kujo-agents
           ref: f0c95b66fbc74057481ef228961eb6e69ff8886a
           path: kujo-agents
-          token: ${{ secrets.KUJO_ECOSYSTEM_TOKEN || github.token }}
       - name: Install Watchdog runtime
         id: watchdog-runtime
         uses: kujolang/kujo/.github/actions/setup-kujo@fc53093f35e4236682bbbf5ab1ccc8d2b4df990c
@@ -181,38 +184,38 @@ jobs:
       - name: Checkout Watchdog source identity
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
+          persist-credentials: false
           repository: kujolang/watchdog
           ref: 9e82e8f5b05edca948f6a432ae517031388296e6
           path: watchdog
-          token: ${{ secrets.KUJO_ECOSYSTEM_TOKEN || github.token }}
       - name: Checkout PackWrite
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
+          persist-credentials: false
           repository: kujolang/packwrite
           ref: 0cb9487e4c02218bb4a18efe68b8a0c22998f715
           path: packwrite
-          token: ${{ secrets.KUJO_ECOSYSTEM_TOKEN || github.token }}
       - name: Checkout RunLedger
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
+          persist-credentials: false
           repository: kujolang/runledger
           ref: 5cf186c9b56b540970f75e33a06f50d3dac833a8
           path: runledger
-          token: ${{ secrets.KUJO_ECOSYSTEM_TOKEN || github.token }}
       - name: Checkout ChangeBucket
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
+          persist-credentials: false
           repository: kujolang/changebucket
           ref: 373ac51a572bd3bb0510ac718ac1bab065c84735
           path: changebucket
-          token: ${{ secrets.KUJO_ECOSYSTEM_TOKEN || github.token }}
       - name: Checkout Eval
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
+          persist-credentials: false
           repository: kujolang/eval
           ref: dce9d030a3547803dab876b404c44c25b247dde1
           path: eval
-          token: ${{ secrets.KUJO_ECOSYSTEM_TOKEN || github.token }}
       - name: Setup pinned Rust toolchain action
         uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8
       - name: Build pinned Kujo runtime
@@ -220,6 +223,8 @@ jobs:
       - name: Prepare bounded disposable mission repository
         working-directory: relay
         shell: bash
+        env:
+          RELAY_LIVE_MODEL: ${{ vars.RELAY_LIVE_MODEL }}
         run: |
           set -euo pipefail
           mkdir -p /tmp/relay-provider-tools-workspace
@@ -229,7 +234,7 @@ jobs:
           touch /tmp/relay-provider-tools-workspace/README.md
           git -C /tmp/relay-provider-tools-workspace add README.md
           git -C /tmp/relay-provider-tools-workspace commit -qm baseline
-          jq --arg model "${{ vars.RELAY_LIVE_MODEL }}" '.model = $model' examples/provider-tools-mission.json > /tmp/relay-live-mission.json
+          jq --arg model "$RELAY_LIVE_MODEL" '.model = $model' examples/provider-tools-mission.json > /tmp/relay-live-mission.json
       - name: Run approval-gated external proof
         id: proof
         working-directory: relay
@@ -278,6 +283,7 @@ jobs:
       - name: Checkout verified tag
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
+          persist-credentials: false
           fetch-depth: 0
       - name: Require valid existing tag
         shell: bash
@@ -325,6 +331,7 @@ jobs:
       - name: Checkout verified tag
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
+          persist-credentials: false
           fetch-depth: 0
       - name: Download publishable artifacts
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
@@ -343,5 +350,5 @@ jobs:
           test "$(git rev-parse "$RELEASE_TAG^{commit}")" = "$GITHUB_SHA"
           cd "$RUNNER_TEMP/relay-release"
           if command -v sha256sum >/dev/null 2>&1; then sha256sum -c "relay-$RELEASE_TAG.SHA256SUMS"; else shasum -a 256 -c "relay-$RELEASE_TAG.SHA256SUMS"; fi
-          gh release view "$RELEASE_TAG" >/dev/null 2>&1 || gh release create "$RELEASE_TAG" --verify-tag --title "Relay $RELEASE_TAG" --notes-file "relay-$RELEASE_TAG.evidence.md"
-          gh release upload "$RELEASE_TAG" relay-* --clobber
+          gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 || gh release create "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --verify-tag --title "Relay $RELEASE_TAG" --notes-file "relay-$RELEASE_TAG.evidence.md"
+          gh release upload "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" relay-* --clobber
