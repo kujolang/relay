@@ -68,7 +68,9 @@ jobs:
           version: v1.6.0
       - name: Select Watchdog runtime for integration checks
         shell: bash
-        run: echo "RELAY_WATCHDOG_KUJO_BIN=${{ steps.watchdog-runtime.outputs.kujo-path }}" >> "$GITHUB_ENV"
+        env:
+          WATCHDOG_RUNTIME_PATH: ${{ steps.watchdog-runtime.outputs.kujo-path }}
+        run: printf 'RELAY_WATCHDOG_KUJO_BIN=%s\n' "$WATCHDOG_RUNTIME_PATH" >> "$GITHUB_ENV"
       - name: Checkout Watchdog
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:

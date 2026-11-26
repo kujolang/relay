@@ -27,7 +27,6 @@ permissions:
 jobs:
   gates:
     uses: ./.github/workflows/ci.yml
-    secrets: inherit
 
   workcell:
     needs: gates
@@ -63,6 +62,9 @@ jobs:
       - name: Verify tag and candidate identity
         working-directory: relay
         shell: bash
+        env:
+          PUBLISH_RELEASE: ${{ inputs.publish_release || false }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
         run: |
           set -euo pipefail
           expected_tag="v$(cat VERSION)"
@@ -70,9 +72,9 @@ jobs:
             test "$GITHUB_REF_NAME" = "$expected_tag"
             test "$(git rev-parse "$GITHUB_REF_NAME^{commit}")" = "$GITHUB_SHA"
           fi
-          if [[ "${{ inputs.publish_release || false }}" == "true" ]]; then
-            test "${{ inputs.release_tag }}" = "$expected_tag"
-            test "$(git rev-parse "${{ inputs.release_tag }}^{commit}")" = "$GITHUB_SHA"
+          if [[ "$PUBLISH_RELEASE" == "true" ]]; then
+            test "$RELEASE_TAG" = "$expected_tag"
+            test "$(git rev-parse "$RELEASE_TAG^{commit}")" = "$GITHUB_SHA"
           fi
       - name: Run exact-candidate Workcell proof
         id: proof
@@ -180,7 +182,9 @@ jobs:
           version: v1.6.0
       - name: Select Watchdog runtime for integration checks
         shell: bash
-        run: echo "RELAY_WATCHDOG_KUJO_BIN=${{ steps.watchdog-runtime.outputs.kujo-path }}" >> "$GITHUB_ENV"
+        env:
+          WATCHDOG_RUNTIME_PATH: ${{ steps.watchdog-runtime.outputs.kujo-path }}
+        run: printf 'RELAY_WATCHDOG_KUJO_BIN=%s\n' "$WATCHDOG_RUNTIME_PATH" >> "$GITHUB_ENV"
       - name: Checkout Watchdog source identity
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
@@ -287,11 +291,13 @@ jobs:
           fetch-depth: 0
       - name: Require valid existing tag
         shell: bash
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
         run: |
           set -euo pipefail
           expected_tag="v$(cat VERSION)"
-          test "${{ inputs.release_tag }}" = "$expected_tag"
-          test "$(git rev-parse "${{ inputs.release_tag }}^{commit}")" = "$GITHUB_SHA"
+          test "$RELEASE_TAG" = "$expected_tag"
+          test "$(git rev-parse "$RELEASE_TAG^{commit}")" = "$GITHUB_SHA"
       - name: Build publishable deterministic artifacts
         shell: bash
         env:
