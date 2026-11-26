@@ -510,7 +510,7 @@ silently omitted from the documented verification path.
 
 ## Compatibility policy
 
-Relay product version, mission format, and machine contracts are independent. Product `1.0.0` does not rename `AgentEvent-compatible-v1`, `relay-receipt-v1`, `relay-run-v1`, `relay-run-export-v1`, `relay-run-export-partial-v1`, `relay-run-verification-v1`, `relay-run-sizes-v1`, `relay-tool-result-bundle-v1`, `relay-packwrite-manifest-v1`, or `relay-agent-capability-v1`.
+Relay product version, mission format, and machine contracts are independent. Product `1.1.0` retains `AgentEvent-compatible-v1`, `relay-receipt-v1`, `relay-run-v1`, `relay-run-export-v1`, `relay-run-export-partial-v1`, `relay-run-verification-v1`, `relay-run-sizes-v1`, `relay-tool-result-bundle-v1`, `relay-packwrite-manifest-v1`, or `relay-agent-capability-v1`.
 
 Within a v1 machine contract, Relay may add optional fields and new enum-like values only where consumers are already required to ignore unknown fields. Relay will not remove or repurpose fields, change established exit-code meaning, weaken integrity requirements, or change integrity inputs without a new contract identifier and migration notes. CLI patch releases preserve flags and JSON field meaning; minor releases may add optional flags, commands, or fields. Deprecated stable flags remain for at least one minor release with documentation before removal in a future product major.
 

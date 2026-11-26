@@ -1,6 +1,6 @@
 {
   "format": "relay-release-contract-inventory-v1",
-  "relay_product": "1.0.0",
+  "relay_product": "1.1.0",
   "mission_current": "1.0.0",
   "mission_supported": ["1.0.0", "0.1.0"],
   "machine_contracts": {
