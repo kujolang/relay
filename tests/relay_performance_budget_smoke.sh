@@ -29,12 +29,15 @@ jq -e '
   all(.representative_profiles[]; .runs > 0 and .events_per_target_run >= 0 and .artifact_bytes_per_target_run >= 0) and
   all(.p95_ms[]; all(.[]; type == "number" and . > 0))
 ' "$ROOT/benchmarks/budgets.json" >/dev/null
-jq -e --slurpfile budget "$ROOT/benchmarks/budgets.json" '
-  .commands.runs_list.p95_ms <= ($budget[0].p95_ms.small.runs_list * (1 + $budget[0].regression_percent / 100)) and
-  .commands.runs_verify.p95_ms <= ($budget[0].p95_ms.small.runs_verify * (1 + $budget[0].regression_percent / 100)) and
-  .commands.runs_watch_completed.p95_ms <= ($budget[0].p95_ms.small.runs_watch_completed * (1 + $budget[0].regression_percent / 100)) and
-  .commands.runs_export.p95_ms <= ($budget[0].p95_ms.small.runs_export * (1 + $budget[0].regression_percent / 100))
-' "$TMP_ROOT/result.json" "$ROOT/benchmarks/macos-x86_64-small.json" | awk '$0 != "true" { exit 1 }'
+jq -e -s --slurpfile budget "$ROOT/benchmarks/budgets.json" '
+  [ .[] as $sample
+    | $sample.commands | to_entries[]
+    | ($budget[0].p95_ms.small[.key] * (1 + $budget[0].regression_percent / 100)) as $limit
+    | select(.value.p95_ms > $limit)
+    | {platform: $sample.platform, command: .key, p95_ms: .value.p95_ms, limit_ms: $limit}
+  ] as $over
+  | if ($over | length) == 0 then true else error("Performance budget exceeded: " + ($over | tojson)) end
+' "$TMP_ROOT/result.json" "$ROOT/benchmarks/macos-x86_64-small.json" >/dev/null
 if [[ -n "${RELAY_PERFORMANCE_EVIDENCE_OUTPUT:-}" ]]; then
   test ! -e "$RELAY_PERFORMANCE_EVIDENCE_OUTPUT"
   cp "$TMP_ROOT/result.json" "$RELAY_PERFORMANCE_EVIDENCE_OUTPUT"
